@@ -107,7 +107,11 @@ apex-quant/
 │   ├── strategy/
 │   │   ├── base_strategy.py   ✅ BaseStrategy (ABC) + StrategyContext
 │   │   ├── indicators.py      🔲 SMA/EMA/RSI/MACD/BB/ATR, tested (Phase 3)
-│   │   └── library/           🔲 Concrete strategies live here (Phase 3+)
+│   │   └── library/           🔲 Concrete strategies (specs written, impl pending)
+│   │       ├── dual_momentum.py        📋 spec'd — THE ANCHOR (build first)
+│   │       ├── rsi2_mean_reversion.py  📋 spec'd — tactical complement
+│   │       ├── rsi2_vol_filtered.py    📋 spec'd — the improvement
+│   │       └── etf_rotation.py         📋 spec'd — the diversifier
 │   ├── risk/
 │   │   ├── risk_manager.py    ✅ RiskManager + RiskConfig (the gatekeeper)
 │   │   └── portfolio.py       🔲 Position/cash/equity/drawdown tracker (Phase 4)
@@ -173,6 +177,13 @@ check, so the system self-regulates.
 ---
 
 ## Building New Strategies (the safe, repeatable pattern)
+
+**Before building any strategy, read `docs/STRATEGY_PLAYBOOK.md`.** It contains
+the researched, documented starter strategies (Dual Momentum, RSI(2) mean
+reversion, vol-filtered RSI(2), ETF rotation), what this architecture is good and
+bad at, the alpha-decay lessons, and the backtest validation gates every strategy
+must clear. The four starters already have spec stubs in `apex/strategy/library/`
+with full rules in their docstrings — implement those before inventing new ones.
 
 A strategy is the ONLY thing you'll add frequently. Every strategy:
 1. Subclasses `BaseStrategy`.

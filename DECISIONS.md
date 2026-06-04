@@ -6,6 +6,37 @@
 
 ---
 
+## Session 0.5 — Strategy Research & Starter Specs
+
+**What was added:**
+- `docs/STRATEGY_PLAYBOOK.md` — researched strategy guidance (June 2026).
+- Four spec'd strategy stubs in `apex/strategy/library/` with full rules in
+  docstrings: `dual_momentum.py`, `rsi2_mean_reversion.py`,
+  `rsi2_vol_filtered.py`, `etf_rotation.py`. All raise NotImplementedError until
+  built in Phase 3.
+
+**Key decisions (grounded in research):**
+- **This architecture's lane = low-frequency, daily-or-slower, rules-based
+  strategies harvesting documented risk premia.** NOT HFT/scalping/market-making
+  (no latency edge; we'd be retail order-flow fodder).
+- **Build order: Dual Momentum first.** Lowest turnover, fewest params, monthly
+  rebalance, built-in absolute-momentum drawdown switch. Then RSI(2) as the
+  complementary tactical sleeve (capped 15-25% of capital).
+- **Run momentum + mean-reversion together** — uncorrelated edges smooth the
+  equity curve (they win in different regimes).
+- **Alpha decay is assumed, not hoped against.** Strategy Lifecycle: quarantine
+  any strategy whose live Sharpe < 70% of backtest Sharpe for 30 days.
+- **Backtest validation gates mandatory** (Sharpe ≥1.0, walk-forward OOS ≥70% of
+  in-sample, max DD ≤25%, ≥50 trades, profit factor ≥1.3, survives slippage).
+  Enforced in code.
+- **Honest baseline acknowledged:** ~90% of retail algos fail year one; ~80% of
+  good-backtest strategies fail live. Edge = discipline + survival, enforced by
+  the RiskManager + 30-day paper gate.
+
+**Next:** Phase 1 finish — `event_bus.py` + `clock.py` + model/event tests.
+
+---
+
 ## Session 0 — Framework Foundation (initial scaffold)
 
 **What was built:**

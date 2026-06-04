@@ -20,6 +20,7 @@ from typing import Optional
 class AssetClass(str, Enum):
     """Supported asset classes. The core treats them uniformly."""
     EQUITY = "equity"
+    ETF = "etf"
     CRYPTO = "crypto"
     FUTURE = "future"
     FOREX = "forex"
