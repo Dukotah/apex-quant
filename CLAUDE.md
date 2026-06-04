@@ -101,9 +101,9 @@ apex-quant/
 │   │   └── clock.py           🔲 Time abstraction: real vs simulated (Phase 1)
 │   ├── data/
 │   │   ├── base_feed.py       ✅ BaseDataFeed (ABC)
-│   │   ├── historical_feed.py 🔲 CSV/Parquet replay for backtest (Phase 2)
-│   │   ├── alpaca_feed.py     🔲 Live/paper data via Alpaca (Phase 2)
-│   │   └── normalizer.py      🔲 Raw → Bar/Tick conversion (Phase 2)
+│   │   ├── historical_feed.py ✅ CSV/Parquet replay for backtest (Phase 2)
+│   │   ├── alpaca_feed.py     ✅ Live/paper data via Alpaca (injectable fetcher)
+│   │   └── normalizer.py      ✅ Raw → Bar/Tick conversion (tested)
 │   ├── strategy/
 │   │   ├── base_strategy.py   ✅ BaseStrategy (ABC) + StrategyContext
 │   │   ├── indicators.py      🔲 SMA/EMA/RSI/MACD/BB/ATR, tested (Phase 3)
@@ -122,15 +122,15 @@ apex-quant/
 │   │   └── gauntlet.py        ✅ 7-gate orchestrator + grading (tested)
 │   └── execution/
 │       ├── base_execution.py  ✅ BaseExecutionEngine (ABC)
-│       ├── simulated.py       🔲 Paper fills w/ slippage + commission (Phase 5)
-│       ├── alpaca.py          🔲 Live Alpaca execution (Phase 5)
-│       ├── factory.py         🔲 MODE flag → right engine (Phase 5)
-│       └── engine.py          🔲 Main orchestration loop (Phase 5)
+│       ├── simulated.py       ✅ Paper fills w/ slippage + commission
+│       ├── alpaca.py          ✅ Live Alpaca execution (injectable BrokerClient)
+│       ├── factory.py         ✅ MODE flag → right engine (paper+live wired)
+│       └── engine.py          ✅ Main orchestration loop
 ├── tests/                     🔲 pytest suite, mirrors apex/ structure
 ├── config/                    ← YAML strategy/risk configs
 ├── docs/                      ← Phase specs and reference
 ├── scripts/
-│   └── run_once.py            🔲 Entry point the cron runner calls (Phase 5)
+│   └── run_once.py            ✅ Entry point the cron runner calls (tested)
 └── .github/workflows/
     └── trade.yml              ✅ Free 24/7 scheduled runner (GitHub Actions cron)
 ```
@@ -206,13 +206,19 @@ use wall-clock time, or use unseeded randomness.
 
 ## Current Build Status
 
-See `ROADMAP.md` for the full plan. Quick status:
+See `ROADMAP.md` for the full plan. Quick status (**336 tests passing**):
 
-- **Phase 1 (Core):** Models, events, config ✅. Event bus + clock 🔲.
-- **Phase 2 (Data):** Base class ✅. Concrete feeds 🔲.
-- **Phase 3 (Strategy):** Base class ✅. Indicators + first strategy 🔲.
-- **Phase 4 (Risk):** RiskManager ✅ (tested). Portfolio tracker 🔲.
-- **Phase 5 (Execution):** Base class ✅. Simulated + Alpaca + engine loop 🔲.
+- **Phase 1 (Core):** Models, events, config, event bus, clock ✅.
+- **Phase 2 (Data):** Base, historical feed, Alpaca feed, normalizer ✅.
+- **Phase 3 (Strategy):** Base, indicators, 4 library strategies + SMA ref ✅.
+- **Phase 4 (Risk):** RiskManager (reduce-aware) + Portfolio ✅.
+- **Phase 5 (Execution):** Simulated + Alpaca execution, factory (paper+live),
+  engine loop, backtester, `run_once` cron cycle ✅.
+
+All five phases are code-complete and tested offline. The only remaining work
+needs real infrastructure: verify the Alpaca adapters against live **paper keys**,
+wire the GitHub Actions cron, then run the mandatory 30-day paper gate (rule 17)
+before any live capital. See `DECISIONS.md` Session 5.
 
 ---
 

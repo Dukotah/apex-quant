@@ -40,9 +40,9 @@ all model validation tests pass (bad bars rejected, etc.).
 |--------|------|--------|
 | Base feed | `apex/data/base_feed.py` | ✅ |
 | Historical replay (CSV/Parquet) | `apex/data/historical_feed.py` | ✅ |
-| Alpaca live/paper feed | `apex/data/alpaca_feed.py` | 🔲 |
-| Source normalizer | `apex/data/normalizer.py` | 🔲 |
-| Tests | `tests/test_historical_feed.py` | ✅ |
+| Alpaca live/paper feed | `apex/data/alpaca_feed.py` | ✅ (DI seam; 15 tests) |
+| Source normalizer | `apex/data/normalizer.py` | ✅ (24 tests) |
+| Tests | `tests/test_historical_feed.py`, `tests/test_alpaca_feed.py`, `tests/test_normalizer.py` | ✅ |
 
 **Historical feed:** reads a CSV/Parquet of OHLCV, yields MarketEvents in strict
 chronological order, then stops (ending the backtest). Handles multiple symbols
@@ -113,12 +113,12 @@ malformed input.
 |--------|------|--------|
 | Base execution | `apex/execution/base_execution.py` | ✅ |
 | Simulated execution | `apex/execution/simulated.py` | ✅ |
-| Alpaca execution | `apex/execution/alpaca.py` | 🔲 |
-| Execution factory | `apex/execution/factory.py` | ✅ |
+| Alpaca execution | `apex/execution/alpaca.py` | ✅ (DI seam; 17 tests) |
+| Execution factory | `apex/execution/factory.py` | ✅ (paper+live Alpaca wired) |
 | Main engine loop | `apex/execution/engine.py` | ✅ |
-| Backtester + Gauntlet runner | `apex/backtest/` | ✅ (new) |
-| Run-once entry point | `scripts/run_once.py` | 🔲 (have `scripts/run_backtest.py`) |
-| Integration tests | `tests/test_engine.py`, `tests/test_backtester.py` | ✅ |
+| Backtester + Gauntlet runner | `apex/backtest/` | ✅ |
+| Run-once entry point | `scripts/run_once.py` | ✅ (cron cycle; 6 tests) |
+| Integration tests | `tests/test_engine.py`, `tests/test_backtester.py`, `tests/test_alpaca_execution.py`, `tests/test_run_once.py` | ✅ |
 
 **Simulated execution:** models fills using next-bar-open + configurable slippage
 + commission. Powers backtest and paper-fill simulation. Deterministic.

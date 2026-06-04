@@ -6,6 +6,82 @@
 
 ---
 
+## Session 5 — The live path: normalizer + Alpaca feed + Alpaca execution + run_once
+
+**Context:** the user explicitly overrode the one-module-per-session Golden Rule
+(as in Session 2) to finish ALL four remaining 🔲 modules in one sweep and get the
+repo onto GitHub. The Session 4 blocker was "the live modules need the Alpaca SDK
++ keys + network, so they can't be built test-first offline." Resolved by a
+dependency-injection pattern: isolate every SDK/network call behind one injectable
+seam per module, so all *logic* is unit-tested offline with fakes and only a thin,
+documented adapter needs live verification. Tests **336 passing** (was 273, +63).
+
+**What was built:**
+- `apex/data/normalizer.py` (+24 tests) — the single raw→Bar/Tick translation
+  boundary. UTC timestamps (datetime/ISO/Zulu/epoch s+ms), Decimal money via
+  `str()`, dict rows + SDK attribute objects. Pure/offline; fails loud so callers
+  choose skip-or-abort. Both feeds normalize through it.
+- `apex/data/alpaca_feed.py` (+15 tests) — on-demand real OHLCV for the cron model:
+  fetch a finite [start,end] window, normalize + sort, replay as the SAME
+  MarketEvent stream the engine already drives (so one engine runs backtest AND
+  live). SDK call isolated behind an injectable `bar_fetcher`; retry/backoff, gap
+  detection, bad-bar skipping, lookback trimming all tested offline.
+- `apex/execution/alpaca.py` (+17 tests) — real order submission, fail-safe by
+  construction. Idempotent submits (stable `client_order_id`, broker is source of
+  truth — no double-send on a re-fired cron); **broker-truth fills** (only the
+  quantity/price the broker confirms is booked, never an estimate); partial fills;
+  fill polling with injected backoff; disconnect = safe mode (cancel working
+  orders); startup position reconciliation. SDK behind an injectable `BrokerClient`.
+- `apex/execution/factory.py` — wired paper→AlpacaExecutionEngine(paper=True),
+  live→AlpacaExecutionEngine(paper=False). The paper/live switch is now real.
+- `scripts/run_once.py` (+6 tests) — the cron entry point. ONE cycle: build from
+  config → reconcile broker truth into the portfolio → fetch recent window → warm
+  strategies, act only on the LATEST bar's signals → risk-evaluate (exits first) →
+  submit → persist to SQLite (stdlib `StateStore`) → exit. Fully injectable; the
+  whole cycle runs offline against the simulator.
+
+**Key decisions:**
+- **Dependency injection is how we satisfy Golden Rule 12 for live code.** Each
+  live module takes an injectable seam (`bar_fetcher` / `BrokerClient` / the whole
+  collaborator set in run_once). Logic is 100% tested with fakes; the real adapter
+  is a tiny `# pragma: no cover` wrapper verified in paper, not CI.
+- **Broker-truth fills (the most important safety call).** A live FillEvent is
+  emitted ONLY from the broker's reported `filled_qty`/`filled_avg_price`. If an
+  order is still working when the cron process exits, NO fill is booked — the next
+  run's reconciliation reflects reality. This preserves backtest/live parity: a
+  position changes only on a confirmed fill, never an optimistic local guess.
+- **Idempotency via the OrderEvent id.** Each order's stable `event_id` becomes the
+  Alpaca `client_order_id`; we check the broker for it before submitting, so a
+  re-fired cron run can never double-submit. The broker, not our memory, is truth.
+- **Cron model, not a daemon.** run_once fetches a finite window and acts on the
+  latest bar — no always-on websocket. A market order placed now fills at the next
+  print (≈ next open), so there is no look-ahead and no long-running process to
+  babysit. Matches the free GitHub Actions runner.
+- **Reconciliation seeds the portfolio via the public fill API** (synthetic fill at
+  the broker's avg entry → equity unchanged at seed, then marked to market on
+  replay). No new portfolio mutation surface; the frozen Portfolio is untouched.
+- **Bug caught by the integration test:** run_once initially appended fills to the
+  report but never called `portfolio.on_fill` — the risk loop wasn't closed. Fixed
+  the fill handler to book into the portfolio AND record. Exactly why the cycle is
+  tested end-to-end, not just unit-tested.
+
+**Verified:** full suite 336 passing in ~3.4s. The paper/live switch is now a pure
+config change end to end (`APEX_MODE`/`APEX_BROKER`), with the live broker behind
+tested fail-safes.
+
+**Next (needs real infra — the honest remaining work):**
+- Drop in real Alpaca **paper keys** and run `python -m scripts.run_once`
+  (APEX_MODE=paper, APEX_BROKER=alpaca) to verify the live adapters against the
+  real SDK end to end. This is the only part the offline tests can't cover.
+- Wire the GitHub Actions cron (`.github/workflows/trade.yml`) to call run_once on
+  a schedule once paper keys are in repo secrets.
+- Begin the **30-day paper-trading gate** (CLAUDE.md rule 17) before any live
+  capital, with the DriftMonitor watching for alpha decay.
+- Revisit Gate 1's `MIN_TRADES=50` (Session 2 finding) so low-turnover dual
+  momentum is graded fairly.
+
+---
+
 ## Session 4 — File → Gauntlet bridge (validate on real history)
 
 **What was built (+1 test → 273 total):**
