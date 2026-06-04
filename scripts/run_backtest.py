@@ -42,7 +42,8 @@ SLEEVE_RISK = RiskConfig(
     max_position_size_pct=Decimal("1.0"),
     max_total_exposure_pct=Decimal("1.0"),
     max_leverage=Decimal("1.0"),
-    max_drawdown_pct=Decimal("0.99"),   # let the Gauntlet measure the raw curve
+    max_drawdown_pct=Decimal("0.99"),     # let the Gauntlet measure the raw curve
+    max_daily_loss_pct=Decimal("0.99"),   # don't let the daily breaker distort Sharpe
     require_stop_loss=True,
 )
 

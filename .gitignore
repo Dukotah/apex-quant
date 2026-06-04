@@ -22,5 +22,8 @@ venv/
 state/*.tmp
 logs/*.tmp
 
+# downloaded market data — regenerable via scripts/fetch_yahoo.py, don't commit
+data/real/
+
 # os
 .DS_Store
