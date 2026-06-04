@@ -18,15 +18,23 @@ name: Apex Quant — Scheduled Trading Run
 
 on:
   schedule:
-    # Every 30 min, Mon-Fri, 14:00-20:00 UTC (covers most of the session).
+    # Once per weekday at 19:50 UTC (~3:50pm ET, just before the close) — the
+    # right cadence for the DAILY-bar strategies currently deployed (dual
+    # momentum rebalances monthly off daily closes). run_once is idempotent, so a
+    # missed/duplicate fire is harmless. For an intraday strategy, switch to a
+    # market-hours sweep, e.g. cron: '0,30 14-20 * * 1-5'.
     # GitHub cron granularity is ~5 min minimum and not guaranteed exact.
-    - cron: '0,30 14-20 * * 1-5'
+    - cron: '50 19 * * 1-5'
   workflow_dispatch:        # allows manual "Run workflow" button for testing
 
 # Prevent overlapping runs — if one is still going, skip the next.
 concurrency:
   group: apex-trading-run
   cancel-in-progress: false
+
+# The state commit-back step pushes the updated SQLite trail to the repo.
+permissions:
+  contents: write
 
 jobs:
   trade:
@@ -61,11 +69,18 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Safety check — confirm mode
+      - name: Safety check — confirm mode + credentials present
         run: |
           echo "Running in mode: $APEX_MODE via broker: $APEX_BROKER"
           if [ "$APEX_MODE" = "live" ]; then
             echo "::warning::LIVE TRADING MODE — real money is at risk."
+          fi
+          # Fail fast with a clear message if keys aren't configured, rather than
+          # letting every scheduled run crash deep in the Alpaca client.
+          if [ "$APEX_BROKER" = "alpaca" ] && { [ -z "$ALPACA_API_KEY" ] || [ -z "$ALPACA_SECRET_KEY" ]; }; then
+            echo "::error::ALPACA_API_KEY / ALPACA_SECRET_KEY are not set. Add them in"
+            echo "::error::repo Settings → Secrets and variables → Actions before scheduling."
+            exit 1
           fi
 
       - name: Run one trading cycle
