@@ -49,6 +49,15 @@ logger = logging.getLogger(__name__)
 _TERMINAL_STATUSES = frozenset({"filled", "canceled", "cancelled", "rejected", "expired", "done_for_day"})
 
 
+def _status_str(status: object) -> str:
+    """
+    Normalize an order status to a lowercase string. Alpaca returns an
+    ``OrderStatus`` enum whose ``str()`` is ``'OrderStatus.FILLED'``, not
+    ``'filled'`` — so read ``.value`` when present (plain strings pass through).
+    """
+    return str(getattr(status, "value", status)).lower()
+
+
 class BrokerClient(Protocol):
     """
     The minimal broker surface AlpacaExecutionEngine depends on. The real
@@ -227,7 +236,7 @@ class AlpacaExecutionEngine(BaseExecutionEngine):
         """Poll the broker for a terminal/filled state, up to the configured budget."""
         order = self._client.get_order(broker_order_id)  # type: ignore[union-attr]
         for attempt in range(self._fill_poll_attempts):
-            status = str(getattr(order, "status", "")).lower()
+            status = _status_str(getattr(order, "status", ""))
             filled_qty = Decimal(str(getattr(order, "filled_qty", "0") or "0"))
             if status in _TERMINAL_STATUSES or filled_qty > 0:
                 return order

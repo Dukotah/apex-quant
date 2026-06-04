@@ -143,6 +143,26 @@ def test_poll_pending_then_filled_emits_fill():
     assert 1.0 in sleeps             # polled with the default interval at least once
 
 
+def test_enum_valued_status_is_detected_as_terminal():
+    # Real alpaca-py returns an OrderStatus enum, not a plain string. _status_str
+    # must read .value so a canceled order (filled_qty 0) is seen as terminal and
+    # polling stops immediately instead of burning the whole budget.
+    class _EnumStatus:
+        value = "canceled"
+
+    class EnumOrder(FakeOrder):
+        def __init__(self):
+            super().__init__("BRK-1", _EnumStatus(), "0", None)
+
+    broker = FakeBroker([EnumOrder()])
+    sleeps = []
+    eng = AlpacaExecutionEngine(broker_client=broker, on_fill=lambda f: None,
+                                sleep=sleeps.append, fill_poll_attempts=3)
+    eng.connect()
+    eng.submit_order(_order())
+    assert sleeps == []          # terminal on first poll → no backoff sleeps
+
+
 def test_filled_qty_without_avg_price_skips_fill():
     broker = FakeBroker([FakeOrder("BRK-1", "filled", "10", None)])
     eng, fills = _engine(broker)
