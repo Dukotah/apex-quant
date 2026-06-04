@@ -152,8 +152,19 @@ def test_factory_backtest_returns_simulated():
     assert engine.is_paper
 
 
-def test_factory_live_raises():
-    cfg = AppConfig(mode=ExecutionMode.LIVE, broker=Broker.ALPACA)
+def test_factory_live_alpaca_builds_live_engine():
+    # Live Alpaca execution is now built — the factory returns the live (non-paper)
+    # engine. (Constructing it does not touch the SDK; connect() would.)
+    from apex.execution.alpaca import AlpacaExecutionEngine
+    cfg = AppConfig(mode=ExecutionMode.LIVE, broker=Broker.ALPACA,
+                    alpaca_key="k", alpaca_secret="s")
+    engine = make_execution_engine(cfg)
+    assert isinstance(engine, AlpacaExecutionEngine)
+    assert engine.is_paper is False
+
+
+def test_factory_live_unbuilt_broker_raises():
+    cfg = AppConfig(mode=ExecutionMode.LIVE, broker=Broker.IBKR)
     try:
         make_execution_engine(cfg)
         assert False, "expected NotImplementedError"
