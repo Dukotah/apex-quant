@@ -6,6 +6,38 @@
 
 ---
 
+## Session 1 — Phase 1 complete + indicators + first strategy
+
+**What was built (all tested — 79 tests total passing):**
+- `apex/core/event_bus.py` — central FIFO queue + pub/sub. Thread-safe, never
+  drops events, fails loud (re-raises handler errors after running all handlers).
+- `apex/core/clock.py` — `Clock` ABC, `RealClock` (wall UTC), `SimulatedClock`
+  (backtest, enforces monotonicity — time can't go backward).
+- `apex/strategy/indicators.py` — SMA, EMA, RSI (Wilder), MACD, Bollinger Bands,
+  ATR, rolling_return, crosses_above/below. Same-length output, None during
+  warmup, deterministic. Verified against hand-computed values.
+- `apex/strategy/library/sma_crossover.py` — first COMPLETE working strategy.
+  Validates the whole pipeline: bars → indicator → SignalEvent. Long/flat with
+  suggested stop. Self-contained price buffer, fully unit-tested.
+
+**Key decisions:**
+- Indicators work in float internally (speed, comparative) while money math stays
+  Decimal elsewhere.
+- Clock monotonicity enforced — out-of-order bars raise, never silently corrupt.
+- Event bus fails loud — a raising subscriber doesn't get swallowed.
+- Strategies keep their own price buffer (testable in isolation). SMA crossover
+  is the template shape for all future strategies.
+- SMA crossover is a pipeline test / teaching example, NOT a deploy target.
+
+**Status:** Phase 1 DONE. Phase 3 indicators + reference strategy DONE. Vertical
+slice works end-to-end (data → strategy → risk → validation).
+
+**Next (dependency order):** historical_feed.py (Phase 2) → portfolio.py (Phase 4)
+→ simulated execution + engine + backtester (Phase 5, activates remaining Gauntlet
+gates) → implement real strategies (dual_momentum first) → run full Gauntlet.
+
+---
+
 ## Session 0.6 — The Validation Gauntlet (the differentiator)
 
 **What was built (all tested, 28 tests passing):**
