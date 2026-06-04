@@ -22,6 +22,57 @@ def _warn(name):
     return G.GateResult(name, GateStatus.WARN, "meh", is_hard_gate=False)
 
 
+def _flat_equity(n: int) -> list[float]:
+    """A gently rising equity curve (Sharpe>1, small DD) so only the trade-count gate can bite."""
+    return [100.0 * (1.003 ** i) for i in range(n)]
+
+
+# ----------------------------------------------------- regime-aware min trades
+
+def test_regime_aware_daily_uses_full_bar():
+    assert G.regime_aware_min_trades(1000, rebalance_period_bars=1) == G.MIN_TRADES
+    assert G.regime_aware_min_trades(1000) == G.MIN_TRADES        # default period
+
+
+def test_regime_aware_short_window_caps_at_opportunities():
+    # 2 years of daily bars, monthly cadence → ~24 rebalance opportunities < 50.
+    m = G.regime_aware_min_trades(504, rebalance_period_bars=21)
+    assert m == 504 // 21                                          # 24, the cap
+    assert G.MIN_TRADES_FLOOR <= m < G.MIN_TRADES
+
+
+def test_regime_aware_never_below_floor():
+    # Tiny window: opportunities (4) would be below the credibility floor.
+    assert G.regime_aware_min_trades(90, rebalance_period_bars=21) == G.MIN_TRADES_FLOOR
+
+
+def test_regime_aware_long_window_keeps_full_bar():
+    # 16 years monthly → ~190 opportunities ≥ 50, so the full bar still applies.
+    assert G.regime_aware_min_trades(4000, rebalance_period_bars=21) == G.MIN_TRADES
+
+
+def test_gate1_relaxed_minimum_lets_low_freq_pass():
+    eq = _flat_equity(300)
+    trades = [0.02, -0.01, 0.03, 0.015, -0.005] * 5    # 25 trades, all the gate needs
+    # With the default 50-trade bar this FAILs purely on count...
+    strict = G.evaluate_gate1_in_sample(eq, trades)
+    assert strict.status == GateStatus.FAIL
+    assert "trades<50" in strict.detail
+    # ...but a cadence-aware minimum of 24 lets it through.
+    relaxed = G.evaluate_gate1_in_sample(eq, trades, min_trades=24)
+    assert relaxed.status == GateStatus.PASS
+    assert "relaxed to 24" in relaxed.detail
+
+
+def test_gate1_relaxed_bar_still_enforces_other_checks():
+    # Even with a low trade bar, a poor Sharpe must still FAIL the gate.
+    flat = [100.0] * 100                                # zero return → Sharpe ~0
+    trades = [0.0] * 25
+    res = G.evaluate_gate1_in_sample(flat, trades, min_trades=20)
+    assert res.status == GateStatus.FAIL
+    assert "Sharpe" in res.detail
+
+
 def test_all_pass_grades_A():
     gates = [_pass(f"Gate {i}") for i in range(1, 6)] + [
         _pass("Gate 6", hard=False), _pass("Gate 7", hard=False)

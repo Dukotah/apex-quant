@@ -84,17 +84,55 @@ class GauntletReport:
 MIN_IN_SAMPLE_SHARPE = 1.0
 MAX_DRAWDOWN_LIMIT = 0.25
 MIN_TRADES = 50
+MIN_TRADES_FLOOR = 20      # below this a Sharpe is not statistically credible, period
 MIN_PROFIT_FACTOR = 1.3
 OOS_SHARPE_RATIO_FLOOR = 0.70        # OOS Sharpe must be >= 70% of in-sample
 COST_STRESS_SHARPE_FLOOR = 0.50      # must stay > 0.5 Sharpe at 2x cost
 MAX_BENCHMARK_CORRELATION = 0.50
 
 
+def regime_aware_min_trades(
+    num_bars: int,
+    rebalance_period_bars: int = 1,
+    default: int = MIN_TRADES,
+) -> int:
+    """
+    A fair trade-count minimum for Gate 1, scaled to how many rebalance
+    opportunities the test window actually permits.
+
+    A daily strategy (period = 1) faces the full ``default`` bar. A monthly
+    strategy (period ≈ 21) tested over a window too short to *physically* allow
+    ``default`` rebalances cannot produce that many trades — failing it for the
+    arithmetic of the calendar, not for lack of edge, is the bug this fixes. The
+    minimum is therefore capped at the number of rebalance opportunities in the
+    window, but never drops below ``MIN_TRADES_FLOOR`` (below which a Sharpe is
+    not statistically credible regardless of cadence).
+
+    Scope: this corrects the WINDOW-vs-CADENCE mismatch only. It does NOT lower
+    the bar for a low-TURNOVER strategy over a LONG window (where opportunities
+    ≥ default but the strategy rarely changes position). That — grading rotation
+    strategies on holding-period bets rather than round-trips — is a separate,
+    still-open design question (see DECISIONS.md).
+    """
+    if rebalance_period_bars <= 1:
+        return default
+    opportunities = num_bars // rebalance_period_bars
+    return max(MIN_TRADES_FLOOR, min(default, opportunities))
+
+
 def evaluate_gate1_in_sample(
     in_sample_equity: list[float],
     trade_returns: list[float],
+    *,
+    min_trades: int = MIN_TRADES,
 ) -> GateResult:
-    """Gate 1 — In-Sample Sanity. Does it even work on its own training data?"""
+    """
+    Gate 1 — In-Sample Sanity. Does it even work on its own training data?
+
+    ``min_trades`` is the required trade count (default ``MIN_TRADES``). Pass a
+    regime-aware value (see :func:`regime_aware_min_trades`) for low-frequency
+    strategies so they are not failed for a cadence the window can't accommodate.
+    """
     rets = metrics.returns_from_equity(in_sample_equity)
     sharpe = metrics.sharpe_ratio(rets)
     dd = metrics.max_drawdown(in_sample_equity)
@@ -106,16 +144,19 @@ def evaluate_gate1_in_sample(
         failures.append(f"Sharpe {sharpe:.2f}<{MIN_IN_SAMPLE_SHARPE}")
     if dd > MAX_DRAWDOWN_LIMIT:
         failures.append(f"DD {dd:.0%}>{MAX_DRAWDOWN_LIMIT:.0%}")
-    if n < MIN_TRADES:
-        failures.append(f"{n} trades<{MIN_TRADES}")
+    if n < min_trades:
+        failures.append(f"{n} trades<{min_trades}")
     if pf < MIN_PROFIT_FACTOR:
         failures.append(f"PF {pf:.2f}<{MIN_PROFIT_FACTOR}")
 
+    # Surface when the bar was lowered, so the report stays honest about it.
+    bar_note = "" if min_trades == MIN_TRADES else f" [min trades relaxed to {min_trades} for cadence]"
+
     if failures:
         return GateResult("Gate 1 In-Sample Sanity", GateStatus.FAIL,
-                          "; ".join(failures), is_hard_gate=True)
+                          "; ".join(failures) + bar_note, is_hard_gate=True)
     return GateResult("Gate 1 In-Sample Sanity", GateStatus.PASS,
-                      f"Sharpe {sharpe:.2f}, {n} trades, DD {dd:.0%}, PF {pf:.2f}",
+                      f"Sharpe {sharpe:.2f}, {n} trades, DD {dd:.0%}, PF {pf:.2f}" + bar_note,
                       is_hard_gate=True)
 
 

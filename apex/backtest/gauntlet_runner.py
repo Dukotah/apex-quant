@@ -88,6 +88,7 @@ def run_full_gauntlet(
     wf_train_bars: Optional[int] = None,
     wf_test_bars: Optional[int] = None,
     mc_iterations: int = 2000,
+    rebalance_period_bars: Optional[int] = None,
 ) -> Tuple[gauntlet.GauntletReport, GauntletInputs]:
     """
     Run all seven gates and return (report, inputs).
@@ -101,6 +102,11 @@ def run_full_gauntlet(
         benchmark_ticker: ticker used as the buy-and-hold benchmark (Gate 7).
         param_variants:  optional [(label, factory), ...] for the Gate 6 sweep
                          (e.g. lookback ±20%). If None, Gate 6 warns "no sweep".
+        rebalance_period_bars: the strategy's rebalance cadence in bars (e.g. ~21
+                         for a monthly strategy). When given, Gate 1's trade-count
+                         minimum is made regime-aware so a low-frequency strategy
+                         isn't failed for a cadence the window can't accommodate.
+                         None / 1 → the full MIN_TRADES bar (daily strategies).
     """
     days = _unique_days(events)
     n_days = len(days)
@@ -124,7 +130,10 @@ def run_full_gauntlet(
     oos_sharpe = metrics.sharpe_ratio(metrics.returns_from_equity(oos_eq))
 
     # ---- Gate 1: In-sample sanity (training period). ----
-    g1 = gauntlet.evaluate_gate1_in_sample(in_eq, in_trades)
+    # Make the trade-count minimum fair to the strategy's rebalance cadence over
+    # the in-sample window (a monthly strategy can't show 50 trades in 2 years).
+    g1_min_trades = gauntlet.regime_aware_min_trades(len(in_eq), rebalance_period_bars or 1)
+    g1 = gauntlet.evaluate_gate1_in_sample(in_eq, in_trades, min_trades=g1_min_trades)
 
     # ---- Gate 2: Out-of-sample holdout. ----
     g2 = gauntlet.evaluate_gate2_out_of_sample(in_sharpe, oos_sharpe)

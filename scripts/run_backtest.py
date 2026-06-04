@@ -67,7 +67,8 @@ def run_dual_momentum():
         return DualMomentumStrategy("dm", syms, "SPY", "EFA", "AGG", lookback_window=302)
 
     return run_full_gauntlet("dual_momentum_v1", factory, events, SLEEVE_RISK, "SPY",
-                             param_variants=[("lookback-20%", lo), ("lookback+20%", hi)])
+                             param_variants=[("lookback-20%", lo), ("lookback+20%", hi)],
+                             rebalance_period_bars=21)   # monthly cadence → fair Gate 1
 
 
 def run_rsi2():
