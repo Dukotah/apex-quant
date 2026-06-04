@@ -6,6 +6,67 @@
 
 ---
 
+## Session 6 — Real-data validation + live-infra prep (Milestones 1, 2a, 3 + first real edge test)
+
+**Context:** with the framework code-complete (Session 5), the user asked to push
+toward a finished *product*. Did everything achievable without the two user-only
+inputs (gh auth + Alpaca keys). Tests **343 passing** (was 336).
+
+**What was done:**
+- **M1 — Alpaca adapters verified against the real SDK.** Installed alpaca-py 0.43.4
+  and introspected it: all imports, TradingClient methods, request fields, enum
+  *values* (buy/sell, day/gtc/ioc/fok), and Order/Position/Account/BarSet shapes
+  match our adapters. **Caught one real bug:** Alpaca's `Order.status` is an
+  `OrderStatus` enum whose `str()` is `"OrderStatus.FILLED"`, not `"filled"`, so
+  terminal non-fill states (canceled/rejected) were never detected. Added
+  `_status_str` (reads `.value`). Fills were unaffected (they key off `filled_qty`).
+- **M3 — Cron hardened.** `.github/workflows/trade.yml` already called run_once
+  (written ahead of the stub); now that run_once is real, added `contents: write`
+  (state commit-back), a credentials preflight (clear failure when keys missing,
+  not a deep crash every fire), and set the schedule to once-per-weekday near the
+  close to match the daily-bar strategy (run_once is idempotent).
+- **M2a — Gate 1 regime-aware min-trades.** `regime_aware_min_trades(num_bars,
+  rebalance_period_bars)` caps the trade-count bar at the window's rebalance
+  opportunities (floored at MIN_TRADES_FLOOR=20). Fixes the window-vs-cadence
+  unfairness only; the report flags when the bar was relaxed.
+- **M2b — First validation on REAL data** (no keys): `scripts/fetch_yahoo.py`
+  (free adjusted-close OHLCV → feed-ready CSV) + `scripts/validate_real.py`.
+
+**The honest edge findings — SPY/EFA/AGG, 2011-06 → 2026-06 (15y, adjusted close):**
+- **dual_momentum: grade FAIL.** Full Sharpe **0.33** vs SPY **0.88**, max DD 44%,
+  16 in-sample trades. Momentum rotation into EFA/AGG *underperformed* buy-and-hold
+  SPY through the US-led bull market. (Gate 1 count check correctly stayed at 50 —
+  ~125 monthly opportunities in 15y ≥ 50 — so the M2a relaxation didn't fire; the
+  FAIL is real, on Sharpe + DD.)
+- **rsi2_mean_reversion: grade FAIL.** 127 trades, full Sharpe **0.33**, OOS 70% of
+  IS, **corr to SPY 0.03** (a genuine diversifier!), but Monte Carlo p=0.051 and
+  Sharpe collapses below costs at 2x slippage. A weak, non-robust signal.
+
+**Key decisions / findings:**
+- **Neither starter strategy is deployable as-is on real data.** This is a success
+  for the Gauntlet, not a failure of the project — mirages died in code, not in the
+  account. The product's value gate is now clearly "find a strategy that PASSES."
+- **Measurement bug fixed:** the single-strategy SLEEVE_RISK config relaxed the
+  drawdown halt but left the 2% daily-loss breaker on, repeatedly halting RSI2 and
+  distorting its raw-edge Sharpe. Relaxed `max_daily_loss_pct` for raw-edge runs
+  (in both validate_real.py and run_backtest.py). This is ONLY for measuring an
+  isolated strategy's edge — live multi-strategy capital keeps the real breakers.
+- **Data via Yahoo, not Stooq** (Stooq now requires an API key). fetch_yahoo uses
+  stdlib urllib + a User-Agent, skips null/holiday bars, prefers adjusted close.
+  Downloaded data is git-ignored (regenerable).
+
+**Next (unchanged blockers + new direction):**
+- **Find a real edge (the actual product work).** Both starters failed; candidates:
+  re-test dual momentum on a longer/different regime or a wider universe; try the
+  vol-filtered RSI2 / ETF-rotation starters on real data; explore the RSI2
+  diversification angle (corr 0.03) as a *sleeve* rather than standalone.
+- **User-only inputs still pending:** (1) `gh auth login` → push the now-15-commit
+  history to GitHub (still local-only, NOT backed up); (2) Alpaca **paper keys** →
+  run `python -m scripts.run_once` to verify the live adapters against the real SDK.
+- Then GitHub Actions secrets + the 30-day paper gate.
+
+---
+
 ## Session 5 — The live path: normalizer + Alpaca feed + Alpaca execution + run_once
 
 **Context:** the user explicitly overrode the one-module-per-session Golden Rule
