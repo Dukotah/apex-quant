@@ -6,6 +6,52 @@
 
 ---
 
+## Session 7 — Full edge hunt: every library strategy tested on real data → none pass
+
+**Goal:** find a strategy that PASSES the Gauntlet (the actual "product"). Tested all
+five library strategies on real Yahoo OHLCV across two windows, including bear markets.
+
+**Results (full-period Sharpe; benchmark SPY ≈ 0.67–0.88):**
+| strategy | window | Sharpe | DD | grade |
+|---|---|---|---|---|
+| dual_momentum | 2011–26 | 0.33 | 44% | FAIL |
+| dual_momentum | 2003–26 | 0.43 | 86% IS | FAIL |
+| rsi2_mean_reversion | 2011–26 | 0.33 | — | FAIL (corr 0.04) |
+| rsi2_vol_filtered | 2011–26 | 0.26 | 11% MC | FAIL (corr 0.01) |
+| etf_rotation | 2011–26 | 0.35 | 63% | FAIL (436 trades) |
+| spy_trend (20/200) | 2003–26 | 0.40 | 12% MC | FAIL |
+
+**Conclusion: NO library strategy has a deployable edge on real data.** All cluster at
+Sharpe 0.26–0.43, below the 1.0 bar; all fail Gate 5 (edge < 2× costs); most fail to
+beat buy-and-hold SPY. This is the expected ~80%-fail reality and a SUCCESS for the
+Gauntlet — it refused to bless mirages. Stopped iterating deliberately (further param
+tweaking = the overfitting the Gauntlet prevents).
+
+**Key findings / decisions:**
+- **2011–2026 was uniquely hard** for these strategies (US-large-cap bull, SPY Sharpe
+  0.88). Adding 2003–2026 (GFC + COVID) via daily history (fetch_yahoo `--start`,
+  period1/period2 to dodge Yahoo's monthly downsampling on range=max) did NOT rescue
+  them — dual momentum's IS drawdown ballooned to 86%.
+- **The RSI2 family genuinely diversifies** (corr to SPY 0.01–0.04) and passes Monte
+  Carlo — a weak but statistically-real signal. Useless standalone (sub-cost Sharpe),
+  but potentially valuable as a low-correlation SLEEVE on top of an SPY core. The
+  single-strategy Gauntlet can't score that; portfolio-level construction would.
+- **Open measurement issue — cash-drag Sharpe.** Long/flat tactical strategies (trend,
+  RSI2) sit in cash part of the time; those zero-return days dilute the Sharpe mean,
+  while always-invested SPY has none. This systematically understates tactical-strategy
+  Sharpe vs the benchmark. Fix candidates: park idle capital in a bond sleeve (earn
+  yield, not zeros), or annualize Sharpe over invested periods only. Worth doing before
+  concluding trend-following has no edge.
+
+**Next (genuine quant research — user's call on direction):**
+- Build/test mechanically-different strategies (vol-targeting, risk parity, carry,
+  factor tilts) rather than re-tweaking the five that failed.
+- Or pursue the portfolio angle: SPY core + low-corr RSI2 sleeve, scored at the
+  portfolio level (needs a multi-strategy backtest path).
+- Fix the cash-drag Sharpe artifact so tactical strategies are measured fairly.
+
+---
+
 ## Session 6 — Real-data validation + live-infra prep (Milestones 1, 2a, 3 + first real edge test)
 
 **Context:** with the framework code-complete (Session 5), the user asked to push
