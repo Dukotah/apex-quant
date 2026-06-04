@@ -6,6 +6,51 @@
 
 ---
 
+## Session 0.6 — The Validation Gauntlet (the differentiator)
+
+**What was built (all tested, 28 tests passing):**
+- `docs/VALIDATION_GAUNTLET.md` — full spec of the 7-gate validation system.
+- `apex/validation/metrics.py` — Sharpe, Sortino, max drawdown, profit factor,
+  Calmar, correlation, annualized return. Pure stdlib, hand-verified.
+- `apex/validation/monte_carlo.py` — Gate 4. Bootstrap + sign-randomized null
+  hypothesis. Distinguishes real edge from lucky sequence; outputs realistic
+  (95th-pct) drawdown to size around. Seeded/reproducible.
+- `apex/validation/walk_forward.py` — Gate 3. Rolling train/test windowing that
+  stitches out-of-sample test curves. Backtest fn injected (plugs into Phase 5).
+- `apex/validation/gauntlet.py` — orchestrator. All 7 gates + grading rubric
+  (A/B/C/FAIL) + auto-quarantine floor computation. Outputs an honest graded
+  report, never a profit promise.
+
+**Key decisions:**
+- **The Gauntlet is THE differentiator.** Not strategy cleverness — validation
+  rigor. Its job is to make overfitting expensive: mirages die cheaply in code,
+  not expensively in the live account.
+- **7 gates:** in-sample sanity, out-of-sample holdout, walk-forward, Monte
+  Carlo, cost stress, parameter sensitivity, benchmark/correlation. Gates 1-5 are
+  hard fails; 6-7 can only warn (a diversifier with mild param sensitivity can
+  still earn a place).
+- **Output is a confidence GRADE, not a profit promise.** Explicitly designed to
+  never claim profitability — only "if there's a real edge, we haven't fooled
+  ourselves; if not, we gave it every chance to expose itself."
+- **Size around the Monte Carlo realistic drawdown**, never the backtest's lucky
+  DD. This is baked into the report.
+- **Auto-quarantine floor = 70% of validated Sharpe.** The alpha-decay kill switch.
+- **Stdlib-only** (math/statistics/random) so it runs on the free CI runner with
+  no heavy installs.
+
+**Verified end-to-end:** a real edge passes all gates (grade A); an overfit
+mirage with in-sample Sharpe 7.12 gets killed at Gate 2 (OOS Sharpe collapses to
+12% of in-sample). Exactly the intended behavior.
+
+**What still needs Phase 5:** cost-stress and parameter-sweep gates have
+framework code but need the real backtester to feed them equity curves. Drift
+monitor (live-vs-backtest) still to build.
+
+**Next:** Phase 1 finish — `event_bus.py` + `clock.py`. Then the backtester
+(Phase 5) so the remaining gates activate against real strategy runs.
+
+---
+
 ## Session 0.5 — Strategy Research & Starter Specs
 
 **What was added:**

@@ -115,6 +115,11 @@ apex-quant/
 │   ├── risk/
 │   │   ├── risk_manager.py    ✅ RiskManager + RiskConfig (the gatekeeper)
 │   │   └── portfolio.py       🔲 Position/cash/equity/drawdown tracker (Phase 4)
+│   ├── validation/           ✅ THE GAUNTLET — see docs/VALIDATION_GAUNTLET.md
+│   │   ├── metrics.py         ✅ Sharpe/Sortino/DD/PF/correlation (tested)
+│   │   ├── monte_carlo.py     ✅ Gate 4: edge-vs-luck test (tested)
+│   │   ├── walk_forward.py    ✅ Gate 3: rolling OOS validation
+│   │   └── gauntlet.py        ✅ 7-gate orchestrator + grading (tested)
 │   └── execution/
 │       ├── base_execution.py  ✅ BaseExecutionEngine (ABC)
 │       ├── simulated.py       🔲 Paper fills w/ slippage + commission (Phase 5)
