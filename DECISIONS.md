@@ -55,15 +55,28 @@ inputs (gh auth + Alpaca keys). Tests **343 passing** (was 336).
   stdlib urllib + a User-Agent, skips null/holiday bars, prefers adjusted close.
   Downloaded data is git-ignored (regenerable).
 
-**Next (unchanged blockers + new direction):**
-- **Find a real edge (the actual product work).** Both starters failed; candidates:
-  re-test dual momentum on a longer/different regime or a wider universe; try the
-  vol-filtered RSI2 / ETF-rotation starters on real data; explore the RSI2
-  diversification angle (corr 0.03) as a *sleeve* rather than standalone.
-- **User-only inputs still pending:** (1) `gh auth login` → push the now-15-commit
-  history to GitHub (still local-only, NOT backed up); (2) Alpaca **paper keys** →
-  run `python -m scripts.run_once` to verify the live adapters against the real SDK.
-- Then GitHub Actions secrets + the 30-day paper gate.
+**RESOLVED later in Session 6 — went live on paper:**
+- ✅ **Backed up to GitHub** (private repo Dukotah/apex-quant) via gh device-flow auth.
+- ✅ **Live path verified against the real Alpaca paper API** (locally): the adapters
+  fetched 1041 real IEX bars (0 skipped/gaps), reconciled the account, and the cycle
+  exited clean. Fixed one cosmetic bug (cp1252 console crashed on '→' in the summary).
+- ✅ **GitHub Actions secrets + variables set** (ALPACA_API_KEY/SECRET, APEX_MODE=paper,
+  APEX_BROKER=alpaca) via `gh secret/variable set`.
+- ✅ **Cron verified GREEN end-to-end in the GitHub runner** (workflow_dispatch): install
+  → credentials preflight → run_once against Alpaca paper → state committed back. The
+  scheduled runner now fires every weekday 19:50 UTC. **The 30-day paper gate clock has
+  effectively started.**
+
+**Next (the remaining real work):**
+- **Find a real edge.** Both starters FAIL on real data. Candidates: re-test dual
+  momentum on a different regime / wider universe; run the vol-filtered RSI2 and
+  ETF-rotation starters on real data; explore RSI2's near-zero SPY correlation (0.03)
+  as a diversifying *sleeve* rather than a standalone strategy.
+- **Let the paper cron run ~30 days** and watch with the DriftMonitor before any live
+  capital (CLAUDE.md rule 17). Do NOT flip APEX_MODE=live until a strategy has both
+  passed the Gauntlet AND proven on paper.
+- Minor: bump actions/checkout + setup-python for the Node20→24 deprecation (warning
+  only, non-blocking).
 
 ---
 
