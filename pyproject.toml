@@ -1,0 +1,30 @@
+[project]
+name = "apex-quant"
+version = "0.1.0"
+description = "Event-driven, asset-agnostic algorithmic trading framework with immutable risk guardrails"
+requires-python = ">=3.11"
+readme = "README.md"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP", "B"]
+ignore = ["E501"]   # line length handled by formatter
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false   # tighten over time
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-v --tb=short"
+
+[tool.coverage.run]
+source = ["apex"]
+omit = ["*/tests/*", "*/__init__.py"]

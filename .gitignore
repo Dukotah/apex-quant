@@ -1,0 +1,26 @@
+# secrets — NEVER COMMIT
+.env
+.env.local
+*.key
+*.pem
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+.venv/
+venv/
+
+# state is committed by the bot intentionally, but ignore local scratch
+state/*.tmp
+logs/*.tmp
+
+# os
+.DS_Store

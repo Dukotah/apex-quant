@@ -1,0 +1,93 @@
+name: Apex Quant — Scheduled Trading Run
+
+# ============================================================
+# FREE 24/7 RUNNER (GitHub Actions cron)
+# ============================================================
+# This workflow runs the trading engine on a schedule using
+# GitHub's free Actions minutes (unlimited on public repos).
+#
+# IMPORTANT: This is for SCHEDULED runs (wake → evaluate → exit),
+# NOT an infinite loop. GitHub's terms prohibit using Actions as
+# an always-on server. For true 24/7 persistent processes, use an
+# Oracle Cloud Always-Free VM instead (see docs/HOSTING.md).
+#
+# Schedule below runs every 30 minutes during US market hours.
+# Adjust the cron to match your strategy's timeframe.
+# All cron times are UTC. US market: 13:30-20:00 UTC (9:30am-4pm ET).
+# ============================================================
+
+on:
+  schedule:
+    # Every 30 min, Mon-Fri, 14:00-20:00 UTC (covers most of the session).
+    # GitHub cron granularity is ~5 min minimum and not guaranteed exact.
+    - cron: '0,30 14-20 * * 1-5'
+  workflow_dispatch:        # allows manual "Run workflow" button for testing
+
+# Prevent overlapping runs — if one is still going, skip the next.
+concurrency:
+  group: apex-trading-run
+  cancel-in-progress: false
+
+jobs:
+  trade:
+    name: Run one trading cycle
+    runs-on: ubuntu-latest
+    timeout-minutes: 10     # safety: never let a run hang and burn minutes
+
+    # Default MODE is paper. Change repo variable APEX_MODE to go live
+    # (and only after 30+ days of proven paper results).
+    env:
+      APEX_MODE: ${{ vars.APEX_MODE || 'paper' }}
+      APEX_BROKER: ${{ vars.APEX_BROKER || 'alpaca' }}
+      # Secrets are set in repo Settings → Secrets and variables → Actions.
+      # NEVER hardcode these. Paper keys are safe; live keys gate real money.
+      ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
+      ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+      # Optional: free push notifications via ntfy.sh (no account needed).
+      NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Safety check — confirm mode
+        run: |
+          echo "Running in mode: $APEX_MODE via broker: $APEX_BROKER"
+          if [ "$APEX_MODE" = "live" ]; then
+            echo "::warning::LIVE TRADING MODE — real money is at risk."
+          fi
+
+      - name: Run one trading cycle
+        run: python -m scripts.run_once
+
+      # Persist state (positions, equity, logs) back to the repo so the next
+      # scheduled run picks up where this one left off. SQLite-based state.
+      - name: Commit updated state
+        run: |
+          git config user.name "apex-bot"
+          git config user.email "bot@apex-quant.local"
+          git add -A state/ logs/ || true
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(state): update after trading cycle [skip ci]"
+            git push
+          else
+            echo "No state changes to commit."
+          fi
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          if [ -n "$NTFY_TOPIC" ]; then
+            curl -d "Apex Quant run FAILED at $(date -u)" "https://ntfy.sh/$NTFY_TOPIC" || true
+          fi

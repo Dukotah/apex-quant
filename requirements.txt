@@ -1,0 +1,20 @@
+# Apex Quant — runtime dependencies (all free / open-source)
+
+# Broker + market data (free paper trading, commission-free live)
+alpaca-py>=0.21.0
+
+# Data handling
+pandas>=2.2.0
+numpy>=1.26.0
+
+# Backtesting (open source, optional — built-in engine works without it)
+# vectorbt>=0.26.0
+
+# Config
+pydantic>=2.6.0
+pyyaml>=6.0
+
+# HTTP (for any REST fallback / ntfy notifications)
+httpx>=0.27.0
+
+# Note: SQLite is in the Python standard library — no dependency needed for state.
