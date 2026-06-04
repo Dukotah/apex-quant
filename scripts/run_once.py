@@ -80,7 +80,7 @@ class RunReport:
         return (
             f"run_once [{self.mode}] @ {self.timestamp:%Y-%m-%d %H:%M}Z: "
             f"equity {self.equity:,.2f}, {self.num_positions} positions, "
-            f"{self.signals_evaluated} signals → {self.orders_submitted} orders, "
+            f"{self.signals_evaluated} signals -> {self.orders_submitted} orders, "
             f"{len(self.fills)} fills{', HALTED' if self.halted else ''}"
         )
 
