@@ -25,6 +25,8 @@ from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
 from apex.backtest.backtester import run_backtest
 from apex.core.events import MarketEvent
+from apex.core.models import Symbol
+from apex.data.historical_feed import HistoricalDataFeed
 from apex.strategy.base_strategy import BaseStrategy
 from apex.validation import gauntlet, metrics
 from apex.validation.monte_carlo import run_monte_carlo
@@ -189,3 +191,29 @@ def run_full_gauntlet(
         correlation_to_benchmark=corr,
     )
     return report, inputs
+
+
+def run_gauntlet_from_csv(
+    strategy_name: str,
+    strategy_factory: StrategyFactory,
+    path: str,
+    symbols: Sequence[Symbol],
+    benchmark_ticker: str,
+    **kwargs,
+) -> Tuple[gauntlet.GauntletReport, GauntletInputs]:
+    """
+    Run the full Gauntlet on REAL history from an OHLCV CSV/Parquet file.
+
+    Loads the file through HistoricalDataFeed (UTC-normalized, validated,
+    chronological), then runs the same seven-gate pipeline used for synthetic
+    data. This is the one-call path to "validate a strategy on actual history" —
+    swap in any real OHLCV file and nothing else changes.
+    """
+    feed = HistoricalDataFeed(symbols, path)
+    feed.connect()
+    try:
+        events = list(feed.stream())
+    finally:
+        feed.disconnect()
+    return run_full_gauntlet(strategy_name, strategy_factory, events,
+                             benchmark_ticker=benchmark_ticker, **kwargs)

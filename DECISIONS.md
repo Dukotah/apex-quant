@@ -6,6 +6,22 @@
 
 ---
 
+## Session 4 — File → Gauntlet bridge (validate on real history)
+
+**What was built (+1 test → 273 total):**
+- `apex/backtest/gauntlet_runner.run_gauntlet_from_csv(...)` — loads an OHLCV
+  CSV/Parquet through `HistoricalDataFeed` and runs the full 7-gate Gauntlet. The
+  one-call path to validate a strategy on ACTUAL history: drop in a real OHLCV file
+  and nothing else changes. Tested end-to-end (file → feed → engine → all 7 gates).
+
+**Blocker for the live path (needs your input):** the remaining roadmap items —
+`alpaca_feed.py`, `execution/alpaca.py`, `scripts/run_once.py` — all require the
+Alpaca SDK + live/paper credentials + network, so they can't be built test-first
+offline (Golden Rule 12). To proceed I need either (a) a real OHLCV CSV to validate
+strategies on real history now, or (b) Alpaca paper keys to build/verify the live path.
+
+---
+
 ## Session 3 — Drift monitor (the alpha-decay kill switch)
 
 **What was built (+10 tests → 272 total):**

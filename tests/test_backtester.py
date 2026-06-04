@@ -10,8 +10,12 @@ from __future__ import annotations
 
 from decimal import Decimal
 
+from datetime import datetime, timedelta, timezone
+
 from apex.backtest.backtester import run_backtest
-from apex.backtest.gauntlet_runner import GauntletInputs, run_full_gauntlet
+from apex.backtest.gauntlet_runner import (
+    GauntletInputs, run_full_gauntlet, run_gauntlet_from_csv,
+)
 from apex.backtest.synthetic import generate_closes, interleave, make_bars
 from apex.core.models import AssetClass, Symbol
 from apex.risk.risk_manager import RiskConfig
@@ -86,6 +90,41 @@ def test_full_gauntlet_returns_graded_report():
     assert report.realistic_max_drawdown >= 0.0
     # Rendering must not raise (Windows-safe is handled by callers' encoding).
     assert "sma_crossover_test" in report.render()
+
+
+def test_run_gauntlet_from_csv(tmp_path):
+    """File → HistoricalDataFeed → full Gauntlet, the real-history entry path."""
+    closes = generate_closes(
+        seed=5, n=600, start_price=100,
+        drift_schedule=[(0, 0.0010), (150, -0.0010), (300, 0.0012), (450, -0.0009)],
+        vol=0.008,
+    )
+    # Write a single-symbol OHLCV CSV (no symbol column → one configured symbol).
+    lines = ["timestamp,open,high,low,close,volume"]
+    start = datetime(2018, 1, 1, tzinfo=timezone.utc)
+    prev = closes[0]
+    for i, c in enumerate(closes):
+        ts = (start + timedelta(days=i)).date().isoformat()
+        hi = max(prev, c) * 1.005
+        lo = min(prev, c) * 0.995
+        lines.append(f"{ts},{prev:.4f},{hi:.4f},{lo:.4f},{c:.4f},1000000")
+        prev = c
+    path = tmp_path / "syn.csv"
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    sym = Symbol("SYN", AssetClass.ETF)
+
+    def factory():
+        return SMACrossoverStrategy("sma_csv", [sym], fast_period=10, slow_period=30)
+
+    report, inputs = run_gauntlet_from_csv(
+        "sma_from_csv", factory, str(path), [sym], "SYN",
+        risk_config=_full_risk(), mc_iterations=80,
+    )
+    assert len(report.gates) == 7
+    assert isinstance(report.grade, Grade)
+    assert inputs.num_trades >= 0
+    assert len(report.render()) > 0
 
 
 def test_gauntlet_is_deterministic():
