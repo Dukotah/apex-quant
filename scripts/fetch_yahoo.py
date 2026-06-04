@@ -30,13 +30,26 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import List
 
-_CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{sym}?range={rng}&interval=1d"
+_RANGE_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{sym}?range={rng}&interval=1d"
+# period1/period2 (epoch seconds) force DAILY granularity over any span — unlike
+# range=max, which Yahoo silently downsamples to monthly bars.
+_PERIOD_URL = ("https://query1.finance.yahoo.com/v8/finance/chart/{sym}"
+               "?period1={p1}&period2={p2}&interval=1d")
 _HEADERS = {"User-Agent": "Mozilla/5.0 (apex-quant data fetch)"}
 
 
-def fetch_symbol(symbol: str, rng: str = "15y") -> List[dict]:
-    """Return a list of OHLCV row dicts for one symbol (skipping null bars)."""
-    url = _CHART_URL.format(sym=symbol, rng=rng)
+def fetch_symbol(symbol: str, rng: str = "15y", start: str | None = None) -> List[dict]:
+    """
+    Return a list of OHLCV row dicts for one symbol (skipping null bars).
+
+    If ``start`` (YYYY-MM-DD) is given, fetch DAILY bars from that date to now via
+    period1/period2 (so long histories stay daily). Otherwise use the ``rng`` shortcut.
+    """
+    if start is not None:
+        p1 = int(datetime.strptime(start, "%Y-%m-%d").replace(tzinfo=timezone.utc).timestamp())
+        url = _PERIOD_URL.format(sym=symbol, p1=p1, p2=9999999999)
+    else:
+        url = _RANGE_URL.format(sym=symbol, rng=rng)
     req = urllib.request.Request(url, headers=_HEADERS)
     with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310 - public API
         payload = json.load(resp)
@@ -63,11 +76,11 @@ def fetch_symbol(symbol: str, rng: str = "15y") -> List[dict]:
     return rows
 
 
-def fetch_combined(symbols: List[str], rng: str, out_path: Path) -> int:
+def fetch_combined(symbols: List[str], rng: str, out_path: Path, start: str | None = None) -> int:
     """Fetch every symbol and write one combined, chronologically-grouped CSV."""
     all_rows: List[dict] = []
     for sym in symbols:
-        rows = fetch_symbol(sym, rng)
+        rows = fetch_symbol(sym, rng, start=start)
         print(f"  {sym}: {len(rows)} bars "
               f"({rows[0]['timestamp']} -> {rows[-1]['timestamp']})" if rows else f"  {sym}: 0 bars")
         all_rows.extend(rows)
@@ -85,11 +98,12 @@ def fetch_combined(symbols: List[str], rng: str, out_path: Path) -> int:
 def main() -> int:
     ap = argparse.ArgumentParser(description="Download free daily OHLCV from Yahoo Finance.")
     ap.add_argument("symbols", nargs="+", help="tickers, e.g. SPY EFA AGG")
-    ap.add_argument("--range", default="15y", help="Yahoo range (e.g. 5y, 10y, 15y, max)")
+    ap.add_argument("--range", default="15y", help="Yahoo range (e.g. 5y, 10y, 15y)")
+    ap.add_argument("--start", default=None, help="start date YYYY-MM-DD for DAILY long history (overrides --range)")
     ap.add_argument("--out", default="data/real/ohlcv.csv", help="output CSV path")
     args = ap.parse_args()
     try:
-        fetch_combined(args.symbols, args.range, Path(args.out))
+        fetch_combined(args.symbols, args.range, Path(args.out), start=args.start)
     except Exception as exc:  # noqa: BLE001
         print(f"Fetch failed: {exc}", file=sys.stderr)
         return 1

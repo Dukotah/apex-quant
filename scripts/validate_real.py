@@ -19,9 +19,13 @@ from apex.backtest.gauntlet_runner import run_gauntlet_from_csv
 from apex.core.models import AssetClass, Symbol
 from apex.risk.risk_manager import RiskConfig
 from apex.strategy.library.dual_momentum import DualMomentumStrategy
+from apex.strategy.library.etf_rotation import ETFRotationStrategy
 from apex.strategy.library.rsi2_mean_reversion import RSI2MeanReversionStrategy
+from apex.strategy.library.rsi2_vol_filtered import RSI2VolFilteredStrategy
+from apex.strategy.library.sma_crossover import SMACrossoverStrategy
 
-DATA = "data/real/dm.csv"
+DATA = "data/real/dm.csv"            # SPY/EFA/AGG
+SECTORS = "data/real/sectors.csv"    # XLK..XLB + AGG + SPY (benchmark)
 
 # Single-strategy edge test → full deployment (portfolio caps are for live sharing).
 SLEEVE_RISK = RiskConfig(
@@ -80,10 +84,85 @@ def validate_rsi2():
     )
 
 
+def validate_rsi2_vol():
+    syms = [Symbol("SPY", AssetClass.ETF)]
+
+    def factory():
+        return RSI2VolFilteredStrategy("rsi2_vol", syms, entry_threshold=Decimal("10"))
+
+    def lo():
+        return RSI2VolFilteredStrategy("rsi2_vol", syms, entry_threshold=Decimal("8"))
+
+    def hi():
+        return RSI2VolFilteredStrategy("rsi2_vol", syms, entry_threshold=Decimal("12"))
+
+    return run_gauntlet_from_csv(
+        "rsi2_vol_filtered_REAL", factory, DATA, syms, benchmark_ticker="SPY",
+        risk_config=SLEEVE_RISK,
+        param_variants=[("thr-20%", lo), ("thr+20%", hi)],
+    )
+
+
+def validate_etf_rotation():
+    sectors = ["XLK", "XLF", "XLE", "XLV", "XLY", "XLI", "XLP", "XLU", "XLB"]
+    # Strategy universe: sectors + AGG (bond sleeve, must be LAST).
+    strat_syms = [Symbol(t, AssetClass.ETF) for t in sectors + ["AGG"]]
+    # Feed universe: also load SPY so Gate 7 has a benchmark (strategy ignores it).
+    feed_syms = strat_syms + [Symbol("SPY", AssetClass.ETF)]
+
+    def factory():
+        return ETFRotationStrategy("etf_rotation", strat_syms, momentum_period=63, top_k=3)
+
+    def lo():
+        return ETFRotationStrategy("etf_rotation", strat_syms, momentum_period=42, top_k=3)
+
+    def hi():
+        return ETFRotationStrategy("etf_rotation", strat_syms, momentum_period=84, top_k=3)
+
+    return run_gauntlet_from_csv(
+        "etf_rotation_REAL", factory, SECTORS, feed_syms, benchmark_ticker="SPY",
+        risk_config=SLEEVE_RISK,
+        param_variants=[("mom-20%", lo), ("mom+20%", hi)],
+        rebalance_period_bars=5,   # weekly cadence
+    )
+
+
+def validate_spy_trend():
+    """Time-series trend filter: long SPY above its 200-day SMA, flat below."""
+    syms = [Symbol("SPY", AssetClass.ETF)]
+
+    def factory():
+        return SMACrossoverStrategy("spy_trend", syms, fast_period=20, slow_period=200)
+
+    def lo():
+        return SMACrossoverStrategy("spy_trend", syms, fast_period=20, slow_period=150)
+
+    def hi():
+        return SMACrossoverStrategy("spy_trend", syms, fast_period=20, slow_period=250)
+
+    return run_gauntlet_from_csv(
+        "spy_trend_REAL", factory, DATA, syms, benchmark_ticker="SPY",
+        risk_config=SLEEVE_RISK,
+        param_variants=[("slow-25%", lo), ("slow+25%", hi)],
+    )
+
+
 def main() -> None:
     _utf8()
+    global DATA, SECTORS
     which = sys.argv[1] if len(sys.argv) > 1 else "dual_momentum"
-    report, inputs = validate_rsi2() if which.startswith("rsi2") else validate_dual_momentum()
+    if len(sys.argv) > 2:                 # optional data-file override
+        DATA = SECTORS = sys.argv[2]
+    if which.startswith("trend") or which.startswith("spy"):
+        report, inputs = validate_spy_trend()
+    elif which.startswith("rsi2_vol") or which == "volrsi":
+        report, inputs = validate_rsi2_vol()
+    elif which.startswith("etf") or which.startswith("rotation"):
+        report, inputs = validate_etf_rotation()
+    elif which.startswith("rsi2"):
+        report, inputs = validate_rsi2()
+    else:
+        report, inputs = validate_dual_momentum()
     print()
     print(report.render())
     print()
