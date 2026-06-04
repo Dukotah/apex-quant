@@ -95,6 +95,14 @@ class RiskManager:
                 self._reject(signal, halt.reason)
                 return None
 
+            # 1b. Reduce-aware path. Closing or trimming an existing position is
+            # ALWAYS risk-reducing, so it is sized to flatten (never exceeding the
+            # held quantity) and is exempt from the entry-side caps (exposure,
+            # leverage) and the mandatory-stop requirement — you must always be
+            # able to de-risk. Entry behaviour below is unchanged.
+            if self._is_reducing(signal, portfolio):
+                return self._evaluate_reduce(signal, portfolio)
+
             # 2. Symbol whitelist.
             if not self._check_whitelist(signal.symbol):
                 self._reject(signal, f"{signal.symbol} not in whitelist")
@@ -145,6 +153,62 @@ class RiskManager:
             logger.error("Risk check errored, rejecting signal: %s", exc, exc_info=True)
             self._reject(signal, f"risk-check exception: {exc}")
             return None
+
+    # ---- reduce-aware exit path (always allowed to de-risk) ---------------
+
+    def _is_reducing(self, signal: SignalEvent, portfolio) -> bool:
+        """
+        True if this signal would REDUCE/close an existing position:
+        a SELL while net long, or a BUY while net short. Adding to a position
+        (BUY while long / SELL while short) is NOT reducing — it takes the
+        normal entry path with full exposure/leverage/stop checks.
+        """
+        held = portfolio.open_positions.get(signal.symbol.ticker)
+        if held is None:
+            return False
+        qty = held.quantity
+        return (
+            (qty > 0 and signal.side == OrderSide.SELL)
+            or (qty < 0 and signal.side == OrderSide.BUY)
+        )
+
+    def _evaluate_reduce(self, signal: SignalEvent, portfolio) -> Optional[OrderEvent]:
+        """
+        Build a flatten/trim OrderEvent for a reducing signal. Sized to the held
+        quantity scaled by conviction (strength 1.0 = full exit), never more than
+        is held — so a reduce can never overshoot into an opposite-side position.
+        No exposure/leverage/stop checks: de-risking is unconditionally permitted.
+        """
+        held = portfolio.open_positions.get(signal.symbol.ticker)
+        held_qty = abs(held.quantity)
+        strength = max(Decimal("0"), min(Decimal("1"), Decimal(str(signal.strength))))
+
+        if signal.symbol.fractionable:
+            qty = (held_qty * strength).quantize(Decimal("0.0001"))
+        else:
+            qty = Decimal(int(held_qty * strength))
+        qty = min(qty, held_qty)
+
+        if qty <= 0:
+            self._reject(signal, "reduce sizing produced zero quantity")
+            return None
+
+        order = OrderEvent(
+            symbol=signal.symbol,
+            side=signal.side,
+            quantity=qty,
+            order_type=OrderType.MARKET,
+            stop_loss=signal.suggested_stop_loss,        # optional on an exit
+            take_profit=signal.suggested_take_profit,
+            strategy_id=signal.strategy_id,
+            signal_id=signal.event_id,
+            timestamp=utc_now(),
+        )
+        logger.info(
+            "APPROVED (reduce) %s %s qty=%s (strategy=%s)",
+            signal.side.value, signal.symbol, qty, signal.strategy_id,
+        )
+        return order
 
     # ---- individual checks (private) --------------------------------------
 

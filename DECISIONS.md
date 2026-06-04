@@ -6,6 +6,73 @@
 
 ---
 
+## Session 2 — Massive sweep: Phase 2 data feed, Phase 4/5 modules, all 4 strategies, full Gauntlet integration
+
+**Context:** the repo had been delivered as an unextracted tarball
+(`Downloads/apex-quant.tar.gz`); extracted to `~/apex-quant`. Baseline confirmed
+at 79 tests. This session took the suite to **262 tests passing**.
+
+**What was built (one parallel sweep + sequential integration):**
+- `apex/data/historical_feed.py` — CSV/Parquet replay → chronological MarketEvents
+  (stdlib CSV core, lazy-pandas Parquet, stable sort, bad-row skip+count). +15 tests.
+- `apex/risk/portfolio.py` — position/cash/equity/drawdown tracker exposing the exact
+  6-attr snapshot the RiskManager reads. +20 tests.
+- `apex/execution/simulated.py` — deterministic paper fills (adverse slippage +
+  commission, "SIM-N" ids, fail-closed on no-price / non-MARKET). +39 tests.
+- `apex/execution/factory.py` — the ONE mode→engine switch (backtest/paper→sim,
+  live→NotImplementedError, fail-closed).
+- `apex/execution/engine.py` — `TradingEngine` orchestrator: next-bar-open fills
+  (no look-ahead), per-day equity, trade-return capture, halt enforcement, strategy
+  quarantine. +10 tests (with factory).
+- `apex/backtest/{synthetic,backtester,gauntlet_runner}.py` — the adapter that turns a
+  strategy run into `(equity_curve, trade_returns)` and drives all 7 Gauntlet gates;
+  seeded synthetic data generator for reproducible demos. +4 tests.
+- `scripts/run_backtest.py` — capstone CLI: runs dual_momentum / rsi2 through the full Gauntlet.
+- Strategies implemented from their stubs: `dual_momentum`, `rsi2_mean_reversion`,
+  `rsi2_vol_filtered`, `etf_rotation` (+57 strategy tests).
+- `tests/test_risk_manager.py` — formalized the smoke test into 38 cases.
+
+**Key decisions:**
+- **RiskManager made reduce-aware (FROZEN FILE EDIT — explicitly approved).** The
+  original sizer sized *every* signal (incl. SELL-to-exit) by remaining exposure room,
+  so once fully invested an exit sized to 0 and was rejected — no strategy could close
+  or rotate. Added a reduce path: a SELL-while-long / BUY-while-short is sized to flatten
+  (≤ held qty), exempt from the exposure/leverage caps and the mandatory-stop requirement
+  (de-risking must always be allowed). Entry behaviour is byte-for-byte unchanged; all 38
+  risk tests still pass. *A risk manager that won't let you close a position is itself a bug.*
+- **Engine sizes entries against a portfolio projected free of pending exits.** A rotation
+  emits SELL(old)+BUY(new) in one bar; the BUY would otherwise be sized against the still-
+  invested portfolio and rejected. `_project_after_exits` removes the exiting positions'
+  exposure so the BUY sizes into the capital its SELL is about to free. Both fill next-open.
+- **Two engine bugs found via end-to-end runs and fixed:** (1) the drawdown/daily-loss halt
+  is *lazy* — only evaluated when a signal is processed (fine in practice, documented);
+  (2) the engine reset the portfolio's daily baseline but never called
+  `risk_manager.reset_daily()`, so a daily-loss halt was *permanent* — it silently killed
+  ~90% of RSI2's trades (9 vs 89). Now reset on each day boundary (drawdown halts stay sticky).
+- **No look-ahead:** signals decided on bar T's close fill at bar T+1's open. The single
+  most important anti-overfitting property of the backtester.
+- **Single-strategy backtests use a full-deployment RiskConfig** (100% position/exposure);
+  the 5%/50% retail caps are for multi-strategy *live* capital sharing, not for measuring
+  one strategy's raw edge through the Gauntlet.
+- **Synthetic data caveat:** no market-data vendor is wired yet, so demos use a seeded
+  synthetic generator. Grades demonstrate the *pipeline*, not a real edge. Swap in a
+  HistoricalDataFeed on real OHLCV for a real run — nothing else changes.
+
+**Verified end-to-end:** dual_momentum rotates SPY↔EFA↔AGG and runs all 7 gates →
+honest **FAIL** (only ~10 trades < the 50-trade significance bar; low-turnover by nature).
+RSI2 runs all 7 gates with real statistics (89 trades, Monte Carlo actually executes) →
+honest **FAIL** on edgeless random-walk data. The Gauntlet's ability to *pass* a real edge
+remains covered by `test_gauntlet.py`.
+
+**Honest finding to revisit:** Gate 1's `MIN_TRADES=50` structurally fails low-turnover
+strategies (monthly dual momentum). Consider a regime-aware minimum (e.g. scale by
+rebalance frequency) so the anchor strategy can be fairly graded.
+
+**Next:** real data ingestion (`alpaca_feed.py` / load real OHLCV CSVs) to run the Gauntlet
+on actual history; then `execution/alpaca.py` + wire `run_once.py` for paper trading.
+
+---
+
 ## Session 1 — Phase 1 complete + indicators + first strategy
 
 **What was built (all tested — 79 tests total passing):**

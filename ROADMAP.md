@@ -39,10 +39,10 @@ all model validation tests pass (bad bars rejected, etc.).
 | Module | File | Status |
 |--------|------|--------|
 | Base feed | `apex/data/base_feed.py` | ✅ |
-| Historical replay (CSV/Parquet) | `apex/data/historical_feed.py` | 🔲 |
+| Historical replay (CSV/Parquet) | `apex/data/historical_feed.py` | ✅ |
 | Alpaca live/paper feed | `apex/data/alpaca_feed.py` | 🔲 |
 | Source normalizer | `apex/data/normalizer.py` | 🔲 |
-| Tests | `tests/test_historical_feed.py` | 🔲 |
+| Tests | `tests/test_historical_feed.py` | ✅ |
 
 **Historical feed:** reads a CSV/Parquet of OHLCV, yields MarketEvents in strict
 chronological order, then stops (ending the backtest). Handles multiple symbols
@@ -63,10 +63,11 @@ and a logger subscriber prints each one.
 | Module | File | Status |
 |--------|------|--------|
 | Base strategy | `apex/strategy/base_strategy.py` | ✅ |
-| Indicator library | `apex/strategy/indicators.py` | 🔲 |
-| Reference: SMA crossover | `apex/strategy/library/sma_crossover.py` | 🔲 |
-| Indicator tests | `tests/test_indicators.py` | 🔲 |
-| Strategy tests | `tests/test_sma_crossover.py` | 🔲 |
+| Indicator library | `apex/strategy/indicators.py` | ✅ |
+| Reference: SMA crossover | `apex/strategy/library/sma_crossover.py` | ✅ |
+| Indicator tests | `tests/test_indicators.py` | ✅ |
+| Strategy tests | `tests/test_sma_crossover.py` | ✅ |
+| Library: dual_momentum, rsi2_mean_reversion, rsi2_vol_filtered, etf_rotation | `apex/strategy/library/` | ✅ |
 
 **Indicators:** SMA, EMA, RSI, MACD, Bollinger Bands, ATR, VWAP. Stateless,
 operate on lists of Decimal. Each tested against hand-computed known values.
@@ -85,11 +86,11 @@ with a suggested stop-loss.
 
 | Module | File | Status |
 |--------|------|--------|
-| Risk manager + config | `apex/risk/risk_manager.py` | ✅ (smoke-tested) |
-| Portfolio tracker | `apex/risk/portfolio.py` | 🔲 |
+| Risk manager + config | `apex/risk/risk_manager.py` | ✅ (now reduce-aware) |
+| Portfolio tracker | `apex/risk/portfolio.py` | ✅ |
 | Position sizer | (currently inside risk_manager) | ✅ |
-| Risk manager tests | `tests/test_risk_manager.py` | 🔲 |
-| Portfolio tests | `tests/test_portfolio.py` | 🔲 |
+| Risk manager tests | `tests/test_risk_manager.py` | ✅ (38 cases) |
+| Portfolio tests | `tests/test_portfolio.py` | ✅ |
 
 **Portfolio:** consumes FillEvents, tracks positions/cash/equity, computes
 realized + unrealized P&L, peak equity, current drawdown, daily start equity.
@@ -111,12 +112,13 @@ malformed input.
 | Module | File | Status |
 |--------|------|--------|
 | Base execution | `apex/execution/base_execution.py` | ✅ |
-| Simulated execution | `apex/execution/simulated.py` | 🔲 |
+| Simulated execution | `apex/execution/simulated.py` | ✅ |
 | Alpaca execution | `apex/execution/alpaca.py` | 🔲 |
-| Execution factory | `apex/execution/factory.py` | 🔲 |
-| Main engine loop | `apex/execution/engine.py` | 🔲 |
-| Run-once entry point | `scripts/run_once.py` | 🔲 |
-| Integration test | `tests/test_integration.py` | 🔲 |
+| Execution factory | `apex/execution/factory.py` | ✅ |
+| Main engine loop | `apex/execution/engine.py` | ✅ |
+| Backtester + Gauntlet runner | `apex/backtest/` | ✅ (new) |
+| Run-once entry point | `scripts/run_once.py` | 🔲 (have `scripts/run_backtest.py`) |
+| Integration tests | `tests/test_engine.py`, `tests/test_backtester.py` | ✅ |
 
 **Simulated execution:** models fills using next-bar-open + configurable slippage
 + commission. Powers backtest and paper-fill simulation. Deterministic.
@@ -163,7 +165,7 @@ zero strategy changes; a full backtest runs end-to-end and prints a P&L report.
 | Metrics tests | `tests/test_metrics.py` | ✅ |
 | Monte Carlo tests | `tests/test_monte_carlo.py` | ✅ |
 | Gauntlet tests | `tests/test_gauntlet.py` | ✅ |
-| Cost-stress + param-sweep wiring | (needs Phase 5 backtester) | 🔲 |
+| Cost-stress + param-sweep wiring | `apex/backtest/gauntlet_runner.py` | ✅ (backtester now feeds all 7 gates) |
 | Drift monitor (live-vs-backtest) | `apex/validation/drift_monitor.py` | 🔲 |
 
 The statistical core is built and tested (28 tests passing). Gates 3, 5, and 6
