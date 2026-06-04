@@ -10,8 +10,9 @@ factory, so flipping APEX_MODE from paper to live changes nothing downstream.
 
   mode=backtest                     → SimulatedExecutionEngine
   mode=paper,  broker=simulated     → SimulatedExecutionEngine
-  mode=paper,  broker=alpaca        → (Alpaca engine — not built yet)
-  mode=live,   broker=alpaca/ibkr   → (live engine — not built yet)
+  mode=paper,  broker=alpaca        → AlpacaExecutionEngine(paper=True)
+  mode=live,   broker=alpaca        → AlpacaExecutionEngine(paper=False)  [REAL MONEY]
+  mode=live,   broker=ibkr          → (IBKR engine — not built yet)
   mode=live,   broker=simulated     → refused upstream by AppConfig.from_env()
 """
 from __future__ import annotations
@@ -53,15 +54,32 @@ def make_execution_engine(
                 commission_per_share=config.commission_per_share,
                 on_fill=on_fill,
             )
+        if config.broker == Broker.ALPACA:
+            from apex.execution.alpaca import AlpacaExecutionEngine
+            logger.info("Execution: AlpacaExecutionEngine (paper mode — Alpaca paper account).")
+            return AlpacaExecutionEngine(
+                api_key=config.alpaca_key,
+                api_secret=config.alpaca_secret,
+                paper=True,
+                on_fill=on_fill,
+            )
         raise NotImplementedError(
-            f"Paper execution against broker '{config.broker.value}' is not built yet. "
-            "Use APEX_BROKER=simulated for now (the Alpaca engine is a future module)."
+            f"Paper execution against broker '{config.broker.value}' is not built yet."
         )
 
     if config.mode == ExecutionMode.LIVE:
+        if config.broker == Broker.ALPACA:
+            from apex.execution.alpaca import AlpacaExecutionEngine
+            logger.warning("Execution: AlpacaExecutionEngine (LIVE mode — REAL MONEY).")
+            return AlpacaExecutionEngine(
+                api_key=config.alpaca_key,
+                api_secret=config.alpaca_secret,
+                paper=False,
+                on_fill=on_fill,
+            )
         raise NotImplementedError(
-            "Live execution is not built yet. The Alpaca/IBKR engine and its "
-            "reconciliation/idempotency safeguards must land before live trading."
+            f"Live execution against broker '{config.broker.value}' is not built yet "
+            "(only Alpaca is wired). IBKR is a future module."
         )
 
     raise NotImplementedError(f"No execution engine for mode '{config.mode}'.")
