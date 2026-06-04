@@ -6,6 +6,32 @@
 
 ---
 
+## Session 3 — Drift monitor (the alpha-decay kill switch)
+
+**What was built (+10 tests → 272 total):**
+- `apex/validation/drift_monitor.py` — `DriftMonitor`: tracks a live strategy's
+  rolling Sharpe and AUTO-QUARANTINES when it decays below the floor
+  (0.70 × validated Sharpe, matching `gauntlet.grade_and_assemble`). Completes the
+  "Gauntlet never stops" story from docs/VALIDATION_GAUNTLET.md.
+
+**Key decisions:**
+- **Quarantine is STICKY.** Once tripped, a later run of good returns does NOT
+  auto-reactivate the strategy — only a human `reset()` (after investigating the
+  decay) lifts it. A kill switch that silently un-trips isn't a kill switch.
+- **Won't judge on too little data.** Below `min_observations` (default = window)
+  the state is WARMING_UP, never QUARANTINED — avoids false alarms from a thin
+  sample. Conversely, `validated_sharpe <= 0` raises (a live strategy has a
+  positive validated edge by definition; fail closed on misconfiguration).
+- **Accepts returns OR equity points** (`record_return` / `record_equity`), and a
+  `from_gauntlet_report` constructor recovers the validated Sharpe from the report's
+  quarantine floor. Pure stdlib (deque + metrics), deterministic.
+
+**Next:** real data ingestion (`alpaca_feed.py` / load real OHLCV CSVs into the
+HistoricalDataFeed) to run the Gauntlet on actual history; then `execution/alpaca.py`
++ `scripts/run_once.py` (cron entry) + SQLite state persistence for paper trading.
+
+---
+
 ## Session 2 — Massive sweep: Phase 2 data feed, Phase 4/5 modules, all 4 strategies, full Gauntlet integration
 
 **Context:** the repo had been delivered as an unextracted tarball

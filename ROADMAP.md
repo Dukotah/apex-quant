@@ -166,7 +166,7 @@ zero strategy changes; a full backtest runs end-to-end and prints a P&L report.
 | Monte Carlo tests | `tests/test_monte_carlo.py` | ✅ |
 | Gauntlet tests | `tests/test_gauntlet.py` | ✅ |
 | Cost-stress + param-sweep wiring | `apex/backtest/gauntlet_runner.py` | ✅ (backtester now feeds all 7 gates) |
-| Drift monitor (live-vs-backtest) | `apex/validation/drift_monitor.py` | 🔲 |
+| Drift monitor (live-vs-backtest) | `apex/validation/drift_monitor.py` | ✅ |
 
 The statistical core is built and tested (28 tests passing). Gates 3, 5, and 6
 have framework code that activates once the Phase 5 backtester exists to feed
