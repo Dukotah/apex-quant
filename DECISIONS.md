@@ -33,6 +33,17 @@ diminishing/negative returns). Further OOS improvement needs a SECOND, uncorrela
 STRATEGY (mean-reversion / carry / short-vol), not more trend sleeves — run alongside
 trend so the two win in different regimes (the Session 0.5 plan).
 
+**Tested that thesis (return-level blend, trend-7 + RSI2 mean-reversion):** they ARE
+uncorrelated (corr **+0.19**), so blending helps — Sharpe 0.82 → **0.84** at 60/40.
+Principle CONFIRMED. But the gain is marginal because RSI2 is weak (standalone Sharpe
+0.34, and it fails cost-stress at 2×) and a 60/40 tilt puts a lot of capital on a
+fragile edge. Verdict: the second-strategy direction is real but needs (a) a STRONGER
+uncorrelated edge than RSI2, and (b) multi-strategy capital-allocation infrastructure
+(two strategies sharing one portfolio/risk-manager need a capital split + signal-
+conflict resolution the engine doesn't yet have). Both are real future builds; neither
+is worth deploying on RSI2's 0.34 today. **The deployed 7-sleeve trend remains the
+single validated edge — let the paper gate run.**
+
 ---
 
 ## Session 15 — Smart sleeve expansion: 7-sleeve upgrade deployed (grade A)
