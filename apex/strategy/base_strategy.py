@@ -46,6 +46,21 @@ class StrategyContext:
         """Last `lookback` bars for a symbol (for indicator calculation)."""
         return self._bar_history.get(symbol.ticker, [])[-lookback:]
 
+    def sync_state(self, *, positions: Optional[dict] = None, equity=None) -> None:
+        """
+        Harness-only write seam. The engine / run_once call this before dispatching
+        a bar so strategies see their ACTUAL holdings (broker-reconciled) instead of
+        a flag rebuilt from a partial replay window. Strategy logic must still treat
+        the context as read-only — this is for the runtime, not for strategies.
+
+        `positions` maps ticker -> Position (the portfolio's open_positions); passing
+        None leaves the current snapshot untouched.
+        """
+        if positions is not None:
+            self._positions = positions
+        if equity is not None:
+            self._equity = equity
+
 
 class BaseStrategy(ABC):
     """

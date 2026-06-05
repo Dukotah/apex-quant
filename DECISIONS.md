@@ -6,6 +6,67 @@
 
 ---
 
+## Session 12 — Fix the cold-start bug: position-aware strategies + a live context
+
+**The bug (found by actually running it):** the first live paper cycle produced
+0 signals while 4 of 5 sleeves were in clear uptrends the strategy wanted to own.
+Root cause was an interaction, not a one-liner:
+- `run_once` is a STATELESS cron — it builds a fresh strategy each run, replays
+  only a ~400-bar window to warm indicators, and acts ONLY on the latest bar's
+  signals.
+- The strategy was STATEFUL/event-driven — it emitted a BUY only on the exact bar
+  where the 20/200 SMA cross happened, tracking `_is_long` internally.
+- So `_is_long` was rebuilt only from crosses INSIDE the window; any trend that
+  began earlier was invisible → it never bought. The backtest hid this because it
+  runs continuously from before any trend exists.
+
+**Why the obvious fixes fail (documented so we don't retry them):**
+- "Enter on state (fast>slow) not the cross": the warmup replay flips the internal
+  flag early, so nothing is emitted on the latest bar → still flat.
+- "Emit BUY every bar in an uptrend, let the system dedupe": the RiskManager sizes
+  adds INCREMENTALLY and explicitly allows adding to a position (`risk_manager.py`
+  ~L162/L289) — no target-vs-held reconciliation — so repeated buys PYRAMID to the
+  exposure cap. Unsafe.
+
+**The fix — make the strategy position-aware (4 files):**
+- `base_strategy.py`: `StrategyContext.sync_state(positions=, equity=)` — a
+  harness-only write seam. The context was vestigial (bound empty everywhere);
+  now it carries the real, broker-reconciled holdings strategies read.
+- `multi_asset_trend.py`: dropped the internal `_is_long` flag. Each bar it targets
+  "long iff fast>slow" and emits the DELTA vs. its ACTUAL holding (`context.
+  get_position`). Idempotent: enters an established trend on a cold start with no
+  fresh cross, and never pyramids (held + still-uptrend emits nothing).
+- `engine.py`: refresh the shared context from `portfolio.open_positions` right
+  BEFORE dispatch each bar. Safe because the engine fills prior-bar orders at this
+  bar's open (step 1) before strategies run (step 3) — so the strategy sees the
+  just-filled position and won't re-enter. Backtester runs through this engine, so
+  backtest now matches live behavior.
+- `run_once.py` `_evaluate`: refresh the context from the reconciled portfolio each
+  replay bar (no fills happen mid-cycle, so positions = reconciled truth).
+- Other strategies ignore the context, so this is backward-compatible.
+
+**Verified — three ways:**
+1. **Unit:** 12 tests incl. the four transitions, a dedicated cold-start test
+   (enters an already-established uptrend with no cross), and inverse-vol sizing.
+2. **Edge intact:** re-ran the real-data Gauntlet — `multiasset_trend_VP` still
+   **grade A 7/7**, full Sharpe 0.80, OOS 1.10, MC p=0.001. The state-vs-event
+   switch only nudged boundary entries (85→90 trades); the validated edge holds.
+3. **LIVE PAPER:** ran one real `run_once` against the Alpaca paper account — it
+   now emits **4 BUYs (SPY/EFA/GLD/DBC)**, correctly stays flat on **TLT**
+   (downtrend), and sizes each by inverse-vol. The cold-start bug is gone.
+
+Full suite: **361 tests passing**.
+
+**Deployment note:** market orders need market hours to fill — out of hours they
+queue (ACCEPTED) and the engine's safe-mode cancels them on disconnect (no stale
+orders). The paper cron must fire during/near RTH; `reconcile_positions` on the
+next run books anything that filled. No lingering paper positions after the test.
+
+**Next (open):** the 57% MC-tail DD (portfolio vol target / trailing-DD throttle);
+schedule the paper cron during market hours; then the 30-day paper gate.
+
+---
+
 ## Session 11 — Inverse-vol (risk-parity) weighting: a strict upgrade, now deployed
 
 **What was built:** `apex/strategy/library/multi_asset_trend.py` —

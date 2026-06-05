@@ -315,6 +315,11 @@ def _evaluate(events: List[MarketEvent], strategies: Sequence[BaseStrategy],
         if bar is None:
             continue
         portfolio.on_market(event)
+        # Show strategies their ACTUAL (broker-reconciled) holdings. No fills happen
+        # during this replay, so positions stay = reconciled truth — which is exactly
+        # what a position-aware strategy needs to act correctly on the latest bar
+        # (e.g. enter an established trend on a cold start, not wait for a new cross).
+        context.sync_state(positions=dict(portfolio.open_positions), equity=portfolio.equity)
         is_latest = bar.timestamp == latest_ts
         for strat in strategies:
             if strat.strategy_id in quarantined:

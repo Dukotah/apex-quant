@@ -86,9 +86,13 @@ class MultiAssetTrendStrategy(BaseStrategy):
         self.vol_window = vol_window
         self.stop_loss_pct = stop_loss_pct
         self.min_strength = min_strength
-        # Per-symbol rolling close buffers, long/flat state, latest realized vol.
+        # Per-symbol rolling close buffers and latest realized vol. NOTE: this
+        # strategy holds NO internal long/flat flag — it reads its real position
+        # from the (broker-reconciled) context each bar. That is what makes it
+        # correct on a cold start, a restart, or a missed cron cycle: the decision
+        # is "target state vs. what I actually hold", not "did I see a cross in the
+        # replay window". See on_bar + StrategyContext.sync_state.
         self._closes: Dict[str, list[float]] = {s.ticker: [] for s in symbols}
-        self._is_long: Dict[str, bool] = {s.ticker: False for s in symbols}
         self._vol: Dict[str, Optional[float]] = {s.ticker: None for s in symbols}
 
     # ---- volatility ------------------------------------------------------
@@ -128,6 +132,20 @@ class MultiAssetTrendStrategy(BaseStrategy):
             strength = self.min_strength
         return strength
 
+    # ---- position ---------------------------------------------------------
+
+    def _held(self, symbol: Symbol) -> bool:
+        """
+        True if we ACTUALLY hold a long position in `symbol`, read from the
+        broker-reconciled context. With no context bound (isolated use) we treat
+        ourselves as flat — the harness (engine / run_once) always binds and
+        refreshes the context before dispatch.
+        """
+        if self.context is None:
+            return False
+        pos = self.context.get_position(symbol)
+        return pos is not None and pos.quantity > 0
+
     # ---- main hook -------------------------------------------------------
 
     def on_bar(self, bar: Bar) -> List[SignalEvent]:
@@ -138,8 +156,8 @@ class MultiAssetTrendStrategy(BaseStrategy):
         closes = self._closes[ticker]
         closes.append(float(bar.close))
 
-        # Keep the buffer bounded: need slow_period for the cross + vol_window
-        # of returns for volatility, plus a little slack.
+        # Keep the buffer bounded: need slow_period for the trend filter + the
+        # vol_window of returns for volatility, plus a little slack.
         max_len = max(self.slow_period, self.vol_window) + 5
         if len(closes) > max_len:
             del closes[:-max_len]
@@ -147,20 +165,25 @@ class MultiAssetTrendStrategy(BaseStrategy):
         # Update this sleeve's realized volatility every bar (used for weighting).
         self._vol[ticker] = self._realized_vol(closes)
 
-        # Warmup: need slow_period + 1 points to detect a cross.
-        if len(closes) < self.slow_period + 1:
+        # Warmup: need slow_period points for the 200-day trend filter.
+        if len(closes) < self.slow_period:
             return []
 
-        fast = ind.sma(closes, self.fast_period)
-        slow = ind.sma(closes, self.slow_period)
-        crossed_up = ind.crosses_above(fast, slow)
-        crossed_down = ind.crosses_below(fast, slow)
+        fast = ind.sma(closes, self.fast_period)[-1]
+        slow = ind.sma(closes, self.slow_period)[-1]
+        if fast is None or slow is None:
+            return []
 
+        # Decide on STATE, not the cross EVENT: target = long iff in an uptrend,
+        # then emit the delta against what we actually hold. This is idempotent —
+        # it enters an established trend on a cold start (no fresh cross needed) and
+        # never pyramids (held + still-uptrend emits nothing).
+        want_long = fast > slow
+        held = self._held(bar.symbol)
         signals: List[SignalEvent] = []
         price = bar.close
 
-        # Bullish cross and flat → go long, sized by inverse-vol conviction.
-        if crossed_up[-1] and not self._is_long[ticker]:
+        if want_long and not held:
             strength = self._inverse_vol_strength(ticker)
             stop = price * (Decimal("1") - self.stop_loss_pct)
             signals.append(
@@ -172,15 +195,12 @@ class MultiAssetTrendStrategy(BaseStrategy):
                     suggested_stop_loss=stop,
                     timestamp=bar.timestamp,
                     reason=(
-                        f"SMA{self.fast_period}>SMA{self.slow_period} trend; "
+                        f"SMA{self.fast_period}>SMA{self.slow_period} uptrend; "
                         f"inverse-vol weight {strength}"
                     ),
                 )
             )
-            self._is_long[ticker] = True
-
-        # Bearish cross and long → full exit.
-        elif crossed_down[-1] and self._is_long[ticker]:
+        elif held and not want_long:
             signals.append(
                 SignalEvent(
                     symbol=bar.symbol,
@@ -191,6 +211,5 @@ class MultiAssetTrendStrategy(BaseStrategy):
                     reason=f"SMA{self.fast_period}<SMA{self.slow_period} trend break",
                 )
             )
-            self._is_long[ticker] = False
 
         return signals

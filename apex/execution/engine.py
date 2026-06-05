@@ -125,6 +125,8 @@ class TradingEngine:
         self._current_ts: Optional[datetime] = None
         # Strategies that raised — quarantined so one bad strategy can't crash the run.
         self._quarantined: Set[str] = set()
+        # The shared read-only context bound to every strategy (set in run()).
+        self._context: Optional[StrategyContext] = None
 
         # Result accumulators.
         self.result = BacktestResult(
@@ -142,6 +144,7 @@ class TradingEngine:
 
         # Give every strategy a read-only context and the startup hook.
         context = StrategyContext()
+        self._context = context
         for strat in self.strategies:
             strat.bind_context(context)
             try:
@@ -177,6 +180,10 @@ class TradingEngine:
                 self.portfolio.on_market(event)
 
                 # 3. Strategies react to the bar → signals → risk → queued orders.
+                #    Refresh the read-only context FIRST: prior-bar orders have just
+                #    filled (step 1), so position-aware strategies see their true,
+                #    current holdings and won't re-enter what they already hold.
+                self._sync_context()
                 self._dispatch(event)
 
                 # 4. "close" timing fills immediately at this same close (optimistic).
@@ -196,6 +203,14 @@ class TradingEngine:
         return self.result
 
     # ------------------------------------------------------------- internals
+
+    def _sync_context(self) -> None:
+        """Refresh the strategies' read-only view with the portfolio's live state."""
+        if self._context is not None:
+            self._context.sync_state(
+                positions=dict(self.portfolio.open_positions),
+                equity=self.portfolio.equity,
+            )
 
     def _dispatch(self, event: MarketEvent) -> None:
         """
