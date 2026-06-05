@@ -6,6 +6,34 @@
 
 ---
 
+## Session 20 — Mean-reversion attempt fails → second-edge hunt CLOSED for this universe
+
+Built `ShortTermReversalStrategy` (buy the most-oversold short-term dips among assets
+still above their 200d SMA — "buy the dip in an uptrend"; the one mean-reversion shape
+that is structurally opposite-sign to momentum and filtered against falling knives).
+4 tests. This was the deliberate "eyes-open, it's hard" attempt at an uncorrelated edge.
+
+**Gauntlet: a hard NO.** 1/7 gates, full Sharpe **−0.52** (it LOSES money), OOS −0.75,
+**−1.83 at 2× cost**, **3480 trades**, and still +0.65 correlated to trend.
+
+**The definitive conclusion (5 negatives now make it conclusive):** at the asset-class /
+daily–weekly horizon, these instruments **TREND, they do not mean-revert** — short-term
+reversal is a single-name/intraday phenomenon, so "buy the dip" on asset-class ETFs just
+buys things that keep falling, at ruinous turnover. Combined with Session 19 (momentum-
+family is correlated by construction), this **closes the second-edge hunt within this
+universe**: there is no easily-accessible uncorrelated second edge in these same
+instruments. The deployed trend strategy IS the edge here.
+
+**A genuine second edge would require a DIFFERENT universe or data source** — single-name
+equities (where short-term reversal is real), or a carry/macro signal — i.e., a new data
+pipeline and universe, a much larger undertaking, not a same-universe strategy tweak.
+That, not more strategies on these 7–13 ETFs, is the only remaining path; Phase 6 updated
+to say so. Kept the strategy as a tested library reference (fails, documented).
+
+**Verified:** 388 tests passing (+4), lint clean.
+
+---
+
 ## Session 19 — Cross-sectional momentum strategy (fails) → the second-edge law
 
 Built `CrossSectionalMomentumStrategy` (rank sleeves by relative momentum, hold top-K

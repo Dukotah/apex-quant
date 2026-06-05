@@ -157,7 +157,7 @@ real forward work, distilled from the DECISIONS log.*
 | Volatility-target overlay | ✅ built, off | Session 18 (redundant — trend self-regulates) |
 | Sleeve-screening tool | ✅ | Session 16 (`scripts/sleeve_screen.py`) |
 | **30-day paper gate (Rule 17)** | 🚧 in progress | the real test — judge live, not on more backtests |
-| **Second uncorrelated edge** | 🔲 | MUST be mean-reversion / carry — NOT momentum (Session 19: same-universe momentum is +0.76 correlated). The only path to a higher combined Sharpe. |
+| **Second uncorrelated edge** | 🔲 needs new UNIVERSE | CLOSED for these ETFs: same-universe momentum is correlated (Session 19, +0.76); mean-reversion has no edge here — these assets trend, not revert (Session 20, −0.52 Sharpe). A real 2nd edge needs single-name equities (reversal is real there) or a carry/macro data source — a new pipeline, not a strategy tweak. |
 | Multi-strategy capital-allocation engine | 🔲 deferred | the vehicle for a 2nd strategy — build only once a strong uncorrelated edge exists |
 | Govcon alt-data event-study pipeline | ✅ research, parked | `research/govcon/` — edge real but not capturable (Session 11) |
 
