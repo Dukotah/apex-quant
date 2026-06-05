@@ -16,11 +16,8 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import List, Tuple
 
-import pytest
-
+from apex.core.models import AssetClass, Bar, OrderSide, Symbol
 from apex.strategy.library.rsi2_vol_filtered import RSI2VolFilteredStrategy
-from apex.core.models import Bar, Symbol, AssetClass, OrderSide
-
 
 SYM = Symbol("SPY", AssetClass.ETF)
 

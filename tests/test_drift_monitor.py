@@ -7,7 +7,6 @@ rolling Sharpe decays below the floor, and only a manual reset() lifts it.
 """
 from __future__ import annotations
 
-from apex.validation import metrics
 from apex.validation.drift_monitor import DriftMonitor, DriftState
 
 

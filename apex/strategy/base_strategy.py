@@ -19,7 +19,7 @@ from abc import ABC, abstractmethod
 from typing import List, Optional
 
 from apex.core.events import MarketEvent, SignalEvent
-from apex.core.models import Bar, Tick, Symbol
+from apex.core.models import Bar, Symbol, Tick
 
 
 class StrategyContext:

@@ -22,13 +22,13 @@ SPY = Symbol("SPY", AssetClass.ETF)
 UTC = timezone.utc
 
 
-def _bar(ts: str, o, h, l, c, v):
+def _bar(ts: str, o, h, lo, c, v):
     """A raw attribute-style bar (mimics alpaca.data.models.Bar)."""
     class _B:
         pass
     b = _B()
     b.timestamp = datetime.fromisoformat(ts).replace(tzinfo=UTC)
-    b.open, b.high, b.low, b.close, b.volume = o, h, l, c, v
+    b.open, b.high, b.low, b.close, b.volume = o, h, lo, c, v
     return b
 
 

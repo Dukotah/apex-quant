@@ -13,7 +13,7 @@ from typing import List, Tuple
 
 import pytest
 
-from apex.core.models import AssetClass, Bar, OrderSide, Symbol
+from apex.core.models import AssetClass, Bar, Symbol
 from apex.strategy.library.trend_bond import TrendBondStrategy
 
 SPY = Symbol("SPY", AssetClass.ETF)

@@ -18,7 +18,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Callable, Optional
 
-from apex.core.events import OrderEvent, FillEvent
+from apex.core.events import FillEvent, OrderEvent
 
 
 class BaseExecutionEngine(ABC):

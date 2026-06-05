@@ -18,13 +18,12 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List
 
 import pytest
 
 from apex.core.models import AssetClass, Bar, OrderSide, Symbol
 from apex.strategy.library.etf_rotation import ETFRotationStrategy
-
 
 # ---------------------------------------------------------------------------
 # Fixtures — symbols

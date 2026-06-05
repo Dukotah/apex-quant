@@ -9,10 +9,10 @@ from decimal import Decimal
 
 import pytest
 
-from apex.core.event_bus import EventBus
 from apex.core.clock import RealClock, SimulatedClock
-from apex.core.events import MarketEvent, EventType
-from apex.core.models import Bar, Symbol, AssetClass
+from apex.core.event_bus import EventBus
+from apex.core.events import EventType, MarketEvent
+from apex.core.models import AssetClass, Bar, Symbol
 
 
 def _bar(ts: datetime) -> Bar:

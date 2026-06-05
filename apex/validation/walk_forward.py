@@ -20,8 +20,8 @@ that's built). Pure stdlib.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Callable, Sequence
+from dataclasses import dataclass
+from typing import Callable
 
 from apex.validation import metrics
 

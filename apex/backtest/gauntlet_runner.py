@@ -21,17 +21,17 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
-from typing import Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Callable, List, Optional, Sequence, Tuple
 
 from apex.backtest.backtester import run_backtest
 from apex.core.events import MarketEvent
 from apex.core.models import Symbol
 from apex.data.historical_feed import HistoricalDataFeed
+from apex.risk.risk_manager import RiskConfig
 from apex.strategy.base_strategy import BaseStrategy
 from apex.validation import gauntlet, metrics
 from apex.validation.monte_carlo import run_monte_carlo
 from apex.validation.walk_forward import run_walk_forward
-from apex.risk.risk_manager import RiskConfig
 
 logger = logging.getLogger(__name__)
 

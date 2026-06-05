@@ -17,7 +17,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional
 
 from apex.validation import metrics
 from apex.validation.monte_carlo import MonteCarloResult

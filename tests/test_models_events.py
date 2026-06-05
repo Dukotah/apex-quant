@@ -9,11 +9,19 @@ from decimal import Decimal
 
 import pytest
 
-from apex.core.models import (
-    Bar, Tick, Symbol, Position, AssetClass, OrderSide,
-)
 from apex.core.events import (
-    MarketEvent, SignalEvent, OrderEvent, FillEvent, EventType,
+    EventType,
+    MarketEvent,
+    OrderEvent,
+    SignalEvent,
+)
+from apex.core.models import (
+    AssetClass,
+    Bar,
+    OrderSide,
+    Position,
+    Symbol,
+    Tick,
 )
 
 

@@ -22,10 +22,9 @@ from types import SimpleNamespace
 
 import pytest
 
+from apex.core.models import AssetClass, Bar, OrderSide, Symbol
 from apex.strategy.base_strategy import StrategyContext
 from apex.strategy.library.multi_asset_trend import MultiAssetTrendStrategy
-from apex.core.models import Bar, Symbol, AssetClass, OrderSide
-
 
 CALM = Symbol("CALM", AssetClass.ETF)
 WILD = Symbol("WILD", AssetClass.ETF)

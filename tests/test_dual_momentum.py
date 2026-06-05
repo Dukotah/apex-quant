@@ -381,12 +381,8 @@ class TestGEMLogic:
             agg_daily_ret=0.0002,
         )
 
-        # During warmup period we should have gotten a BUY SPY signal.
-        warmup_buys = [s for s in all_signals if s.side == OrderSide.BUY
-                       and s.symbol.ticker == "SPY"
-                       and (s.timestamp is None or s.timestamp < datetime(2023, 1, 2, tzinfo=timezone.utc) + timedelta(days=n_warmup))]
-        # Just confirm we eventually held SPY before the rotation.
-        # The key assertion is that scenario_signals include SELL SPY + BUY AGG.
+        # The key assertion is that scenario_signals include SELL SPY + BUY AGG
+        # (we eventually held SPY during warmup, then rotated to AGG).
         spy_sells = [s for s in scenario_signals if s.side == OrderSide.SELL and s.symbol.ticker == "SPY"]
         agg_buys = [s for s in scenario_signals if s.side == OrderSide.BUY and s.symbol.ticker == "AGG"]
 

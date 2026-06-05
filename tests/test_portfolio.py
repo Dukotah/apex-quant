@@ -28,7 +28,6 @@ from apex.core.events import FillEvent, MarketEvent
 from apex.core.models import AssetClass, Bar, OrderSide, Symbol
 from apex.risk.portfolio import Portfolio
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

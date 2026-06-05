@@ -40,7 +40,7 @@ from decimal import Decimal
 from typing import Callable, Dict, Optional, Protocol
 
 from apex.core.events import FillEvent, OrderEvent
-from apex.core.models import OrderSide, OrderType, utc_now
+from apex.core.models import OrderType, utc_now
 from apex.execution.base_execution import BaseExecutionEngine
 
 logger = logging.getLogger(__name__)
@@ -291,7 +291,8 @@ class AlpacaExecutionEngine(BaseExecutionEngine):
             )
         try:  # pragma: no cover - requires alpaca-py
             from alpaca.trading.client import TradingClient
-            from alpaca.trading.enums import OrderSide as AlSide, TimeInForce as AlTIF
+            from alpaca.trading.enums import OrderSide as AlSide
+            from alpaca.trading.enums import TimeInForce as AlTIF
             from alpaca.trading.requests import MarketOrderRequest
         except ImportError as exc:  # pragma: no cover
             raise ConnectionError(

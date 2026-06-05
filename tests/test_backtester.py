@@ -8,13 +8,14 @@ reduce-aware exit path lets positions actually close.
 """
 from __future__ import annotations
 
-from decimal import Decimal
-
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 
 from apex.backtest.backtester import run_backtest
 from apex.backtest.gauntlet_runner import (
-    GauntletInputs, run_full_gauntlet, run_gauntlet_from_csv,
+    GauntletInputs,
+    run_full_gauntlet,
+    run_gauntlet_from_csv,
 )
 from apex.backtest.synthetic import generate_closes, interleave, make_bars
 from apex.core.models import AssetClass, Symbol

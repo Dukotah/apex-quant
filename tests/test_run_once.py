@@ -12,8 +12,6 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from typing import List
 
-import pytest
-
 from apex.core.clock import Clock
 from apex.core.config import AppConfig, Broker, ExecutionMode
 from apex.core.events import SignalEvent

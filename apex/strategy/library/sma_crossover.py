@@ -22,12 +22,12 @@ strategy to deploy capital on. For real edges, see dual_momentum / rsi2.
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import List, Optional
+from typing import List
 
-from apex.strategy.base_strategy import BaseStrategy
-from apex.strategy import indicators as ind
 from apex.core.events import SignalEvent
-from apex.core.models import Bar, Symbol, OrderSide
+from apex.core.models import Bar, OrderSide, Symbol
+from apex.strategy import indicators as ind
+from apex.strategy.base_strategy import BaseStrategy
 
 
 class SMACrossoverStrategy(BaseStrategy):

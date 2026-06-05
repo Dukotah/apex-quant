@@ -21,13 +21,12 @@ from __future__ import annotations
 
 import logging
 import math
-from decimal import Decimal
-from typing import Dict, List, Optional
+from typing import Dict, List
 
-from apex.strategy import indicators as ind
-from apex.strategy.library.rsi2_mean_reversion import RSI2MeanReversionStrategy
 from apex.core.events import SignalEvent
 from apex.core.models import Bar, Symbol
+from apex.strategy import indicators as ind
+from apex.strategy.library.rsi2_mean_reversion import RSI2MeanReversionStrategy
 
 _log = logging.getLogger(__name__)
 

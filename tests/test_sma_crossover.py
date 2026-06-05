@@ -9,9 +9,8 @@ from decimal import Decimal
 
 import pytest
 
+from apex.core.models import AssetClass, Bar, OrderSide, Symbol
 from apex.strategy.library.sma_crossover import SMACrossoverStrategy
-from apex.core.models import Bar, Symbol, AssetClass, OrderSide
-
 
 SYM = Symbol("TEST", AssetClass.EQUITY)
 

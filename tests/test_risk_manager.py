@@ -25,12 +25,9 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Dict, Optional
 
-import pytest
-
 from apex.core.events import SignalEvent
 from apex.core.models import AssetClass, OrderSide, Position, Symbol
 from apex.risk.risk_manager import RiskConfig, RiskManager
-
 
 # ---------------------------------------------------------------------------
 # Shared fixtures

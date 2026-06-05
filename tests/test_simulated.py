@@ -16,7 +16,6 @@ from apex.core.events import FillEvent, OrderEvent
 from apex.core.models import AssetClass, OrderSide, OrderType, Symbol
 from apex.execution.simulated import SimulatedExecutionEngine
 
-
 # ---------------------------------------------------------------------------
 # Fixtures / helpers
 # ---------------------------------------------------------------------------

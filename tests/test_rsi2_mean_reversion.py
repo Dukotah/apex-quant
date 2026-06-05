@@ -20,9 +20,8 @@ from typing import List
 
 import pytest
 
+from apex.core.models import AssetClass, Bar, OrderSide, Symbol
 from apex.strategy.library.rsi2_mean_reversion import RSI2MeanReversionStrategy
-from apex.core.models import Bar, Symbol, AssetClass, OrderSide
-
 
 SYM = Symbol("SPY", AssetClass.ETF)
 

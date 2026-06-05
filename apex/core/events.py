@@ -19,7 +19,12 @@ from typing import Optional
 from uuid import uuid4
 
 from apex.core.models import (
-    Bar, Tick, Symbol, OrderSide, OrderType, TimeInForce,
+    Bar,
+    OrderSide,
+    OrderType,
+    Symbol,
+    Tick,
+    TimeInForce,
 )
 
 

@@ -46,10 +46,10 @@ import statistics
 from decimal import Decimal
 from typing import Dict, List, Optional
 
-from apex.strategy.base_strategy import BaseStrategy
-from apex.strategy import indicators as ind
 from apex.core.events import SignalEvent
-from apex.core.models import Bar, Symbol, OrderSide
+from apex.core.models import Bar, OrderSide, Symbol
+from apex.strategy import indicators as ind
+from apex.strategy.base_strategy import BaseStrategy
 
 
 class MultiAssetTrendStrategy(BaseStrategy):

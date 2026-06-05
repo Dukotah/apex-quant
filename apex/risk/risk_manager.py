@@ -22,9 +22,9 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Optional, Tuple
+from typing import Optional
 
-from apex.core.events import SignalEvent, OrderEvent, HaltEvent
+from apex.core.events import HaltEvent, OrderEvent, SignalEvent
 from apex.core.models import OrderSide, OrderType, Symbol, utc_now
 
 logger = logging.getLogger("apex.risk")
