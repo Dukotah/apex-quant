@@ -6,6 +6,39 @@
 
 ---
 
+## Session 19 — Cross-sectional momentum strategy (fails) → the second-edge law
+
+Built `CrossSectionalMomentumStrategy` (rank sleeves by relative momentum, hold top-K
+that are also above their 200d SMA; position-aware + inverse-vol like the trend strategy)
+— a deliberately DIFFERENT mechanism, hunting an uncorrelated second edge. 5 tests.
+
+**Gauntlet + correlation verdict: rejected.**
+- Gauntlet **4/7**, full Sharpe 0.26, OOS 0.47, **−0.05 at 2× cost** (1010 trades — far
+  too much turnover), grade FAIL.
+- Correlation to the deployed trend strategy: **+0.76** — NOT uncorrelated. Blending
+  *hurts* (0.78 → 0.61 at 50/50).
+
+**The law this nails down:** a momentum-family strategy on the SAME universe is
+correlated to trend BY CONSTRUCTION — the relative-strength "leaders" it picks ARE the
+uptrending assets the trend strategy already holds. You cannot diversify momentum with
+more momentum (the Session 9 "all-equity strategies are one bet", generalized). A real
+uncorrelated second edge must use a DIFFERENT return driver — mean-reversion (opposite
+autocorrelation sign) or carry — not a different momentum flavor. RSI2 mean-reversion
+was the only thing that actually came back uncorrelated (+0.19, Session 16) — just too
+weak. Kept the strategy as a tested library/reference entry (like rsi2/etf_rotation).
+
+**Roadmap reconciled with reality** (it had gone stale): Phase 1 items (event_bus, clock,
+model/event tests) were marked 🔲 but are all built+tested; fixed. Added the deployed
+multi_asset_trend, the risk overlays (throttle, vol-target), drift quarantine, and the
+new strategy. Added **Phase 6 — Live Ops & Strategy Expansion** capturing the genuine
+frontier: the 30-day paper gate (in progress), a mean-reversion/carry second edge (the
+ONLY path to a higher combined Sharpe), and the multi-strategy allocation engine
+(deferred until that edge exists — no point building the vehicle with no cargo).
+
+**Verified:** 384 tests passing (+5), lint clean.
+
+---
+
 ## Session 18 — Volatility-targeting overlay (built, tested, off — trend already self-regulates)
 
 Built the standard managed-futures **volatility-targeting** overlay: the Portfolio

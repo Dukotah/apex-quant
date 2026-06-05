@@ -15,9 +15,9 @@ Status legend: ✅ done · 🔲 to build · 🚧 in progress
 | Data models | `apex/core/models.py` | ✅ |
 | Event taxonomy | `apex/core/events.py` | ✅ |
 | App config + MODE switch | `apex/core/config.py` | ✅ |
-| Event bus | `apex/core/event_bus.py` | 🔲 |
-| Clock (real + simulated) | `apex/core/clock.py` | 🔲 |
-| Tests for models/events | `tests/test_models.py`, `tests/test_events.py` | 🔲 |
+| Event bus | `apex/core/event_bus.py` | ✅ (pub/sub + queue; tested in test_core) |
+| Clock (real + simulated) | `apex/core/clock.py` | ✅ (tested in test_core) |
+| Tests for models/events/clock/bus | `tests/test_models_events.py`, `tests/test_core.py` | ✅ |
 
 **Event bus requirements:** a central queue (collections.deque) with `put(event)`,
 `get()`, and `is_empty()`. Optional pub/sub subscriber registration by EventType.
@@ -67,8 +67,9 @@ and a logger subscriber prints each one.
 | Reference: SMA crossover | `apex/strategy/library/sma_crossover.py` | ✅ |
 | Indicator tests | `tests/test_indicators.py` | ✅ |
 | Strategy tests | `tests/test_sma_crossover.py` | ✅ |
-| Library: dual_momentum, rsi2_mean_reversion, rsi2_vol_filtered, etf_rotation | `apex/strategy/library/` | ✅ |
-| **DEPLOYED: multi_asset_trend** (inverse-vol, grade A 7/7) | `apex/strategy/library/multi_asset_trend.py` | ✅ |
+| Library: dual_momentum, rsi2_mean_reversion, rsi2_vol_filtered, etf_rotation, trend_bond | `apex/strategy/library/` | ✅ |
+| Cross-sectional momentum (research; fails 2× cost, +0.76 corr to trend) | `apex/strategy/library/cross_sectional_momentum.py` | ✅ built, not deployed |
+| **DEPLOYED: multi_asset_trend** — 7-sleeve inverse-vol, grade A 7/7, OOS 1.34 | `apex/strategy/library/multi_asset_trend.py` | ✅ LIVE on paper |
 
 **Indicators:** SMA, EMA, RSI, MACD, Bollinger Bands, ATR, VWAP. Stateless,
 operate on lists of Decimal. Each tested against hand-computed known values.
@@ -87,11 +88,11 @@ with a suggested stop-loss.
 
 | Module | File | Status |
 |--------|------|--------|
-| Risk manager + config | `apex/risk/risk_manager.py` | ✅ (now reduce-aware) |
-| Portfolio tracker | `apex/risk/portfolio.py` | ✅ |
-| Position sizer | (currently inside risk_manager) | ✅ |
-| Risk manager tests | `tests/test_risk_manager.py` | ✅ (38 cases) |
-| Portfolio tests | `tests/test_portfolio.py` | ✅ |
+| Risk manager + config | `apex/risk/risk_manager.py` | ✅ reduce-aware; drawdown throttle + vol-target overlays |
+| Portfolio tracker | `apex/risk/portfolio.py` | ✅ + rolling realized-volatility |
+| Position sizer | (inside risk_manager: cap × strength × throttle × vol-target) | ✅ |
+| Risk manager tests | `tests/test_risk_manager.py` | ✅ (49 cases) |
+| Portfolio tests | `tests/test_portfolio.py` | ✅ (23 cases) |
 
 **Portfolio:** consumes FillEvents, tracks positions/cash/equity, computes
 realized + unrealized P&L, peak equity, current drawdown, daily start equity.
@@ -141,6 +142,28 @@ persist state), exits cleanly. Idempotent.
 
 **Done when:** flipping `APEX_MODE=paper`→`live` routes orders to Alpaca with
 zero strategy changes; a full backtest runs end-to-end and prints a P&L report.
+
+---
+
+## Phase 6 — Live Operations & Strategy Expansion (current)
+*Phases 1–5 are complete and the multi_asset_trend bot is LIVE on paper. This is the
+real forward work, distilled from the DECISIONS log.*
+
+| Item | Status | Notes |
+|------|--------|-------|
+| Drift monitor wired into run_once (auto-quarantine) | ✅ | blocks new entries below floor; Session 17 |
+| ntfy push notifications (trade/halt/quarantine) | ✅ | Session 17 |
+| Drawdown sizing throttle | ✅ | Session 13 (dormant on this strategy — DD too shallow) |
+| Volatility-target overlay | ✅ built, off | Session 18 (redundant — trend self-regulates) |
+| Sleeve-screening tool | ✅ | Session 16 (`scripts/sleeve_screen.py`) |
+| **30-day paper gate (Rule 17)** | 🚧 in progress | the real test — judge live, not on more backtests |
+| **Second uncorrelated edge** | 🔲 | MUST be mean-reversion / carry — NOT momentum (Session 19: same-universe momentum is +0.76 correlated). The only path to a higher combined Sharpe. |
+| Multi-strategy capital-allocation engine | 🔲 deferred | the vehicle for a 2nd strategy — build only once a strong uncorrelated edge exists |
+| Govcon alt-data event-study pipeline | ✅ research, parked | `research/govcon/` — edge real but not capturable (Session 11) |
+
+**Done when:** the paper gate completes with live Sharpe tracking the ~0.82 backtest;
+a second genuinely-uncorrelated edge clears the Gauntlet and the allocation engine runs
+both with a clean capital split.
 
 ---
 
