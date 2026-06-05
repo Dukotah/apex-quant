@@ -62,7 +62,38 @@ the reverse. Large-cap control stayed null throughout (method still honest). Sma
 flipped to a significant +1-day pop but fades by day 5 (p=0.32) — suggestive but
 fragile (n=48).
 
-## Verdict & next steps
+## v3 — CAPTURABILITY (the make-or-break test): NOT tradeable
+
+`capturability.py`. Same validated event set; the only change is realistic entry —
+DoD announces awards the evening of signing (after close), so a public trader can
+first act at the NEXT OPEN. Entry at open[T+1], same exit close[T+5], net of
+slippage (mid 30bps), bootstrap-tested. Large-cap stays the control.
+
+| tier | ideal close[T]->[T+5] | overnight gap (uncapturable) | real open[T+1] NET | bootstrap p |
+|------|----|----|----|----|
+| small | +0.67% | +0.23% | −0.03% | 0.37 |
+| **mid** | +0.89% | +0.33% | **+0.22%** | **0.066** |
+| large (control) | +0.15% | −0.05% | +0.04% | 0.22 — null ✓ |
+
+**Verdict: the mid-cap edge is REAL but NOT TRADEABLE.** Of the +0.89% ideal edge,
+~0.33% is the overnight announcement gap (gone before you can act), ~0.30% is
+first-day continuation you miss entering at the next open, and ~0.30% is costs —
+leaving +0.22% net at a 51% win rate, p=0.066 (not significant), and NEGATIVE by
+T+2. The alpha lives entirely in the hours between the government signing and the
+public being able to react; once you trade on public info at the next open net of
+slippage, it's noise. (A cautionary note: an earlier buggy version of this test —
+looser event set + naive t-stats — reported +2.75% NET, p=0.000. The large-cap
+control lighting up exposed the bug. Trust controls and bootstraps, not raw means.)
+
+**Decision: PARK IT.** Documented, validated, and correctly killed at the
+capturability gate — exactly the bar that should stop capital. Not worth building
+into a strategy. Possible (low-priority) revisits: true press-wire timestamps + an
+intraday reaction (a latency game retail tends to lose), or other public-but-neglected
+catalysts (FDA, 8-K, hiring) run through this same honest pipeline.
+
+---
+
+## (superseded) earlier next-steps after v2
 
 The easy version (buy small-caps after awards) is **dead as originally framed**. But
 there is a **robust, bootstrap-significant mid-cap effect** (~+0.8% over 1–5 days,
