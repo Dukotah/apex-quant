@@ -6,6 +6,48 @@
 
 ---
 
+## Session 22 — Cross-asset VALUE: the FIRST uncorrelated 2nd edge (but too weak to deploy)
+
+Re-opened the second-edge hunt with the one long-only return driver the prior sessions
+hadn't tried: **cross-asset value (long-horizon reversal)**. Built
+`CrossAssetValueStrategy` — ranks the smart-7 universe by a price-only value score
+`-(return from value_period bars ago to skip_recent bars ago)` (default 5y window,
+skip last 1y), holds the top-K cheapest, long/flat, inverse-vol sized, optional
+trend-trap filter (OFF by default so we measure PURE value). 6 tests.
+
+**The thesis (why this isn't a repeat of Sessions 19-20):** momentum-family signals are
+correlated to trend BY CONSTRUCTION (S19); short-HORIZON reversal is market-neutral and
+fails long-only (S20). Value is different in KIND — it exploits LONG-horizon (multi-year)
+NEGATIVE autocorrelation, which coexists with short-term trend (AQR "Value and Momentum
+Everywhere"). So it's the one driver structurally *able* to be uncorrelated to trend.
+
+**Result — a genuinely INFORMATIVE outcome, not another flat null:**
+- **The diversification is REAL.** Correlation to the deployed trend strategy is **+0.29**
+  (Gauntlet Gate 7 PASS, corr 0.25 to SPY) — the FIRST long-only second edge that actually
+  comes back uncorrelated AND is structurally opposite (value buys the laggards trend shuns).
+  The value/momentum thesis holds in this universe. (`scripts/value_vs_trend.py` measures it.)
+- **But the value sleeve is too WEAK to deploy.** Standalone Gauntlet = **FAIL** (grade
+  FAIL): in-sample Sharpe −0.13, full Sharpe 0.30, **Sharpe@2x-cost 0.23 (edge < costs)**,
+  MC p=0.091. The in-sample long-only blend search puts **0% weight** on value — at Sharpe
+  0.30 it's too weak to lift the combined Sharpe even at corr 0.29 (best blend = 100% trend,
+  full Sharpe unchanged at 0.82). Right mechanism, insufficient raw premium in 7 ETFs.
+
+**What this changes:** the frontier moves from "*is* there an uncorrelated long-only driver?"
+(answer: YES, value) to "can the value premium be made strong enough to matter?" The honest
+reason it's weak: only 7 sleeves to rank, and long-only keeps just the long leg of a
+partly-market-neutral premium (a milder version of the reversal haircut). Concrete next
+probes (NOT done — would be future sessions): (a) run value on the richer 10-13 ETF
+`sleeve_pool`/`expanded` universe so the cross-sectional rank has more to separate;
+(b) a per-asset COMBINED value+momentum score (hold assets that are both cheap and trending)
+rather than two separate sleeves; (c) accept that a real value premium, like reversal, may
+need a single-name universe or shorting. Kept the strategy as a tested library/reference
+entry (fails standalone, documented — like rsi2/cross_sectional_momentum).
+
+**Verified:** 401 tests passing (+6), lint clean, Gauntlet + correlation tool both run on
+real 2006-2026 smart-7 data.
+
+---
+
 ## Session 21 — Finish the roadmap: kill switch + paper-gate monitor
 
 The two remaining buildable roadmap items, closing the loop on the build.

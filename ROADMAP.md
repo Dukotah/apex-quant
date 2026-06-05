@@ -69,6 +69,7 @@ and a logger subscriber prints each one.
 | Strategy tests | `tests/test_sma_crossover.py` | ✅ |
 | Library: dual_momentum, rsi2_mean_reversion, rsi2_vol_filtered, etf_rotation, trend_bond | `apex/strategy/library/` | ✅ |
 | Cross-sectional momentum (research; fails 2× cost, +0.76 corr to trend) | `apex/strategy/library/cross_sectional_momentum.py` | ✅ built, not deployed |
+| Cross-asset value (research; UNCORRELATED corr +0.29 but too weak — Sharpe 0.30, edge<costs) | `apex/strategy/library/cross_asset_value.py` | ✅ built, not deployed |
 | **DEPLOYED: multi_asset_trend** — 7-sleeve inverse-vol, grade A 7/7, OOS 1.34 | `apex/strategy/library/multi_asset_trend.py` | ✅ LIVE on paper |
 
 **Indicators:** SMA, EMA, RSI, MACD, Bollinger Bands, ATR, VWAP. Stateless,
@@ -159,7 +160,7 @@ real forward work, distilled from the DECISIONS log.*
 | Volatility-target overlay | ✅ built, off | Session 18 (redundant — trend self-regulates) |
 | Sleeve-screening tool | ✅ | Session 16 (`scripts/sleeve_screen.py`) |
 | **30-day paper gate (Rule 17)** | 🚧 in progress | the real test — judge live, not on more backtests |
-| **Second uncorrelated edge** | 🔲 needs new UNIVERSE | CLOSED for these ETFs: same-universe momentum is correlated (Session 19, +0.76); mean-reversion has no edge here — these assets trend, not revert (Session 20, −0.52 Sharpe). A real 2nd edge needs single-name equities (reversal is real there) or a carry/macro data source — a new pipeline, not a strategy tweak. |
+| **Second uncorrelated edge** | 🚧 mechanism FOUND, premium too weak | Session 22: cross-asset VALUE (long-horizon reversal) is the FIRST long-only driver that comes back UNCORRELATED to trend (corr +0.29) — the value/momentum thesis holds here. BUT standalone Sharpe 0.30 (edge<costs), so a blend puts 0% on it. Right mechanism, weak premium in 7 ETFs. Next probes: value on the richer 10-13 ETF pool; a combined per-asset value+momentum score; else single-names/shorting (Sessions 19-20: momentum is correlated +0.76; short-horizon reversal fails long-only). |
 | Multi-strategy capital-allocation engine | 🔲 deferred | the vehicle for a 2nd strategy — build only once a strong uncorrelated edge exists |
 | Govcon alt-data event-study pipeline | ✅ research, parked | `research/govcon/` — edge real but not capturable (Session 11) |
 

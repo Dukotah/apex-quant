@@ -257,6 +257,42 @@ def validate_multiasset_smart7():
     )
 
 
+def validate_value():
+    """
+    Cross-asset VALUE (long-horizon reversal) on the smart-7 universe — the second-edge
+    candidate. Same universe as the deployed trend strategy, so its OOS Sharpe AND its
+    correlation to trend (scripts/portfolio) are apples-to-apples. Trend filter OFF:
+    we want PURE value's correlation, not a trend-contaminated hybrid.
+    """
+    from apex.strategy.library.cross_asset_value import CrossAssetValueStrategy
+    assets = ["SPY", "EFA", "TLT", "GLD", "DBC", "UUP", "DBA"]
+    syms = [Symbol(t, AssetClass.ETF) for t in assets]
+    risk = RiskConfig(
+        max_position_size_pct=Decimal("0.34"), max_total_exposure_pct=Decimal("1.0"),
+        max_leverage=Decimal("1.0"), max_drawdown_pct=Decimal("0.99"),
+        max_daily_loss_pct=Decimal("0.99"), require_stop_loss=True,
+    )
+
+    def factory():
+        return CrossAssetValueStrategy("xasset_value", syms, value_period=1260,
+                                       skip_recent=252, top_k=3)
+
+    def lo():
+        return CrossAssetValueStrategy("xasset_value", syms, value_period=1008,
+                                       skip_recent=252, top_k=3)
+
+    def hi():
+        return CrossAssetValueStrategy("xasset_value", syms, value_period=1512,
+                                       skip_recent=252, top_k=3)
+
+    return run_gauntlet_from_csv(
+        "cross_asset_value_REAL", factory, "data/real/multiasset_smart7.csv", syms,
+        benchmark_ticker="SPY", risk_config=risk,
+        param_variants=[("window-20%", lo), ("window+20%", hi)],
+        rebalance_period_bars=21,
+    )
+
+
 def validate_trend_bond():
     """Cash-drag-fixed trend: hold SPY above its 200d SMA, rotate to AGG below."""
     syms = [Symbol("SPY", AssetClass.ETF), Symbol("AGG", AssetClass.ETF)]
@@ -283,7 +319,9 @@ def main() -> None:
     which = sys.argv[1] if len(sys.argv) > 1 else "dual_momentum"
     if len(sys.argv) > 2:                 # optional data-file override
         DATA = SECTORS = sys.argv[2]
-    if which in ("smart7", "s7"):
+    if which in ("value", "val", "xvalue"):
+        report, inputs = validate_value()
+    elif which in ("smart7", "s7"):
         report, inputs = validate_multiasset_smart7()
     elif which in ("expanded", "x", "multix"):
         report, inputs = validate_multiasset_expanded()
