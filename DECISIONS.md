@@ -6,6 +6,60 @@
 
 ---
 
+## Session 13 — Drawdown sizing throttle + deployment-ready
+
+**Goal:** close the last risk gap and get the bot to a genuinely deployable,
+survivable state.
+
+**Built — drawdown sizing throttle (RiskManager).** New `RiskConfig` fields
+(`drawdown_throttle_start/_full/_floor`, OFF by default) and
+`RiskManager._drawdown_throttle()`: as drawdown-from-peak grows past `start`, NEW
+entries are sized down linearly to `floor`x by `full`, then held at `floor`x.
+Folded into `_size_position` alongside conviction. Enabled in `PRODUCTION_RISK`
+(start 12% → floor 35% by 30% DD), independent of the 40% catastrophe halt.
+
+**Key reframing (measured, important for sizing real capital):** the strategy's
+REALIZED full-period max drawdown is only **8.3%** — benign. The scary **57%** is
+the Monte-Carlo *resampled* tail (worst-case trade ORDERING), not the path history
+took. So:
+- The MC 57% is size-INDEPENDENT (computed from per-trade price returns), which is
+  why neither inverse-vol nor the throttle moves it. It's an inherent property of
+  trend-following's trade distribution — the premium *is* deep potential drawdowns.
+- The throttle protects the realized EQUITY PATH, not the MC metric. At the prod
+  setting it's **zero-cost insurance**: on the historical path DD never reaches 12%
+  so it's dormant (identical 270k / 8.3% / Sharpe 0.80 with it ON vs OFF); it only
+  engages if a LIVE path turns out worse than history. Verified it IS wired into
+  the backtester by lowering the start: at 0.05 it de-risks (267k), at 0.03 more
+  so (260k, DD 8.0%) — graduated, correct behavior.
+
+**Why this is the right control (not a different lever):** moving the 57% would
+require changing the trades themselves (tighter/trailing stops), which alters the
+validated edge. Sizing-for-survival is the standard managed-futures answer and the
+Gauntlet's own advice ("size around the realistic max drawdown"). The throttle
+operationalizes that automatically.
+
+**Deployment readiness confirmed:**
+- The cron (`trade.yml`, `50 19 * * 1-5` = 19:50 UTC ≈ 3:50pm ET) already fires
+  INSIDE market hours, so scheduled market orders fill (the after-hours manual test
+  is the only reason orders queued+cancelled). Updated the stale cron comment
+  (was dual_momentum) to describe the deployed trend strategy + the RTH requirement.
+- `docs/HOSTING.md` already has the go-live steps (push public repo → set Actions
+  secrets ALPACA_API_KEY/SECRET + vars APEX_MODE=paper/APEX_BROKER=alpaca → dispatch).
+
+**Verified:** full suite **367 passing** (+6 throttle tests). Gauntlet grade
+unaffected (throttle lives only in PRODUCTION_RISK, not the validation config).
+
+**Remaining to actually GO LIVE (needs the user — GitHub account):**
+1. `git push` the repo to GitHub (public for free Actions minutes).
+2. Add Actions secrets (paper keys) + variables (APEX_MODE=paper).
+3. Manually dispatch the workflow once to confirm a green run, then let the daily
+   cron run the 30-day paper gate (Rule 17) before any thought of live capital.
+
+**Next (optional, post-paper):** more uncorrelated sleeves; revisit exits only if
+the 30-day paper Sharpe materially lags the 0.80 backtest.
+
+---
+
 ## Session 12 — Fix the cold-start bug: position-aware strategies + a live context
 
 **The bug (found by actually running it):** the first live paper cycle produced

@@ -632,3 +632,65 @@ class TestEdgeCases:
     def test_is_halted_initially_false(self):
         rm = RiskManager(_default_config())
         assert rm.is_halted is False
+
+
+# ---------------------------------------------------------------------------
+# Drawdown sizing throttle
+# ---------------------------------------------------------------------------
+
+class TestDrawdownThrottle:
+    """De-risk new entries as the account draws down from its peak."""
+
+    def _throttle_cfg(self, **ov) -> RiskConfig:
+        return _default_config(
+            max_position_size_pct=Decimal("0.20"),
+            max_total_exposure_pct=Decimal("1.0"),
+            max_drawdown_pct=Decimal("0.99"),         # don't let the halt mask the throttle
+            drawdown_throttle_start=Decimal("0.10"),
+            drawdown_throttle_full=Decimal("0.30"),
+            drawdown_throttle_floor=Decimal("0.40"),
+            **ov,
+        )
+
+    def _port(self, peak: str, equity: str) -> FakePortfolio:
+        p = FakePortfolio(equity=Decimal(equity), peak_equity=Decimal(peak),
+                          day_start_equity=Decimal(equity))
+        p.last_price["AAPL"] = Decimal("200")
+        return p
+
+    def test_disabled_by_default(self):
+        # Default config has throttle_start=None → always full size.
+        rm = RiskManager(_default_config())
+        assert rm._drawdown_throttle(self._port("100000", "70000")) == Decimal("1")
+
+    def test_full_size_above_start(self):
+        rm = RiskManager(self._throttle_cfg())
+        # Only 5% down (< 10% start) → no throttling.
+        assert rm._drawdown_throttle(self._port("100000", "95000")) == Decimal("1")
+
+    def test_floor_at_and_beyond_full(self):
+        rm = RiskManager(self._throttle_cfg())
+        # 30% down = `full` → floor; 50% down → still floor.
+        assert rm._drawdown_throttle(self._port("100000", "70000")) == Decimal("0.40")
+        assert rm._drawdown_throttle(self._port("100000", "50000")) == Decimal("0.40")
+
+    def test_linear_ramp_midpoint(self):
+        rm = RiskManager(self._throttle_cfg())
+        # 20% down is the midpoint of [10%, 30%] → halfway between 1 and 0.40 = 0.70.
+        assert rm._drawdown_throttle(self._port("100000", "80000")) == Decimal("0.70")
+
+    def test_no_peak_is_full_size(self):
+        rm = RiskManager(self._throttle_cfg())
+        p = FakePortfolio(equity=Decimal("0"), peak_equity=Decimal("0"),
+                          day_start_equity=Decimal("0"))
+        assert rm._drawdown_throttle(p) == Decimal("1")
+
+    def test_throttle_shrinks_actual_order(self):
+        """End-to-end: the same signal sizes smaller in a drawdown than at the peak."""
+        rm = RiskManager(self._throttle_cfg())
+        sig = _buy_signal(stop=Decimal("190"))
+        at_peak = rm.evaluate(sig, self._port("100000", "100000"))
+        in_dd = rm.evaluate(_buy_signal(stop=Decimal("190")), self._port("100000", "80000"))
+        assert at_peak is not None and in_dd is not None
+        # 20% drawdown → 0.70x sizing → strictly fewer shares.
+        assert in_dd.quantity < at_peak.quantity

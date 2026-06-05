@@ -415,6 +415,12 @@ PRODUCTION_RISK = RiskConfig(
     max_drawdown_pct=Decimal("0.40"),      # catastrophe halt, well above normal DD
     max_daily_loss_pct=Decimal("0.10"),
     require_stop_loss=True,
+    # Survive the strategy's deep trend drawdowns: once down 12% from peak, size new
+    # entries down, reaching 35% size by a 30% drawdown. Protects the equity path so a
+    # bad run is survivable well before the 40% catastrophe halt fires.
+    drawdown_throttle_start=Decimal("0.12"),
+    drawdown_throttle_full=Decimal("0.30"),
+    drawdown_throttle_floor=Decimal("0.35"),
 )
 
 

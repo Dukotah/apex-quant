@@ -19,10 +19,12 @@ name: Apex Quant — Scheduled Trading Run
 on:
   schedule:
     # Once per weekday at 19:50 UTC (~3:50pm ET, just before the close) — the
-    # right cadence for the DAILY-bar strategies currently deployed (dual
-    # momentum rebalances monthly off daily closes). run_once is idempotent, so a
-    # missed/duplicate fire is harmless. For an intraday strategy, switch to a
-    # market-hours sweep, e.g. cron: '0,30 14-20 * * 1-5'.
+    # right cadence for the deployed MULTI-ASSET TREND strategy (daily 20/200 SMA
+    # filter over SPY/EFA/TLT/GLD/DBC; it acts only when a sleeve's trend state
+    # flips, so once a day near the close is ideal). Firing INSIDE market hours
+    # matters: run_once submits market orders, which fill during RTH but merely
+    # queue (and are cancelled on disconnect) after hours. run_once is idempotent
+    # and reconciles broker truth each run, so a missed/duplicate fire is harmless.
     # GitHub cron granularity is ~5 min minimum and not guaranteed exact.
     - cron: '50 19 * * 1-5'
   workflow_dispatch:        # allows manual "Run workflow" button for testing

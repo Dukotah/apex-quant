@@ -46,6 +46,18 @@ class RiskConfig:
     min_stop_distance_pct: Decimal = Decimal("0.005")  # stop must be >= 0.5% away
     symbol_whitelist: Optional[frozenset] = None       # None = all allowed
 
+    # --- Drawdown sizing throttle (de-risk as the equity bleeds) ---
+    # As drawdown-from-peak grows past `start`, NEW entries are sized down linearly
+    # to `floor`x by the time drawdown reaches `full`, then held at `floor`x. This
+    # protects the live equity PATH (you bet smaller while losing, so a bad run is
+    # survivable) — it is the standard managed-futures answer to a strategy whose
+    # realistic drawdown is large. Independent of the hard `max_drawdown_pct` halt,
+    # which remains the catastrophe backstop. `start=None` disables it (the default,
+    # so existing configs are unchanged).
+    drawdown_throttle_start: Optional[Decimal] = None  # DD where down-sizing begins
+    drawdown_throttle_full: Decimal = Decimal("0.30")  # DD where `floor`x is reached
+    drawdown_throttle_floor: Decimal = Decimal("0.30") # smallest size multiplier (>0)
+
 
 class TradingHaltError(Exception):
     """Raised when trading is globally halted (drawdown/daily-loss breach)."""
@@ -284,9 +296,11 @@ class RiskManager:
         if price is None or price <= 0 or equity <= 0:
             return Decimal("0")
 
-        # Per-position cap, scaled by conviction (strength 0..1).
+        # Per-position cap, scaled by conviction (strength 0..1) and by the
+        # drawdown throttle (de-risk new entries while the account is in a slump).
         strength = max(Decimal("0"), min(Decimal("1"), Decimal(str(signal.strength))))
-        target_dollars = equity * self._config.max_position_size_pct * strength
+        throttle = self._drawdown_throttle(portfolio)
+        target_dollars = equity * self._config.max_position_size_pct * strength * throttle
 
         # Respect remaining room under total exposure cap.
         max_exposure = equity * self._config.max_total_exposure_pct
@@ -303,6 +317,31 @@ class RiskManager:
         if signal.symbol.fractionable:
             return raw_qty.quantize(Decimal("0.0001"))
         return Decimal(int(raw_qty))
+
+    def _drawdown_throttle(self, portfolio) -> Decimal:
+        """
+        Size multiplier in [floor, 1] based on current drawdown from peak. Full size
+        until drawdown exceeds `start`, then ramps linearly down to `floor` by `full`,
+        and stays at `floor` beyond. Returns 1 (no effect) when disabled or when there
+        is no peak yet. Fails OPEN to 1 only structurally — any bad config collapses
+        to the safe full-throttle path, and the hard drawdown halt still backs it up.
+        """
+        start = self._config.drawdown_throttle_start
+        if start is None:
+            return Decimal("1")
+        peak = Decimal(str(portfolio.peak_equity))
+        equity = Decimal(str(portfolio.equity))
+        if peak <= 0:
+            return Decimal("1")
+        drawdown = (peak - equity) / peak
+        if drawdown <= start:
+            return Decimal("1")
+        floor = self._config.drawdown_throttle_floor
+        full = self._config.drawdown_throttle_full
+        if drawdown >= full or full <= start:
+            return floor
+        frac = (drawdown - start) / (full - start)          # 0..1 across the ramp
+        return Decimal("1") - frac * (Decimal("1") - floor)
 
     def _check_leverage(self, signal: SignalEvent, quantity: Decimal, portfolio) -> bool:
         equity = Decimal(str(portfolio.equity))
