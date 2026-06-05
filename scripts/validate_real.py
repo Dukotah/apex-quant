@@ -23,6 +23,7 @@ from apex.strategy.library.etf_rotation import ETFRotationStrategy
 from apex.strategy.library.rsi2_mean_reversion import RSI2MeanReversionStrategy
 from apex.strategy.library.rsi2_vol_filtered import RSI2VolFilteredStrategy
 from apex.strategy.library.sma_crossover import SMACrossoverStrategy
+from apex.strategy.library.trend_bond import TrendBondStrategy
 
 DATA = "data/real/dm.csv"            # SPY/EFA/AGG
 SECTORS = "data/real/sectors.csv"    # XLK..XLB + AGG + SPY (benchmark)
@@ -147,13 +148,35 @@ def validate_spy_trend():
     )
 
 
+def validate_trend_bond():
+    """Cash-drag-fixed trend: hold SPY above its 200d SMA, rotate to AGG below."""
+    syms = [Symbol("SPY", AssetClass.ETF), Symbol("AGG", AssetClass.ETF)]
+
+    def factory():
+        return TrendBondStrategy("trend_bond", syms, slow_period=200)
+
+    def lo():
+        return TrendBondStrategy("trend_bond", syms, slow_period=150)
+
+    def hi():
+        return TrendBondStrategy("trend_bond", syms, slow_period=250)
+
+    return run_gauntlet_from_csv(
+        "trend_bond_REAL", factory, DATA, syms, benchmark_ticker="SPY",
+        risk_config=SLEEVE_RISK,
+        param_variants=[("slow-25%", lo), ("slow+25%", hi)],
+    )
+
+
 def main() -> None:
     _utf8()
     global DATA, SECTORS
     which = sys.argv[1] if len(sys.argv) > 1 else "dual_momentum"
     if len(sys.argv) > 2:                 # optional data-file override
         DATA = SECTORS = sys.argv[2]
-    if which.startswith("trend") or which.startswith("spy"):
+    if which.startswith("trend_bond") or which == "tb":
+        report, inputs = validate_trend_bond()
+    elif which.startswith("trend") or which.startswith("spy"):
         report, inputs = validate_spy_trend()
     elif which.startswith("rsi2_vol") or which == "volrsi":
         report, inputs = validate_rsi2_vol()

@@ -64,9 +64,16 @@ def fetch_symbol(symbol: str, rng: str = "15y", start: str | None = None) -> Lis
     for i, ts in enumerate(stamps):
         o, h, l, c, v = (quote["open"][i], quote["high"][i], quote["low"][i],
                          quote["close"][i], quote["volume"][i])
-        close = adj[i] if (adj and adj[i] is not None) else c
-        if None in (o, h, l, close):
+        if None in (o, h, l, c):
             continue  # holiday / halted bar — skip, don't fabricate
+        # CRITICAL: O/H/L and close must share ONE adjustment basis. Yahoo gives
+        # raw O/H/L but a split/dividend-adjusted close; mixing them yields corrupt
+        # bars (e.g. an adjusted close below the raw low) that wreck sizing/P&L.
+        # Scale O/H/L by the same ratio (adjclose/close) so the whole bar is on the
+        # adjusted (total-return) basis used for strategy math.
+        adj_c = adj[i] if (adj and adj[i] is not None) else c
+        ratio = (adj_c / c) if c else 1.0
+        o, h, l, close = o * ratio, h * ratio, l * ratio, adj_c
         date = datetime.fromtimestamp(ts, tz=timezone.utc).date().isoformat()
         rows.append({
             "timestamp": date, "symbol": symbol,
