@@ -37,7 +37,9 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import sqlite3
+import urllib.request
 from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
@@ -55,6 +57,7 @@ from apex.execution.factory import make_execution_engine
 from apex.risk.portfolio import Portfolio
 from apex.risk.risk_manager import RiskConfig, RiskManager
 from apex.strategy.base_strategy import BaseStrategy, StrategyContext
+from apex.validation.drift_monitor import DriftMonitor
 
 logger = logging.getLogger("apex.run_once")
 
@@ -75,14 +78,18 @@ class RunReport:
     fills: List[FillEvent] = field(default_factory=list)
     halted: bool = False
     reconciled: bool = False
+    quarantined: bool = False
+    drift_summary: str = ""
 
     def summary(self) -> str:
-        return (
+        base = (
             f"run_once [{self.mode}] @ {self.timestamp:%Y-%m-%d %H:%M}Z: "
             f"equity {self.equity:,.2f}, {self.num_positions} positions, "
             f"{self.signals_evaluated} signals -> {self.orders_submitted} orders, "
             f"{len(self.fills)} fills{', HALTED' if self.halted else ''}"
+            f"{', QUARANTINED' if self.quarantined else ''}"
         )
+        return f"{base}\n  {self.drift_summary}" if self.drift_summary else base
 
 
 # ------------------------------------------------------------------ state store
@@ -147,6 +154,13 @@ class StateStore:
 
     def run_count(self) -> int:
         return self._conn.execute("SELECT COUNT(*) FROM runs").fetchone()[0]
+
+    def recent_equities(self, mode: str, limit: int = 45) -> List[float]:
+        """Equity history for `mode`, oldest->newest — feeds the drift monitor."""
+        cur = self._conn.execute(
+            "SELECT equity FROM runs WHERE mode = ? ORDER BY ts DESC LIMIT ?", (mode, limit)
+        )
+        return [float(r[0]) for r in reversed(cur.fetchall())]
 
     def close(self) -> None:
         self._conn.close()
@@ -217,6 +231,18 @@ def run_once(
         latest_signals = _evaluate(events, strategies, portfolio)
         report.signals_evaluated = len(latest_signals)
 
+        # 4b. Drift guard: if the live strategy has decayed below its quarantine
+        # floor (rolling Sharpe < 70% of validated), stop opening NEW positions.
+        # De-risking exits are always still allowed.
+        pre = _drift_monitor(state_store, report.mode)
+        if pre is not None and pre.check().is_quarantined:
+            report.quarantined = True
+            kept = [s for s in latest_signals if _signal_reduces(s, portfolio)]
+            if len(kept) != len(latest_signals):
+                logger.critical("QUARANTINED (alpha decay) — blocking %d new entr(ies).",
+                                len(latest_signals) - len(kept))
+            latest_signals = kept
+
         _submit_orders(latest_signals, events, risk_manager, portfolio, execution_engine, report)
     finally:
         execution_engine.disconnect()
@@ -225,8 +251,17 @@ def run_once(
     report.halted = risk_manager.is_halted
     report.equity = float(portfolio.equity)
     report.num_positions = len(portfolio.open_positions)
+
+    # 5. Record this cycle's equity into the drift monitor for the report + alerting.
+    mon = _drift_monitor(state_store, report.mode)
+    if mon is not None:
+        reading = mon.record_equity(report.equity)
+        report.drift_summary = reading.summary()
+        report.quarantined = report.quarantined or reading.is_quarantined
+
     _persist(state_store, report, portfolio)
     logger.info(report.summary())
+    _notify_cycle(report)
     return report
 
 
@@ -377,6 +412,50 @@ def _signal_reduces(signal, portfolio: Portfolio) -> bool:
         return False
     q = held.quantity
     return (q > 0 and signal.side == OrderSide.SELL) or (q < 0 and signal.side == OrderSide.BUY)
+
+
+# The deployed strategy's Gauntlet-validated full Sharpe (smart-7 trend, Session 15/16).
+# The drift monitor quarantines if the live 30-day rolling Sharpe falls below 70% of it.
+DEPLOYED_VALIDATED_SHARPE = 0.85
+
+
+def _notify(title: str, message: str, priority: str = "default") -> None:
+    """Free push via ntfy.sh if NTFY_TOPIC is set. Never raises — observability only."""
+    topic = os.getenv("NTFY_TOPIC")
+    if not topic:
+        return
+    try:
+        req = urllib.request.Request(
+            f"https://ntfy.sh/{topic}", data=message.encode("utf-8"),
+            headers={"Title": title, "Priority": priority, "Tags": "robot"},
+        )
+        urllib.request.urlopen(req, timeout=10)
+    except Exception as exc:  # noqa: BLE001 — a notify failure must never break the cron
+        logger.warning("ntfy notify failed: %s", exc)
+
+
+def _notify_cycle(report: RunReport) -> None:
+    """Push an alert only when something happened — no spam on quiet no-op days."""
+    if report.quarantined:
+        _notify("Apex Quant - QUARANTINED", report.summary(), priority="urgent")
+    elif report.halted:
+        _notify("Apex Quant - HALTED", report.summary(), priority="high")
+    elif report.orders_submitted > 0:
+        _notify("Apex Quant - traded", report.summary(), priority="default")
+
+
+def _drift_monitor(store: Optional[StateStore], mode: str) -> Optional[DriftMonitor]:
+    """Rebuild the drift monitor from persisted equity history (one point per cycle)."""
+    if store is None:
+        return None
+    try:
+        mon = DriftMonitor("multi_asset_trend", validated_sharpe=DEPLOYED_VALIDATED_SHARPE, window=30)
+        for eq in store.recent_equities(mode):
+            mon.record_equity(eq)
+        return mon
+    except Exception as exc:  # noqa: BLE001 — drift is protective, never fatal
+        logger.warning("drift monitor unavailable: %s", exc)
+        return None
 
 
 def _persist(store: Optional[StateStore], report: RunReport, portfolio: Portfolio) -> None:

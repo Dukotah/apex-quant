@@ -6,6 +6,29 @@
 
 ---
 
+## Session 17 — Operational hardening: drift guard + push notifications
+
+Made the live bot observable and self-protecting for the 30-day paper gate.
+
+- **Drift monitor wired into `run_once`.** Rebuilt each cycle from the persisted
+  equity history (`StateStore.recent_equities`, one point per daily run) against the
+  deployed strategy's validated Sharpe (0.85). It reports a rolling-Sharpe drift
+  reading every cycle and **auto-quarantines** if the live 30-day rolling Sharpe
+  falls below the floor (0.70 × 0.85 ≈ 0.59). On quarantine it **blocks new entries**
+  (de-risking exits still allowed) — the alpha-decay kill switch from Session 0.5,
+  now actually enforced in the cron, not just a library.
+- **Push notifications (`ntfy.sh`).** `run_once` pings `NTFY_TOPIC` only when
+  something happens — a trade (default), a halt (high), or a quarantine (urgent) —
+  silent on quiet no-op days. Never raises; a notify/drift failure can't break the
+  cron (fail-open, since the hard drawdown halt remains the safety backstop).
+- **Verified:** live paper cycle shows the drift line (`warming_up n=2/30`) and
+  trades the 7 sleeves; 4 new tests (quarantine blocks entries, warming-up doesn't,
+  recent_equities ordering, notify silent without a topic). Suite **371 green**.
+
+To enable phone alerts: add an `NTFY_TOPIC` Actions secret + subscribe in the ntfy app.
+
+---
+
 ## Session 16 — Sleeve-screening tool; deployed 7-sleeve confirmed near-optimal
 
 Built `scripts/sleeve_screen.py`: computes each candidate's *trend-sleeve* return

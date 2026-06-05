@@ -8,7 +8,7 @@ broker reconciliation seeding the portfolio, and halt suppressing orders.
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import List
 
@@ -19,7 +19,8 @@ from apex.core.models import AssetClass, Bar, OrderSide, Symbol
 from apex.execution.simulated import SimulatedExecutionEngine
 from apex.risk.risk_manager import RiskConfig, RiskManager
 from apex.strategy.base_strategy import BaseStrategy
-from scripts.run_once import RunReport, StateStore, run_once
+from scripts.run_once import (RunReport, StateStore, _drift_monitor, _notify,
+                              _notify_cycle, run_once)
 
 SPY = Symbol("SPY", AssetClass.ETF)
 UTC = timezone.utc
@@ -172,3 +173,55 @@ def test_state_store_creates_schema_and_persists(tmp_path):
     store.save_run(report, {"SPY": {"qty": "10"}})
     assert store.run_count() == 1
     assert store.last_run()["num_positions"] == 2
+
+
+# ------------------------------------------------------------- drift monitoring
+
+def _seed_equities(store, equities):
+    base = datetime(2024, 1, 1, tzinfo=UTC)
+    for i, eq in enumerate(equities):
+        store.save_run(RunReport(timestamp=base + timedelta(days=i), mode="paper",
+                                 equity=float(eq), num_positions=0), {})
+
+
+def test_recent_equities_oldest_to_newest(tmp_path):
+    store = StateStore(tmp_path / "s.db")
+    _seed_equities(store, [100.0, 101.0, 102.0])
+    assert store.recent_equities("paper") == [100.0, 101.0, 102.0]
+
+
+def _bleeding_curve(n=35):
+    """A noisy DECLINING equity path → strongly negative rolling Sharpe."""
+    v, out = 100000.0, []
+    for i in range(n):
+        v *= (1 + (-0.02 if i % 2 == 0 else 0.01))   # net -0.5%/2d, real variance
+        out.append(v)
+    return out
+
+
+def test_drift_quarantine_blocks_new_entries(tmp_path):
+    store = StateStore(tmp_path / "s.db")
+    _seed_equities(store, _bleeding_curve())          # decayed history → below floor
+    report = run_once(
+        _config(), [AlwaysBuy("buy", [SPY])],
+        clock=FixedClock(NOW),
+        feed=_feed([(1, 100), (2, 101), (3, 102)]),
+        execution_engine=SimulatedExecutionEngine(),
+        state_store=store,
+    )
+    assert report.quarantined is True
+    assert report.orders_submitted == 0               # new entries blocked on decay
+
+
+def test_drift_monitor_warming_up_does_not_block(tmp_path):
+    store = StateStore(tmp_path / "s.db")
+    _seed_equities(store, [100000.0, 100100.0, 100200.0])   # too little data to judge
+    mon = _drift_monitor(store, "paper")
+    assert mon is not None and not mon.check().is_quarantined
+
+
+def test_notify_is_silent_without_topic(monkeypatch):
+    monkeypatch.delenv("NTFY_TOPIC", raising=False)
+    _notify("t", "m")                                  # must not raise
+    _notify_cycle(RunReport(timestamp=NOW, mode="paper", equity=1.0, num_positions=0,
+                            orders_submitted=1))        # must not raise
