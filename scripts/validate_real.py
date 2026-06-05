@@ -148,6 +148,33 @@ def validate_spy_trend():
     )
 
 
+def validate_multiasset():
+    """Multi-asset trend following: long/flat each asset on its 200d SMA, 20% each."""
+    assets = ["SPY", "EFA", "TLT", "GLD", "DBC"]
+    syms = [Symbol(t, AssetClass.ETF) for t in assets]
+    # Equal-weight sleeve sizing: 20% max per position, up to 100% total deployed.
+    risk = RiskConfig(
+        max_position_size_pct=Decimal("0.20"), max_total_exposure_pct=Decimal("1.0"),
+        max_leverage=Decimal("1.0"), max_drawdown_pct=Decimal("0.99"),
+        max_daily_loss_pct=Decimal("0.99"), require_stop_loss=True,
+    )
+
+    def factory():
+        return SMACrossoverStrategy("multi_trend", syms, fast_period=20, slow_period=200)
+
+    def lo():
+        return SMACrossoverStrategy("multi_trend", syms, fast_period=20, slow_period=150)
+
+    def hi():
+        return SMACrossoverStrategy("multi_trend", syms, fast_period=20, slow_period=250)
+
+    return run_gauntlet_from_csv(
+        "multiasset_trend_REAL", factory, "data/real/multiasset.csv", syms,
+        benchmark_ticker="SPY", risk_config=risk,
+        param_variants=[("slow-25%", lo), ("slow+25%", hi)],
+    )
+
+
 def validate_trend_bond():
     """Cash-drag-fixed trend: hold SPY above its 200d SMA, rotate to AGG below."""
     syms = [Symbol("SPY", AssetClass.ETF), Symbol("AGG", AssetClass.ETF)]
@@ -174,7 +201,9 @@ def main() -> None:
     which = sys.argv[1] if len(sys.argv) > 1 else "dual_momentum"
     if len(sys.argv) > 2:                 # optional data-file override
         DATA = SECTORS = sys.argv[2]
-    if which.startswith("trend_bond") or which == "tb":
+    if which.startswith("multi"):
+        report, inputs = validate_multiasset()
+    elif which.startswith("trend_bond") or which == "tb":
         report, inputs = validate_trend_bond()
     elif which.startswith("trend") or which.startswith("spy"):
         report, inputs = validate_spy_trend()
