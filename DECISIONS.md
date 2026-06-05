@@ -6,6 +6,53 @@
 
 ---
 
+## Session 8 — CRITICAL data bug found: Session 7's edge-hunt results were corrupt
+
+**The bug:** `fetch_yahoo` wrote Yahoo's split/dividend-**adjusted** close alongside
+**raw** open/high/low in the same bar. The two are on different bases — in 2003 SPY's
+adjusted close was ~$74 while its raw open was ~$110. The adjusted close even fell BELOW
+the raw low, and `Bar.__post_init__` doesn't validate close∈[low,high], so the corrupt
+bars passed silently. Effect: position sizing used the adjusted close (~$74) while fills
+used the raw open (~$110) → fake ~1.5× leverage, NEGATIVE equity, garbage P&L.
+**Found via** trend_bond showing an impossible 100% drawdown + sizing 1356 SPY ($150k)
+on $100k; instrumented the sizer → equity 100k / price $73.7 = 1356, but fill at $110.70.
+
+**Fix:** scale O/H/L by `adjclose/close` so the whole bar is on one (total-return) basis.
+Re-fetched all data; 0 bars now have close/open outside [low,high].
+
+**This invalidated Session 7's conclusions.** Corrected results (full-period Sharpe):
+| strategy | window | Sharpe (clean) | was (corrupt) | cost-stress | corr to SPY |
+|---|---|---|---|---|---|
+| spy_trend (20/200) | 2003–26 | **0.74** | 0.40 | PASS (0.73) | 0.67 |
+| dual_momentum | 2003–26 | **0.63** | 0.43 | PASS (0.61) | 0.73 |
+| dual_momentum | 2011–26 | **0.61** | 0.33 | PASS (0.58) | 0.84 |
+| trend_bond | 2003–26 | **0.60** | 0.10 | ~0.49 | 0.59 |
+| rsi2 | 2011–26 | 0.37 | 0.33 | FAIL (0.08) | 0.32 |
+| rsi2_vol | 2011–26 | 0.34 | 0.26 | FAIL (0.10) | 0.23 |
+| etf_rotation | 2011–26 | 0.39 | 0.35 | FAIL (0.24) | 0.73 |
+| Buy & hold SPY | — | 0.67–0.88 | — | — | 1.0 |
+
+**Corrected conclusions:**
+- **Trend/momentum strategies are genuinely decent** (~0.60–0.74 Sharpe), cost-robust,
+  strong OOS — matching/beating buy-and-hold SPY. Earlier "all terrible" was the data bug.
+- **Mean-reversion (rsi2 family) genuinely fails on costs** (Sharpe@2× ~0.08–0.10): high
+  turnover, edge < costs. A real failure, not a data artifact.
+- **The binding blocker is now Gate 1's Sharpe ≥ 1.0** — UNACHIEVABLE for any long-only
+  equity strategy (even SPY itself is 0.67–0.88). This architecture's documented lane is
+  long-only risk premia (Sharpe ~0.5–0.9), so a single strategy structurally cannot clear
+  a 1.0 bar. To legitimately reach 1.0 you must combine UNCORRELATED sleeves (portfolio
+  construction) — that is the professional path, not lowering the bar.
+
+**Follow-ups identified:**
+- Add `low ≤ open,close ≤ high` validation to `Bar.__post_init__` (would have caught this
+  instantly). Deferred to avoid breaking the suite under time pressure — verify synthetic
+  generator + fixtures comply first.
+- Decision needed (Session 9): EITHER make Gate 1 benchmark-relative / recalibrate its
+  Sharpe to the long-only lane, OR build a portfolio backtester and combine a trend/
+  momentum core with the low-correlation rsi2 sleeve to genuinely exceed Sharpe 1.0.
+
+---
+
 ## Session 7 — Full edge hunt: every library strategy tested on real data → none pass
 
 **Goal:** find a strategy that PASSES the Gauntlet (the actual "product"). Tested all
