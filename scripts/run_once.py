@@ -387,18 +387,22 @@ def _persist(store: Optional[StateStore], report: RunReport, portfolio: Portfoli
 
 # ------------------------------------------------------------------- main wiring
 
-# The deployed strategy: MULTI-ASSET TREND FOLLOWING. The 200-day trend filter
-# applied across five uncorrelated asset classes (US equities, intl equities, long
-# Treasuries, gold, broad commodities), equal-weighted at 20% per sleeve. This is
-# the strategy that earned its place through the real-data Gauntlet (Session 9):
-# 6/7 gates, out-of-sample Sharpe 1.12, Monte-Carlo p=0.002, survives 2x costs,
-# beats buy-and-hold SPY. All five are liquid Alpaca ETFs.
+# The deployed strategy: MULTI-ASSET TREND FOLLOWING with INVERSE-VOL sizing.
+# The 200-day trend filter applied across five uncorrelated asset classes (US
+# equities, intl equities, long Treasuries, gold, broad commodities), sized by
+# inverse volatility (risk-parity) rather than flat 20% — the calmest sleeve gets
+# the full cap, wilder sleeves scale down. Validated through the real-data Gauntlet
+# (Session 11): grade A 7/7, full Sharpe 0.81, OOS 1.10, MC p=0.002, survives 2x
+# costs, beats SPY at lower correlation (0.25). Inverse-vol cut the realized
+# backtest drawdown from 15% to 8% vs. the equal-weight baseline. All five are
+# liquid Alpaca ETFs.
 DEPLOYED_UNIVERSE = ("SPY", "EFA", "TLT", "GLD", "DBC")
 
-# Production risk for the multi-asset trend sleeve. Position cap 20% (equal-weight
-# the five sleeves); circuit breakers set ABOVE the strategy's normal drawdown
-# range so they act as catastrophe stops, not constant trips (a trend strategy's
-# ordinary drawdowns would trip the default 10% breaker every cycle).
+# Production risk for the multi-asset trend sleeve. Position cap 20% (the calmest
+# sleeve's full inverse-vol weight); circuit breakers set ABOVE the strategy's
+# normal drawdown range so they act as catastrophe stops, not constant trips (a
+# trend strategy's ordinary drawdowns would trip the default 10% breaker every
+# cycle).
 PRODUCTION_RISK = RiskConfig(
     max_position_size_pct=Decimal("0.20"),
     max_total_exposure_pct=Decimal("1.0"),
@@ -410,11 +414,11 @@ PRODUCTION_RISK = RiskConfig(
 
 
 def _build_strategies(config: AppConfig) -> List[BaseStrategy]:  # pragma: no cover - live wiring
-    """The deployed roster: the multi-asset trend strategy (see DEPLOYED_UNIVERSE)."""
+    """The deployed roster: the inverse-vol multi-asset trend strategy."""
     from apex.core.models import AssetClass
-    from apex.strategy.library.sma_crossover import SMACrossoverStrategy
+    from apex.strategy.library.multi_asset_trend import MultiAssetTrendStrategy
     syms = [Symbol(t, AssetClass.ETF) for t in DEPLOYED_UNIVERSE]
-    return [SMACrossoverStrategy("multi_asset_trend", syms, fast_period=20, slow_period=200)]
+    return [MultiAssetTrendStrategy("multi_asset_trend", syms, fast_period=20, slow_period=200)]
 
 
 def main() -> int:  # pragma: no cover - reads real env/keys + network

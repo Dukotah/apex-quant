@@ -175,6 +175,33 @@ def validate_multiasset():
     )
 
 
+def validate_multiasset_vp():
+    """Multi-asset trend with INVERSE-VOL (risk-parity) sizing — the DD-cutter."""
+    from apex.strategy.library.multi_asset_trend import MultiAssetTrendStrategy
+    assets = ["SPY", "EFA", "TLT", "GLD", "DBC"]
+    syms = [Symbol(t, AssetClass.ETF) for t in assets]
+    risk = RiskConfig(
+        max_position_size_pct=Decimal("0.20"), max_total_exposure_pct=Decimal("1.0"),
+        max_leverage=Decimal("1.0"), max_drawdown_pct=Decimal("0.99"),
+        max_daily_loss_pct=Decimal("0.99"), require_stop_loss=True,
+    )
+
+    def factory():
+        return MultiAssetTrendStrategy("multi_trend_vp", syms, fast_period=20, slow_period=200)
+
+    def lo():
+        return MultiAssetTrendStrategy("multi_trend_vp", syms, fast_period=20, slow_period=150)
+
+    def hi():
+        return MultiAssetTrendStrategy("multi_trend_vp", syms, fast_period=20, slow_period=250)
+
+    return run_gauntlet_from_csv(
+        "multiasset_trend_VP_REAL", factory, "data/real/multiasset.csv", syms,
+        benchmark_ticker="SPY", risk_config=risk,
+        param_variants=[("slow-25%", lo), ("slow+25%", hi)],
+    )
+
+
 def validate_trend_bond():
     """Cash-drag-fixed trend: hold SPY above its 200d SMA, rotate to AGG below."""
     syms = [Symbol("SPY", AssetClass.ETF), Symbol("AGG", AssetClass.ETF)]
@@ -201,7 +228,9 @@ def main() -> None:
     which = sys.argv[1] if len(sys.argv) > 1 else "dual_momentum"
     if len(sys.argv) > 2:                 # optional data-file override
         DATA = SECTORS = sys.argv[2]
-    if which.startswith("multi"):
+    if which in ("multivp", "multi_vp", "vp", "multiasset_vp"):
+        report, inputs = validate_multiasset_vp()
+    elif which.startswith("multi"):
         report, inputs = validate_multiasset()
     elif which.startswith("trend_bond") or which == "tb":
         report, inputs = validate_trend_bond()

@@ -68,6 +68,7 @@ and a logger subscriber prints each one.
 | Indicator tests | `tests/test_indicators.py` | ✅ |
 | Strategy tests | `tests/test_sma_crossover.py` | ✅ |
 | Library: dual_momentum, rsi2_mean_reversion, rsi2_vol_filtered, etf_rotation | `apex/strategy/library/` | ✅ |
+| **DEPLOYED: multi_asset_trend** (inverse-vol, grade A 7/7) | `apex/strategy/library/multi_asset_trend.py` | ✅ |
 
 **Indicators:** SMA, EMA, RSI, MACD, Bollinger Bands, ATR, VWAP. Stateless,
 operate on lists of Decimal. Each tested against hand-computed known values.

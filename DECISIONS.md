@@ -6,6 +6,60 @@
 
 ---
 
+## Session 11 — Inverse-vol (risk-parity) weighting: a strict upgrade, now deployed
+
+**What was built:** `apex/strategy/library/multi_asset_trend.py` —
+`MultiAssetTrendStrategy`, a proper strategy class (replacing the reused
+`sma_crossover`) that keeps the validated 20/200 trend timing IDENTICAL and
+changes ONLY the sizing: equal-weight → **inverse volatility (risk-parity)**.
+Each entry emits `strength = min_vol / sleeve_vol` (clamped to [0.10, 1.0]); the
+calmest sleeve earns the full 20% cap, wilder sleeves scale down. Weighting is
+expressed purely through `SignalEvent.strength` — the RiskManager stays the sole
+sizer (`_size_position` multiplies the cap by strength). 9 unit tests incl. the
+core property: two sleeves entering long in lockstep, the calmer one gets more
+conviction and the calmest hits 1.0.
+
+**Why this isolates the variable:** entries/exits are bit-identical to the
+equal-weight baseline, so the A/B through the real-data Gauntlet measures the
+weighting change and nothing else.
+
+**Measured A/B (full real-data Gauntlet, SPY/EFA/TLT/GLD/DBC, 2006–26):**
+| metric | equal-weight | inverse-vol | Δ |
+|---|---|---|---|
+| Gate 1 in-sample Sharpe | 0.61 | **0.65** | ↑ |
+| realized backtest DD | 15% | **8%** | ↓ ~halved |
+| out-of-sample Sharpe | 1.12 | 1.10 | ≈ (−0.02) |
+| walk-forward Sharpe (eff) | 0.76 (2.79) | **0.82 (4.47)** | ↑↑ |
+| full-period Sharpe | 0.78 | **0.81** | ↑ |
+| Sharpe @ 2× cost | 0.75 | **0.79** | ↑ |
+| corr to SPY | 0.35 | **0.25** | ↓ better diversifier |
+
+Both grade **A, 7/7** (Gate 1 now clears the Session-10 recalibrated 0.5 bar).
+
+**Honest caveat (logged, not hidden):** the Monte-Carlo *tail* DD estimate stayed
+at 56.6%. The MC bootstrap resamples fat-tail days, which weighting doesn't
+remove — so the headline "realistic max DD" number is unchanged even though the
+realized path DD halved and every risk-adjusted metric improved. Don't claim
+inverse-vol "fixed the 57% DD"; it cut the *realized* DD and lifted Sharpe/cost-
+robustness. Cutting the MC tail needs a different lever (a portfolio-level vol
+target or trailing DD throttle), which is the next candidate.
+
+**Decisions:**
+- **Inverse-vol is a strict upgrade → deployed.** `run_once._build_strategies`
+  now builds `MultiAssetTrendStrategy` (was `SMACrossoverStrategy`). Same universe,
+  same `PRODUCTION_RISK` (20% cap = the calmest sleeve's full weight).
+- **Kept `sma_crossover` as the reference/teaching strategy** (still the pipeline
+  smoke test); the deployable trend logic now lives in its own class.
+
+**Verified:** full suite green — **358 tests passing** (349 + 9 new). `run_once`
+imports clean and its 6 tests pass.
+
+**Next (open):** the 57% MC-tail DD — try a portfolio-level vol target or trailing-
+drawdown throttle. Also still open: more uncorrelated sleeves, then the mandatory
+30-day paper gate.
+
+---
+
 ## Session 10 — Deploy the multi-asset trend edge + recalibrate Gate 1
 
 **What was done:** wired the Session 9 edge into the live cron path and resolved
