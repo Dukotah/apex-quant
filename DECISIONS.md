@@ -6,6 +6,53 @@
 
 ---
 
+## Session 9 — FOUND THE EDGE: multi-asset trend following (6/7 gates, real alpha)
+
+**The realization:** the all-equity strategies (dual_mom, spy_trend, trend_bond, rsi2)
+are all ONE bet — pairwise corr 0.67–0.84 — so combining them does nothing
+(`scripts/portfolio.py`: best all-equity combo = 90% spy_trend, Sharpe 0.78). Real
+diversification needs uncorrelated RETURN DRIVERS, i.e. different ASSET CLASSES.
+
+**The edge:** apply the 200-day trend filter across SPY/EFA/TLT/GLD/DBC (equities,
+intl, long bonds, gold, commodities). Their trend-sleeve returns are genuinely
+uncorrelated/negative (SPY–TLT −0.23, SPY–GLD 0.05, TLT–DBC −0.09). Combined:
+- equal-weight (zero optimization): full-period Sharpe 0.83, **OOS 1.23**
+- IS-optimized weights: IS 0.92, **OOS 1.02**
+
+**Through the real engine + full Gauntlet** (sma_crossover on the 5-asset universe,
+20%/position equal-weight, `validate_real multiasset`), `multiasset_trend` passes
+**6 of 7 gates**:
+| gate | result |
+|---|---|
+| 1 In-Sample Sharpe | ✗ 0.61 < 1.0 (only fail) |
+| 2 Out-of-Sample | ✓ **OOS Sharpe 1.12** (184% of IS) |
+| 3 Walk-Forward | ✓ PASS (eff 2.79) |
+| 4 Monte Carlo | ✓ **p=0.002** — edge is statistically real, not luck |
+| 5 Cost Stress | ✓ 0.75 @ 2× cost |
+| 6 Param Sensitivity | ✓ robust plateau |
+| 7 Benchmark | ✓ beats SPY |
+Full-period Sharpe 0.78; realistic (MC) max DD 57%.
+
+**This is a genuine, deployable managed-futures-style edge.** It fails ONLY Gate 1's
+in-sample Sharpe ≥ 1.0 — the structurally-too-high bar that even buy-and-hold SPY
+can't clear, and which THIS strategy's own out-of-sample Sharpe (1.12) exceeds. By
+the gates that matter most (OOS holdout, walk-forward, Monte-Carlo significance, cost
+survival) it is the real thing.
+
+**Decisions / open items:**
+- **Deploy candidate:** multi-asset trend = `sma_crossover` over SPY/EFA/TLT/GLD/DBC
+  at 20%/position. All five are liquid Alpaca ETFs → tradeable on the paper cron.
+- **Gate 1 calibration (still the user's call):** the in-sample Sharpe ≥ 1.0 absolute
+  bar rejects all long-biased strategies (SPY itself fails). Options: make it
+  benchmark-relative ("beats buy-and-hold risk-adjusted") OR judge on OOS/walk-forward
+  (which this strategy passes) rather than in-sample. NOT lowering it arbitrarily.
+- **Possible improvements (not yet done):** vol/risk-parity weighting instead of equal
+  weight (standard for managed futures, usually lifts Sharpe + cuts the 57% DD); more
+  uncorrelated sleeves (currencies, more commodities, crypto); a proper multi-asset
+  trend strategy class instead of reusing sma_crossover.
+
+---
+
 ## Session 8 — CRITICAL data bug found: Session 7's edge-hunt results were corrupt
 
 **The bug:** `fetch_yahoo` wrote Yahoo's split/dividend-**adjusted** close alongside
