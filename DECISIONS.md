@@ -6,6 +6,38 @@
 
 ---
 
+## Session 14 — LIVE ON PAPER: pushed, public, CI green, bot running
+
+The bot is deployed and running on free infrastructure. Status: **paper, live.**
+
+- **Pushed** all work to `github.com/Dukotah/apex-quant` and made the repo
+  **public** (free unlimited Actions minutes). Verified credential-clean first:
+  `.env` is gitignored + untracked, and a full-history scan (32 commits) + CI
+  gitleaks found zero secrets.
+- **CI green.** The Ruff lint job had failed since Session 8 (blocking pytest).
+  Narrowed the ruleset to error-focused checks (E/F/W/I) and deferred the
+  opinionated UP/N/B modernization; auto-fixed 45 import issues + 2 by hand. All
+  CI steps now pass (lint, mypy-advisory, 367 tests, gitleaks).
+- **Configured Actions:** variables `APEX_MODE=paper` / `APEX_BROKER=alpaca`;
+  secrets `ALPACA_API_KEY` / `ALPACA_SECRET_KEY` (paper keys, set via stdin so
+  values never surfaced). `NTFY_TOPIC` left unset (was empty) — optional failure
+  pings, add later.
+- **Verified end-to-end in the cloud:** a manual `trade.yml` dispatch ran GREEN —
+  reconciled 0 positions, emitted the correct **4 BUYs (DBC/EFA/GLD/SPY)**, stayed
+  flat on TLT, and committed state back. Orders were ACCEPTED-not-filled only
+  because the run was after-hours; the scheduled `50 19 * * 1-5` (19:50 UTC,
+  in-RTH) fire will fill them.
+
+**The 30-day paper gate (Rule 17) clock starts on the first in-hours fill.** Watch
+that live paper Sharpe tracks the 0.80 backtest; quarantine if it falls below ~0.53.
+Going live later is a one-variable flip (`APEX_MODE=live`) — not before 30 days.
+
+**Next (optional):** add NTFY_TOPIC for phone alerts; bump CI action versions off
+Node-20 (deprecation notice, non-blocking); the 57% MC-tail DD remains a strategy
+characteristic, not a deployment blocker (throttle protects the live path).
+
+---
+
 ## Session 13 — Drawdown sizing throttle + deployment-ready
 
 **Goal:** close the last risk gap and get the bot to a genuinely deployable,
