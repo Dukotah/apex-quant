@@ -6,6 +6,35 @@
 
 ---
 
+## Session 16 — Sleeve-screening tool; deployed 7-sleeve confirmed near-optimal
+
+Built `scripts/sleeve_screen.py`: computes each candidate's *trend-sleeve* return
+stream (return while above its 200d SMA, else 0), the trend-sleeve correlation
+matrix, standalone trend Sharpe, and a greedy maximally-uncorrelated selection.
+Operationalizes the Session 9 law instead of guessing. Screened a 13-ETF pool
+(2007–2026).
+
+Findings:
+- Best standalone trend Sharpes: SPY 0.79, HYG 0.76, GLD 0.54, **TIP 0.53**, DBC/UUP/
+  EFA/DBB/DBA ~0.3, TLT only **0.11**, FXY **−0.10**.
+- Pure min-correlation greedy grabs weak sleeves (FXY negative; HYG 0.58-corr to SPY)
+  — uncorrelated alone isn't enough, you need edge too.
+- Gauntlet head-to-head vs the deployed 7 (full 0.82 / OOS 1.34, all 7/7):
+  greedy-8 0.85/1.34; **swap TLT→TIP 0.85/1.36**; deployed+TIP 0.85/**1.27** (dilutes).
+
+**Decision: NO deployment change.** The only real candidate (swap TLT→TIP) buys +0.03
+Sharpe by removing TLT — but TLT's role is crisis CONVEXITY (it rallies when equities
+crash), which standalone Sharpe understates. Trading tail protection for +0.03 backtest
+Sharpe is the naive move the discipline exists to stop. The deployed 7-sleeve is
+confirmed near-optimal and robust; it stands.
+
+**Next real frontier:** the trend-sleeve set is now saturated (more trend sleeves give
+diminishing/negative returns). Further OOS improvement needs a SECOND, uncorrelated
+STRATEGY (mean-reversion / carry / short-vol), not more trend sleeves — run alongside
+trend so the two win in different regimes (the Session 0.5 plan).
+
+---
+
 ## Session 15 — Smart sleeve expansion: 7-sleeve upgrade deployed (grade A)
 
 Controlled experiment on diversification — does adding sleeves help?
