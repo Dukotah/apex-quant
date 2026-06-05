@@ -691,3 +691,44 @@ class TestDrawdownThrottle:
         assert at_peak is not None and in_dd is not None
         # 20% drawdown → 0.70x sizing → strictly fewer shares.
         assert in_dd.quantity < at_peak.quantity
+
+
+class TestVolatilityTarget:
+    """Scale exposure toward a target realized volatility (de-risk in turbulence)."""
+
+    def _cfg(self, **ov):
+        return _default_config(
+            max_position_size_pct=Decimal("0.20"), max_total_exposure_pct=Decimal("1.0"),
+            target_volatility=Decimal("0.10"), vol_scale_min=Decimal("0.4"),
+            vol_scale_max=Decimal("1.0"), **ov,
+        )
+
+    def _port(self, rv):
+        p = FakePortfolio()
+        p.last_price["AAPL"] = Decimal("200")
+        if rv is not None:
+            p.realized_volatility = rv          # attribute the RiskManager reads
+        return p
+
+    def test_disabled_by_default(self):
+        rm = RiskManager(_default_config())     # target_volatility is None
+        assert rm._vol_target_multiplier(self._port(0.30)) == Decimal("1")
+
+    def test_high_vol_derisks(self):
+        rm = RiskManager(self._cfg())
+        # realized 20% vs target 10% -> 0.5x.
+        assert rm._vol_target_multiplier(self._port(0.20)) == Decimal("0.5")
+
+    def test_clamped_to_floor(self):
+        rm = RiskManager(self._cfg())
+        # realized 50% -> 0.2x -> clamped up to the 0.4 floor.
+        assert rm._vol_target_multiplier(self._port(0.50)) == Decimal("0.4")
+
+    def test_calm_vol_clamped_to_max(self):
+        rm = RiskManager(self._cfg())
+        # realized 5% -> 2.0x -> clamped down to the 1.0 cap (no leverage).
+        assert rm._vol_target_multiplier(self._port(0.05)) == Decimal("1")
+
+    def test_warming_up_is_full_size(self):
+        rm = RiskManager(self._cfg())
+        assert rm._vol_target_multiplier(self._port(None)) == Decimal("1")

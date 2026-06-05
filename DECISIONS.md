@@ -6,6 +6,31 @@
 
 ---
 
+## Session 18 — Volatility-targeting overlay (built, tested, off — trend already self-regulates)
+
+Built the standard managed-futures **volatility-targeting** overlay: the Portfolio
+now tracks rolling realized volatility (`realized_volatility`, 30d annualized), and
+the RiskManager scales new-entry sizing by `target_volatility / realized_vol`, clamped
+to `[vol_scale_min, vol_scale_max]`. Same sizing-overlay seam as the drawdown throttle;
+OFF by default (`target_volatility=None`), so all existing configs/tests unchanged.
+
+**Measured on the deployed smart-7 — it does NOT help, and here's why:** the strategy's
+natural realized vol is only **3.7%** with a 6.8% realized max DD, because the long/flat
+200-day trend filter ALREADY controls volatility (it sits in cash in downtrends). So:
+- Targets of 5–8% never engage (clamped to full); a pure no-op.
+- Targets near/below 3.7% just add return DRAG (final 181k→168k at 2.5%) for a trivial
+  DD change (6.8%→6.5%); Sharpe flat-to-worse (0.82→0.79).
+
+**Decision: keep it OFF.** Vol targeting earns its keep on ALWAYS-INVESTED strategies; a
+trend strategy that goes flat is its own vol control — the overlay is redundant here.
+It stays as validated, tested infrastructure for any future always-on sleeve. (Another
+honest negative: built the tool, measured it, found it non-additive, didn't force it on.)
+
+**Verified:** 379 tests passing (+8: realized-vol property, daily-return banking, and
+the 5 multiplier cases — disabled/high-vol/floor/cap/warming-up). Lint clean.
+
+---
+
 ## Session 17 — Operational hardening: drift guard + push notifications
 
 Made the live bot observable and self-protecting for the 30-day paper gate.

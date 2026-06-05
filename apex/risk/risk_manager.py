@@ -58,6 +58,16 @@ class RiskConfig:
     drawdown_throttle_full: Decimal = Decimal("0.30")  # DD where `floor`x is reached
     drawdown_throttle_floor: Decimal = Decimal("0.30") # smallest size multiplier (>0)
 
+    # --- Volatility targeting (scale exposure toward a target realized vol) ---
+    # When set, new entries are sized by target_volatility / portfolio_realized_vol,
+    # clamped to [vol_scale_min, vol_scale_max]. The book de-risks when realized vol
+    # runs hot and re-risks when it cools — the standard managed-futures overlay. With
+    # max_scale 1.0 (and no leverage) it acts purely as a turbulence de-risker.
+    # None disables it (default, so existing configs are unchanged).
+    target_volatility: Optional[Decimal] = None        # annualized, e.g. 0.10 = 10%
+    vol_scale_min: Decimal = Decimal("0.4")            # floor on the exposure multiplier
+    vol_scale_max: Decimal = Decimal("1.0")            # cap (1.0 = never lever past full)
+
 
 class TradingHaltError(Exception):
     """Raised when trading is globally halted (drawdown/daily-loss breach)."""
@@ -296,11 +306,13 @@ class RiskManager:
         if price is None or price <= 0 or equity <= 0:
             return Decimal("0")
 
-        # Per-position cap, scaled by conviction (strength 0..1) and by the
-        # drawdown throttle (de-risk new entries while the account is in a slump).
+        # Per-position cap, scaled by conviction (strength 0..1), the drawdown
+        # throttle (de-risk in a slump), and the volatility-target multiplier
+        # (de-risk when realized vol runs hot). All default to 1.0 when disabled.
         strength = max(Decimal("0"), min(Decimal("1"), Decimal(str(signal.strength))))
         throttle = self._drawdown_throttle(portfolio)
-        target_dollars = equity * self._config.max_position_size_pct * strength * throttle
+        vol_mult = self._vol_target_multiplier(portfolio)
+        target_dollars = equity * self._config.max_position_size_pct * strength * throttle * vol_mult
 
         # Respect remaining room under total exposure cap.
         max_exposure = equity * self._config.max_total_exposure_pct
@@ -342,6 +354,21 @@ class RiskManager:
             return floor
         frac = (drawdown - start) / (full - start)          # 0..1 across the ramp
         return Decimal("1") - frac * (Decimal("1") - floor)
+
+    def _vol_target_multiplier(self, portfolio) -> Decimal:
+        """
+        Exposure multiplier in [vol_scale_min, vol_scale_max] = target_vol /
+        realized_vol. De-risks when the portfolio's realized volatility exceeds the
+        target. Returns 1 when disabled or while realized vol is still warming up.
+        """
+        target = self._config.target_volatility
+        if target is None:
+            return Decimal("1")
+        rv = getattr(portfolio, "realized_volatility", None)
+        if rv is None or rv <= 0:
+            return Decimal("1")
+        mult = target / Decimal(str(rv))
+        return max(self._config.vol_scale_min, min(self._config.vol_scale_max, mult))
 
     def _check_leverage(self, signal: SignalEvent, quantity: Decimal, portfolio) -> bool:
         equity = Decimal(str(portfolio.equity))

@@ -387,3 +387,27 @@ def test_deterministic_same_inputs_same_outputs():
     r1 = _run()
     r2 = _run()
     assert r1 == r2
+
+
+# ----------------------------------------------------- realized-vol targeting
+
+def test_realized_volatility_none_until_min_observations():
+    p = Portfolio(Decimal("100000"))
+    assert p.realized_volatility is None          # no data yet
+    p._daily_returns.extend([0.01, -0.01] * 5)    # 10 obs < 20 minimum
+    assert p.realized_volatility is None
+
+
+def test_realized_volatility_annualizes_stdev():
+    p = Portfolio(Decimal("100000"))
+    p._daily_returns.extend([0.01, -0.01] * 15)   # 30 obs, daily stdev 0.01
+    assert abs(p.realized_volatility - 0.01 * (252 ** 0.5)) < 1e-9
+
+
+def test_start_new_day_banks_daily_return():
+    p = Portfolio(Decimal("100000"))
+    # No positions: equity == cash, so feed returns directly via the deque seam.
+    p._daily_returns.clear()
+    p.start_new_day()                              # prev==cur -> 0.0 return banked
+    assert len(p._daily_returns) == 1
+    assert p._daily_returns[-1] == 0.0

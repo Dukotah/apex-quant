@@ -20,11 +20,18 @@ Design invariants:
 from __future__ import annotations
 
 import logging
+import statistics
+from collections import deque
 from decimal import Decimal
-from typing import Dict, Optional
+from typing import Deque, Dict, Optional
 
 from apex.core.events import FillEvent, MarketEvent
 from apex.core.models import OrderSide, Position, Symbol
+
+# Rolling daily-return window for realized-volatility targeting (annualized).
+_VOL_WINDOW = 30
+_VOL_MIN_OBS = 20
+_ANN = Decimal(str(252 ** 0.5))
 
 logger = logging.getLogger("apex.risk.portfolio")
 
@@ -60,6 +67,8 @@ class Portfolio:
         initial_equity = initial_capital
         self._peak_equity: Decimal = initial_equity
         self._day_start_equity: Decimal = initial_equity
+        # rolling daily returns (close-of-day equity changes) for vol targeting
+        self._daily_returns: Deque[float] = deque(maxlen=_VOL_WINDOW)
 
         logger.info(
             "Portfolio initialised: capital=%s",
@@ -158,12 +167,28 @@ class Portfolio:
         """
         Call at the start of each trading day to reset the daily-loss baseline.
         The RiskManager's daily-loss circuit breaker uses day_start_equity.
+        Also banks the prior day's return for realized-volatility targeting.
         """
-        self._day_start_equity = self.equity
+        prev = self._day_start_equity
+        cur = self.equity
+        if prev > _ZERO:
+            self._daily_returns.append(float((cur - prev) / prev))
+        self._day_start_equity = cur
         logger.info(
             "New trading day: day_start_equity set to %s",
             self._day_start_equity,
         )
+
+    @property
+    def realized_volatility(self) -> Optional[float]:
+        """
+        Annualized realized volatility from recent daily returns, or None until
+        there is enough data. The RiskManager reads this to scale exposure toward a
+        target volatility (de-risk into turbulence). None => no scaling.
+        """
+        if len(self._daily_returns) < _VOL_MIN_OBS:
+            return None
+        return statistics.pstdev(self._daily_returns) * float(_ANN)
 
     # ------------------------------------------------------------------
     # RiskManager snapshot attributes (the 6 required)
