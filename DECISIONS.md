@@ -30,6 +30,16 @@ pipeline and universe, a much larger undertaking, not a same-universe strategy t
 That, not more strategies on these 7–13 ETFs, is the only remaining path; Phase 6 updated
 to say so. Kept the strategy as a tested library reference (fails, documented).
 
+**Follow-up (single-name test) — also a hard NO, which CLOSES reversal entirely:** ran
+the same ShortTermReversalStrategy on 36 liquid large-caps (its "home" universe). Every
+config LOST money (Sharpe −0.24 to −0.64, 45–77% DD, 7k–12k trades). The reason is
+structural: the short-term reversal anomaly is market-NEUTRAL (long losers AND SHORT
+winners); our long-only, no-leverage, no-shorting constraint keeps only the long leg, so
+it just buys falling stocks while turnover destroys it. **Conclusion: no long-only second
+edge is accessible in ETFs OR single-names under this framework's constraints.** A real
+second edge now requires either shorting/leverage (a risk-model change) or a genuine
+alt-data signal — both large pivots. The deployed trend strategy stands alone as the edge.
+
 **Verified:** 388 tests passing (+4), lint clean.
 
 ---
