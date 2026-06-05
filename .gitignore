@@ -27,3 +27,6 @@ data/real/
 
 # os
 .DS_Store
+
+# govcon research: regenerable fetched data
+research/govcon/cache/
