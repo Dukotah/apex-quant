@@ -6,6 +6,30 @@
 
 ---
 
+## Session 21 — Finish the roadmap: kill switch + paper-gate monitor
+
+The two remaining buildable roadmap items, closing the loop on the build.
+
+- **Manual kill switch** (`APEX_HALT` env): a human emergency stop checked first in
+  `run_once`, blocking ALL orders that cycle (independent of the automatic drawdown/daily
+  breakers). Pushes an urgent ntfy alert. Satisfies the going-live checklist's "kill
+  switch tested" item — `test_kill_switch_blocks_all_orders` sets the env and asserts zero
+  orders. 3 tests (blocks all / off trades normally / truthy-value parsing).
+- **Paper-gate monitor** (`scripts/report.py`): read-only over the state DB →
+  realized return, full + rolling Sharpe (vs validated 0.85, floor 0.59), max drawdown,
+  order/fill/halt counts, a 30-day gate progress bar, drift state, and a PASS/running
+  verdict. `python -m scripts.report`. 4 tests + `StateStore.history()`.
+
+**Roadmap status: the BUILD is complete.** Phases 1–5 + Gauntlet + Phase 6 ops are all
+✅. The only open items are now non-code: run the 30-day paper gate (time), and a 2nd
+uncorrelated edge (proven to need shorting/leverage or alt-data — a deliberate future
+pivot, not incremental work). From here it's patience, then the live flip.
+
+**Verified:** 395 tests passing (+7), lint clean, report renders on the live state DB
+(2/30 days, drift warming up).
+
+---
+
 ## Session 20 — Mean-reversion attempt fails → second-edge hunt CLOSED for this universe
 
 Built `ShortTermReversalStrategy` (buy the most-oversold short-term dips among assets

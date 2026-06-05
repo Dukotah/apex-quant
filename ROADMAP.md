@@ -152,7 +152,9 @@ real forward work, distilled from the DECISIONS log.*
 | Item | Status | Notes |
 |------|--------|-------|
 | Drift monitor wired into run_once (auto-quarantine) | ✅ | blocks new entries below floor; Session 17 |
-| ntfy push notifications (trade/halt/quarantine) | ✅ | Session 17 |
+| ntfy push notifications (trade/halt/quarantine/kill) | ✅ | Session 17/21 |
+| Manual kill switch (`APEX_HALT` env) | ✅ | emergency stop — blocks ALL orders; Session 21 |
+| Paper-gate monitor (`scripts/report.py`) | ✅ | live P&L / rolling Sharpe / drift / gate progress; Session 21 |
 | Drawdown sizing throttle | ✅ | Session 13 (dormant on this strategy — DD too shallow) |
 | Volatility-target overlay | ✅ built, off | Session 18 (redundant — trend self-regulates) |
 | Sleeve-screening tool | ✅ | Session 16 (`scripts/sleeve_screen.py`) |
@@ -168,10 +170,10 @@ both with a clean capital split.
 ---
 
 ## Post-Phase-5: Going Live Checklist
-- [ ] 30+ days of paper trading with Sharpe ≥ 1.0
-- [ ] Paper results within ~80% of backtest projection
+- [ ] 30+ days of paper trading with Sharpe ≥ 1.0  *(🚧 running — watch with `python -m scripts.report`)*
+- [ ] Paper results within ~80% of backtest projection  *(tracked by the drift monitor)*
 - [ ] `APEX_MODE=live`, `APEX_BROKER=alpaca`, live keys in env (never committed)
-- [ ] Kill switch tested (set a halt env var, confirm orders blocked)
+- [x] **Kill switch tested** — `APEX_HALT=1` blocks ALL orders (test_run_once); Session 21
 - [ ] First live order = smallest possible size; verify fill in Alpaca dashboard
 - [ ] Start with capital you can afford to lose entirely
 

@@ -224,3 +224,42 @@ def test_notify_is_silent_without_topic(monkeypatch):
     _notify("t", "m")                                  # must not raise
     _notify_cycle(RunReport(timestamp=NOW, mode="paper", equity=1.0, num_positions=0,
                             orders_submitted=1))        # must not raise
+
+
+# ------------------------------------------------------------- kill switch
+
+def test_kill_switch_blocks_all_orders(monkeypatch, tmp_path):
+    monkeypatch.setenv("APEX_HALT", "1")               # manual emergency stop
+    report = run_once(
+        _config(), [AlwaysBuy("buy", [SPY])],
+        clock=FixedClock(NOW),
+        feed=_feed([(1, 100), (2, 101), (3, 102)]),
+        execution_engine=SimulatedExecutionEngine(),
+        state_store=StateStore(tmp_path / "s.db"),
+    )
+    assert report.killed is True
+    assert report.orders_submitted == 0                # ALL orders blocked
+    assert report.signals_evaluated == 1               # signal was still seen
+
+
+def test_kill_switch_off_trades_normally(monkeypatch, tmp_path):
+    monkeypatch.delenv("APEX_HALT", raising=False)
+    report = run_once(
+        _config(), [AlwaysBuy("buy", [SPY])],
+        clock=FixedClock(NOW),
+        feed=_feed([(1, 100), (2, 101), (3, 102)]),
+        execution_engine=SimulatedExecutionEngine(),
+        state_store=StateStore(tmp_path / "s.db"),
+    )
+    assert report.killed is False
+    assert report.orders_submitted == 1                # control: trades when off
+
+
+def test_kill_switch_various_truthy_values(monkeypatch):
+    from scripts.run_once import _kill_switch_active
+    for v in ("1", "true", "YES", "on", "True"):
+        monkeypatch.setenv("APEX_HALT", v)
+        assert _kill_switch_active() is True
+    for v in ("0", "false", "", "no"):
+        monkeypatch.setenv("APEX_HALT", v)
+        assert _kill_switch_active() is False

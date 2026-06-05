@@ -79,6 +79,7 @@ class RunReport:
     halted: bool = False
     reconciled: bool = False
     quarantined: bool = False
+    killed: bool = False
     drift_summary: str = ""
 
     def summary(self) -> str:
@@ -88,6 +89,7 @@ class RunReport:
             f"{self.signals_evaluated} signals -> {self.orders_submitted} orders, "
             f"{len(self.fills)} fills{', HALTED' if self.halted else ''}"
             f"{', QUARANTINED' if self.quarantined else ''}"
+            f"{', KILLED' if self.killed else ''}"
         )
         return f"{base}\n  {self.drift_summary}" if self.drift_summary else base
 
@@ -162,6 +164,12 @@ class StateStore:
         )
         return [float(r[0]) for r in reversed(cur.fetchall())]
 
+    def history(self, mode: str) -> List[sqlite3.Row]:
+        """All runs for `mode`, oldest->newest (ts, equity, orders, fills, halted) — for reporting."""
+        self._conn.row_factory = sqlite3.Row
+        cur = self._conn.execute("SELECT * FROM runs WHERE mode = ? ORDER BY ts ASC", (mode,))
+        return cur.fetchall()
+
     def close(self) -> None:
         self._conn.close()
 
@@ -230,6 +238,15 @@ def run_once(
         # 4. Warm strategies over the window; act only on the latest bar's signals.
         latest_signals = _evaluate(events, strategies, portfolio)
         report.signals_evaluated = len(latest_signals)
+
+        # 4a. Manual kill switch (APEX_HALT) — emergency human override. Blocks ALL
+        # orders this cycle, no exceptions. Highest priority, checked before anything.
+        if _kill_switch_active():
+            report.killed = True
+            if latest_signals:
+                logger.critical("KILL SWITCH (APEX_HALT) active — blocking ALL %d orders.",
+                                len(latest_signals))
+            latest_signals = []
 
         # 4b. Drift guard: if the live strategy has decayed below its quarantine
         # floor (rolling Sharpe < 70% of validated), stop opening NEW positions.
@@ -436,12 +453,23 @@ def _notify(title: str, message: str, priority: str = "default") -> None:
 
 def _notify_cycle(report: RunReport) -> None:
     """Push an alert only when something happened — no spam on quiet no-op days."""
-    if report.quarantined:
+    if report.killed:
+        _notify("Apex Quant - KILL SWITCH", report.summary(), priority="urgent")
+    elif report.quarantined:
         _notify("Apex Quant - QUARANTINED", report.summary(), priority="urgent")
     elif report.halted:
         _notify("Apex Quant - HALTED", report.summary(), priority="high")
     elif report.orders_submitted > 0:
         _notify("Apex Quant - traded", report.summary(), priority="default")
+
+
+def _kill_switch_active() -> bool:
+    """
+    Manual emergency stop. Set the APEX_HALT env var (1/true/yes/on) to block ALL new
+    orders on the next cycle — the going-live kill switch. Independent of the automatic
+    drawdown/daily circuit breakers; this is the human override.
+    """
+    return os.getenv("APEX_HALT", "").strip().lower() in ("1", "true", "yes", "on")
 
 
 def _drift_monitor(store: Optional[StateStore], mode: str) -> Optional[DriftMonitor]:
