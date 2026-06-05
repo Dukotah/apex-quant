@@ -19,8 +19,7 @@ from apex.core.models import AssetClass, Bar, OrderSide, Symbol
 from apex.execution.simulated import SimulatedExecutionEngine
 from apex.risk.risk_manager import RiskConfig, RiskManager
 from apex.strategy.base_strategy import BaseStrategy
-from scripts.run_once import (RunReport, StateStore, _drift_monitor, _notify,
-                              _notify_cycle, run_once)
+from scripts.run_once import RunReport, StateStore, _drift_monitor, _notify, _notify_cycle, run_once
 
 SPY = Symbol("SPY", AssetClass.ETF)
 UTC = timezone.utc
