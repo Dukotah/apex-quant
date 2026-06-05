@@ -6,6 +6,29 @@
 
 ---
 
+## Session 15 — Smart sleeve expansion: 7-sleeve upgrade deployed (grade A)
+
+Controlled experiment on diversification — does adding sleeves help?
+- **Naive 10-sleeve** (added EEM/IEF/LQD/SLV/VNQ): **FAILS** the Gauntlet (Gate 3
+  walk-forward), full Sharpe 0.61, DD 76%. Those are CORRELATED to existing sleeves
+  (more equity/bond/metal) — they dilute, not diversify. Confirms the Session 9 law.
+- **Smart 7-sleeve** (the 5 + only genuinely-uncorrelated **UUP** dollar + **DBA**
+  ags): **grade A 7/7**, and beats the deployed 5-sleeve on nearly everything —
+  full Sharpe 0.80→**0.82**, OOS 1.10→**1.34**, walk-forward 0.82→**0.86**, corr-to-SPY
+  0.28→**0.20**, DD ~flat (58%). Cost-robust (0.79 @2x).
+
+**Decision: deployed the smart-7 as the live strategy.** `run_once.DEPLOYED_UNIVERSE`
+= SPY/EFA/TLT/GLD/DBC/**UUP/DBA**; position cap 0.20→0.16 (7 sleeves). Safe to switch
+now — the paper bot hasn't taken real positions yet (all prior runs were after-hours
+cancels), so no gate was reset. All 7 are liquid Alpaca ETFs.
+
+**Principle (reinforced):** sleeve COUNT is not the lever; uncorrelated RETURN DRIVERS
+are. Adding a dollar and an ags sleeve (low correlation to equities/bonds/gold) lifted
+risk-adjusted return; adding correlated equity/bond/metal ETFs broke it. New validators:
+`validate_real.py smart7` / `expanded`.
+
+---
+
 ## Session 14 — LIVE ON PAPER: pushed, public, CI green, bot running
 
 The bot is deployed and running on free infrastructure. Status: **paper, live.**

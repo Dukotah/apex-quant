@@ -401,7 +401,7 @@ def _persist(store: Optional[StateStore], report: RunReport, portfolio: Portfoli
 # costs, beats SPY at lower correlation (0.25). Inverse-vol cut the realized
 # backtest drawdown from 15% to 8% vs. the equal-weight baseline. All five are
 # liquid Alpaca ETFs.
-DEPLOYED_UNIVERSE = ("SPY", "EFA", "TLT", "GLD", "DBC")
+DEPLOYED_UNIVERSE = ("SPY", "EFA", "TLT", "GLD", "DBC", "UUP", "DBA")
 
 # Production risk for the multi-asset trend sleeve. Position cap 20% (the calmest
 # sleeve's full inverse-vol weight); circuit breakers set ABOVE the strategy's
@@ -409,7 +409,7 @@ DEPLOYED_UNIVERSE = ("SPY", "EFA", "TLT", "GLD", "DBC")
 # trend strategy's ordinary drawdowns would trip the default 10% breaker every
 # cycle).
 PRODUCTION_RISK = RiskConfig(
-    max_position_size_pct=Decimal("0.20"),
+    max_position_size_pct=Decimal("0.16"),
     max_total_exposure_pct=Decimal("1.0"),
     max_leverage=Decimal("1.0"),
     max_drawdown_pct=Decimal("0.40"),      # catastrophe halt, well above normal DD

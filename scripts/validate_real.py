@@ -202,6 +202,61 @@ def validate_multiasset_vp():
     )
 
 
+def validate_multiasset_expanded():
+    """Expanded inverse-vol trend: 10 uncorrelated sleeves across asset classes."""
+    from apex.strategy.library.multi_asset_trend import MultiAssetTrendStrategy
+    assets = ["SPY", "EFA", "EEM", "TLT", "IEF", "LQD", "GLD", "SLV", "DBC", "VNQ"]
+    syms = [Symbol(t, AssetClass.ETF) for t in assets]
+    # ~10 sleeves: 12% cap each (inverse-vol tilts within it), up to 100% deployed.
+    risk = RiskConfig(
+        max_position_size_pct=Decimal("0.12"), max_total_exposure_pct=Decimal("1.0"),
+        max_leverage=Decimal("1.0"), max_drawdown_pct=Decimal("0.99"),
+        max_daily_loss_pct=Decimal("0.99"), require_stop_loss=True,
+    )
+
+    def factory():
+        return MultiAssetTrendStrategy("multi_trend_x", syms, fast_period=20, slow_period=200)
+
+    def lo():
+        return MultiAssetTrendStrategy("multi_trend_x", syms, fast_period=20, slow_period=150)
+
+    def hi():
+        return MultiAssetTrendStrategy("multi_trend_x", syms, fast_period=20, slow_period=250)
+
+    return run_gauntlet_from_csv(
+        "multiasset_trend_EXPANDED", factory, "data/real/multiasset_expanded.csv", syms,
+        benchmark_ticker="SPY", risk_config=risk,
+        param_variants=[("slow-25%", lo), ("slow+25%", hi)],
+    )
+
+
+def validate_multiasset_smart7():
+    """Smart expansion: the 5 uncorrelated sleeves + dollar (UUP) + ags (DBA) only."""
+    from apex.strategy.library.multi_asset_trend import MultiAssetTrendStrategy
+    assets = ["SPY", "EFA", "TLT", "GLD", "DBC", "UUP", "DBA"]
+    syms = [Symbol(t, AssetClass.ETF) for t in assets]
+    risk = RiskConfig(
+        max_position_size_pct=Decimal("0.16"), max_total_exposure_pct=Decimal("1.0"),
+        max_leverage=Decimal("1.0"), max_drawdown_pct=Decimal("0.99"),
+        max_daily_loss_pct=Decimal("0.99"), require_stop_loss=True,
+    )
+
+    def factory():
+        return MultiAssetTrendStrategy("multi_trend_s7", syms, fast_period=20, slow_period=200)
+
+    def lo():
+        return MultiAssetTrendStrategy("multi_trend_s7", syms, fast_period=20, slow_period=150)
+
+    def hi():
+        return MultiAssetTrendStrategy("multi_trend_s7", syms, fast_period=20, slow_period=250)
+
+    return run_gauntlet_from_csv(
+        "multiasset_trend_SMART7", factory, "data/real/multiasset_smart7.csv", syms,
+        benchmark_ticker="SPY", risk_config=risk,
+        param_variants=[("slow-25%", lo), ("slow+25%", hi)],
+    )
+
+
 def validate_trend_bond():
     """Cash-drag-fixed trend: hold SPY above its 200d SMA, rotate to AGG below."""
     syms = [Symbol("SPY", AssetClass.ETF), Symbol("AGG", AssetClass.ETF)]
@@ -228,7 +283,11 @@ def main() -> None:
     which = sys.argv[1] if len(sys.argv) > 1 else "dual_momentum"
     if len(sys.argv) > 2:                 # optional data-file override
         DATA = SECTORS = sys.argv[2]
-    if which in ("multivp", "multi_vp", "vp", "multiasset_vp"):
+    if which in ("smart7", "s7"):
+        report, inputs = validate_multiasset_smart7()
+    elif which in ("expanded", "x", "multix"):
+        report, inputs = validate_multiasset_expanded()
+    elif which in ("multivp", "multi_vp", "vp", "multiasset_vp"):
         report, inputs = validate_multiasset_vp()
     elif which.startswith("multi"):
         report, inputs = validate_multiasset()
