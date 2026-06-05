@@ -136,8 +136,30 @@ def _ret(prices: dict, dates: list[str], i0: int, lo: int, hi: int) -> float | N
 WINDOWS = {"pre[-10,0]": (-10, 0), "fwd[0,+1]": (0, 1), "fwd[0,+5]": (0, 5), "fwd[0,+10]": (0, 10)}
 
 
-def build_events() -> list[dict]:
-    events = []
+def fetch_signed_dates(aids: list[str]) -> dict[str, str]:
+    """date_signed (the contract-signing date ~ the announcement) per award id.
+    Cached in one file so the ~hundreds of detail calls only happen once."""
+    _ensure_cache()
+    path = os.path.join(CACHE, "signed_dates.json")
+    cache = json.load(open(path)) if os.path.exists(path) else {}
+    todo = [a for a in aids if a and a not in cache]
+    for n, aid in enumerate(todo, 1):
+        url = f"https://api.usaspending.gov/api/v2/awards/{aid}/"
+        try:
+            j = json.load(urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=30))
+            cache[aid] = j.get("date_signed")
+        except Exception:  # noqa: BLE001
+            cache[aid] = None
+        if n % 40 == 0:
+            json.dump(cache, open(path, "w"))
+            print(f"    signed dates: {n}/{len(todo)} fetched...")
+        time.sleep(0.2)
+    json.dump(cache, open(path, "w"))
+    return cache
+
+
+def build_events(use_signed: bool = True) -> list[dict]:
+    raw = []
     skipped_low = 0
     for ticker, name, cap, conf, _note in UNIVERSE:
         if conf == "low":
@@ -147,13 +169,24 @@ def build_events() -> list[dict]:
             amt = a.get("Award Amount") or 0
             d = a.get("Start Date")
             rname = (a.get("Recipient Name") or "").upper()
-            # require the award's recipient to actually contain our search token
-            token = name.split()[0]
+            token = name.split()[0]   # recipient must actually contain our search token
             if amt >= MIN_AWARD_USD and d and token in rname:
-                events.append({"ticker": ticker, "date": d, "amount": amt, "cap": cap, "conf": conf})
-    print(f"  built {len(events)} events from {len({e['ticker'] for e in events})} mappable names "
+                raw.append({"ticker": ticker, "date": d, "amount": amt, "cap": cap,
+                            "conf": conf, "aid": a.get("generated_internal_id")})
+    # Replace PoP-start with the contract SIGNING date (closer to the announcement).
+    if use_signed:
+        signed = fetch_signed_dates([e["aid"] for e in raw])
+        moved = 0
+        for e in raw:
+            sd = signed.get(e["aid"])
+            if sd:
+                if sd != e["date"]:
+                    moved += 1
+                e["date"] = sd
+        print(f"  resolved signing dates ({moved} differ from PoP-start)")
+    print(f"  built {len(raw)} events from {len({e['ticker'] for e in raw})} mappable names "
           f"({skipped_low} low-confidence names skipped)")
-    return events
+    return raw
 
 
 def _abnormal(events: list[dict], px: dict, bench_dates: list[str], bench_px: dict):

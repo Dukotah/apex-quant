@@ -43,15 +43,38 @@ result. 474 events with full price coverage.
 - **Low frequency + entity resolution.** ~23 mid-cap events/yr; some 'med'-confidence
   names may misattribute subsidiary awards.
 
+## v2 — corrected event dates (contract `date_signed`, not PoP start)
+
+Re-ran with the actual contract **signing date** (USAspending award-detail
+`date_signed`) as the event, the cleaner announcement proxy. The decisive test.
+
+| tier | n | pre[-10,0] | fwd[0,+1] (p) | fwd[0,+5] (p) |
+|------|---|-----------|---------------|---------------|
+| small | 48 | +1.42% | +0.86% (**0.024**) | +0.67% (0.32) |
+| **mid** | 189 | +0.43% | **+0.77% (0.000)** | **+0.89% (0.004)** |
+| large (control) | 238 | −0.21% | +0.01% (0.45) | +0.15% (0.30) |
+
+**The lead survived and got cleaner.** Versus v1 (PoP dates): the mid-cap pre-event
+run-up **shrank** (0.77% → 0.43%) while the post-event edge **held/strengthened**
+(+0.89%, p=0.004). That is the signature of a REAL effect with better-timed dates —
+the move now lands after the corrected event, not before. A date artifact would do
+the reverse. Large-cap control stayed null throughout (method still honest). Small-cap
+flipped to a significant +1-day pop but fades by day 5 (p=0.32) — suggestive but
+fragile (n=48).
+
 ## Verdict & next steps
 
-The easy version (buy small-caps after awards) is **dead**. There is a real,
-significant **mid-cap** effect that is a legitimate research lead — not a strategy
-yet. To confirm or kill it:
-1. Replace PoP dates with true **announcement timestamps** (FPDS `date_signed`; ideally
-   news). Re-run; if the post-event edge survives precise dates, it's real.
-2. Fix **survivorship**: add delisted contractors (Mantech, Vectrus pre-merge, etc.).
-3. Segment by **award size relative to market cap** and by **agency**; multiple-comparison
-   correct.
-4. If it still holds, wrap it as an apex-quant strategy and run the full **Gauntlet**
-   (the same bar the trend strategy cleared). Only a Gauntlet pass earns paper capital.
+The easy version (buy small-caps after awards) is **dead as originally framed**. But
+there is a **robust, bootstrap-significant mid-cap effect** (~+0.8% over 1–5 days,
+p≤0.004) that *strengthened* under date correction — a credible alpha lead, not yet a
+proven strategy. The make-or-break question has now shifted:
+
+1. **CAPTURABILITY (the new decisive test):** `date_signed` ≈ when DoD signs, which may
+   be at or before *public* dissemination (the DoD daily contract digest, press wires).
+   Measure the edge entering at the **next open after the award is PUBLIC**, not at the
+   signing-day close. If +0.77% survives realistic public-reaction timing + small/mid-cap
+   slippage, it's tradeable; if it needs signing-day knowledge, it isn't.
+2. Fix **survivorship**: add delisted/acquired names (Mantech, Vectrus pre-merge, …).
+3. **Multiple-comparison** correct; segment by award size / cap and by agency.
+4. If it still holds → wrap as an apex-quant strategy and run the full **Gauntlet** (same
+   bar the trend strategy cleared). Only a Gauntlet pass earns paper capital.
