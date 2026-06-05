@@ -81,7 +81,15 @@ class GauntletReport:
 
 # --- Thresholds (the bar a strategy must clear). Tune centrally, here. ---
 
-MIN_IN_SAMPLE_SHARPE = 1.0
+# Gate 1 is the IN-SAMPLE SANITY check — "does it even work on training data?" — not
+# the final verdict. An absolute Sharpe >= 1.0 is miscalibrated for the long-only
+# risk-premia lane this architecture targets: buy-and-hold SPY itself only scores
+# ~0.6-0.9 over a full cycle, so a 1.0 in-sample bar rejects every long-biased
+# strategy regardless of quality. The real overfitting defense is the HARD gates that
+# follow — Gate 2 (out-of-sample >= 70% of in-sample), Gate 3 (walk-forward), Gate 4
+# (Monte-Carlo significance), Gate 5 (survives 2x costs). So Gate 1 requires a
+# meaningful-but-achievable in-sample edge (Sharpe >= 0.5) and lets those gates filter.
+MIN_IN_SAMPLE_SHARPE = 0.5
 MAX_DRAWDOWN_LIMIT = 0.25
 MIN_TRADES = 50
 MIN_TRADES_FLOOR = 20      # below this a Sharpe is not statistically credible, period

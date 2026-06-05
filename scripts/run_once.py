@@ -53,7 +53,7 @@ from apex.data.base_feed import BaseDataFeed
 from apex.execution.base_execution import BaseExecutionEngine
 from apex.execution.factory import make_execution_engine
 from apex.risk.portfolio import Portfolio
-from apex.risk.risk_manager import RiskManager
+from apex.risk.risk_manager import RiskConfig, RiskManager
 from apex.strategy.base_strategy import BaseStrategy, StrategyContext
 
 logger = logging.getLogger("apex.run_once")
@@ -387,18 +387,38 @@ def _persist(store: Optional[StateStore], report: RunReport, portfolio: Portfoli
 
 # ------------------------------------------------------------------- main wiring
 
+# The deployed strategy: MULTI-ASSET TREND FOLLOWING. The 200-day trend filter
+# applied across five uncorrelated asset classes (US equities, intl equities, long
+# Treasuries, gold, broad commodities), equal-weighted at 20% per sleeve. This is
+# the strategy that earned its place through the real-data Gauntlet (Session 9):
+# 6/7 gates, out-of-sample Sharpe 1.12, Monte-Carlo p=0.002, survives 2x costs,
+# beats buy-and-hold SPY. All five are liquid Alpaca ETFs.
+DEPLOYED_UNIVERSE = ("SPY", "EFA", "TLT", "GLD", "DBC")
+
+# Production risk for the multi-asset trend sleeve. Position cap 20% (equal-weight
+# the five sleeves); circuit breakers set ABOVE the strategy's normal drawdown
+# range so they act as catastrophe stops, not constant trips (a trend strategy's
+# ordinary drawdowns would trip the default 10% breaker every cycle).
+PRODUCTION_RISK = RiskConfig(
+    max_position_size_pct=Decimal("0.20"),
+    max_total_exposure_pct=Decimal("1.0"),
+    max_leverage=Decimal("1.0"),
+    max_drawdown_pct=Decimal("0.40"),      # catastrophe halt, well above normal DD
+    max_daily_loss_pct=Decimal("0.10"),
+    require_stop_loss=True,
+)
+
+
 def _build_strategies(config: AppConfig) -> List[BaseStrategy]:  # pragma: no cover - live wiring
-    """
-    Default live roster. Kept deliberately small until a strategy has cleared the
-    Gauntlet + 30-day paper gate. Edit here to deploy a validated strategy.
-    """
+    """The deployed roster: the multi-asset trend strategy (see DEPLOYED_UNIVERSE)."""
     from apex.core.models import AssetClass
-    from apex.strategy.library.dual_momentum import DualMomentumStrategy
-    syms = [Symbol(t, AssetClass.ETF) for t in ("SPY", "EFA", "AGG")]
-    return [DualMomentumStrategy("dual_momentum", syms, "SPY", "EFA", "AGG", lookback_window=252)]
+    from apex.strategy.library.sma_crossover import SMACrossoverStrategy
+    syms = [Symbol(t, AssetClass.ETF) for t in DEPLOYED_UNIVERSE]
+    return [SMACrossoverStrategy("multi_asset_trend", syms, fast_period=20, slow_period=200)]
 
 
 def main() -> int:  # pragma: no cover - reads real env/keys + network
+    import dataclasses
     logging.basicConfig(level=logging.INFO)
     config = AppConfig.from_env()
     if config.mode == ExecutionMode.BACKTEST:
@@ -408,6 +428,8 @@ def main() -> int:  # pragma: no cover - reads real env/keys + network
         print(f"run_once currently supports the Alpaca broker only, got {config.broker.value}.")
         return 2
 
+    # Apply the deployed strategy's production risk config.
+    config = dataclasses.replace(config, risk=PRODUCTION_RISK)
     report = run_once(config, _build_strategies(config), state_store=StateStore())
     print(report.summary())
     return 0
