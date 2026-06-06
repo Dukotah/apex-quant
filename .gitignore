@@ -22,6 +22,9 @@ venv/
 state/*.tmp
 logs/*.tmp
 
+# generated dashboard snapshot — regenerable via scripts/export_status.py each cron run
+state/status.json
+
 # downloaded market data — regenerable via scripts/fetch_yahoo.py, don't commit
 data/real/
 
