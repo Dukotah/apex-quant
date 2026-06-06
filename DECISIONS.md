@@ -6,6 +6,51 @@
 
 ---
 
+## Session 26 — Probe (3): single-name cross-section + hysteresis → FIRST grade-A second edge (survivorship caveat)
+
+Tested the one escape hatch S24/S25 left open: the long-only value premium was too weak
+ONLY because 7 ETFs is too small a cross-section. Built a 42-name liquid large-cap
+single-name universe (`data/real/single_names.csv`, 2005-2026, SPY rides along as the
+Gate-7 benchmark; strategies ignore tickers outside their symbol list). `validate_real.py`
+gained `vm_singlenames` and `value_singlenames`.
+
+**The cross-section diagnosis was exactly right — the premium becomes REAL at scale:**
+- Combined value+momentum (top-10 of 42): in-sample Sharpe 0.51, OOS 0.68, **MC p=0.000**,
+  beats SPY, Gates 1/2/4/6/7 PASS — but FAILS cost-stress (0.36@2x, 3331 trades).
+- Pure value (top-10, monthly): even closer — Gates 1/2/4/6/7 PASS, MC p=0.000, but cost-
+  stress 0.47@2x, a hair under the 0.50 bar (981 trades). Note: `rebalance_period_bars` has
+  NO effect on these signal-driven strategies (they trade on rank-membership change, not a
+  periodic clock) — confirmed by an identical re-run.
+
+**The fix — hysteresis (new `exit_rank_buffer` on CrossAssetValueStrategy, default 0 =
+unchanged):** enter only in the strict top_k, but HOLD a name until it drops out of the
+wider top_(k+buffer) band. With buffer = top_k (enter top-10, hold until out of top-20):
+- **trades 981 → 147 (~6.6x less churn); Sharpe@2x 0.47 → 0.70; in-sample Sharpe 0.60 →
+  0.76; full Sharpe 0.57 → 0.71. ALL 7 GATES PASS — grade A, PAPER-APPROVED.**
+The boundary churn was pure cost drag with no alpha, so cutting it lifted BOTH cost-
+robustness and raw Sharpe. Gate 6 (param sensitivity) passes → robust plateau, not a peak.
+This is the **FIRST long-only second-edge candidate to clear the entire Gauntlet**, and it
+closes the diagnosis chain: S22 (value real-but-weak in 7 ETFs) → S23/24 (bigger ETF pool /
+combined score don't fix it — cross-section too small) → S26 (large single-name universe +
+hysteresis → grade A).
+
+**⚠️ CRITICAL CAVEAT — SURVIVORSHIP BIAS. NOT yet a deployable edge.** Yahoo serves only
+CURRENTLY-LISTED names, so the 42-name set silently excludes every stock that delisted/blew
+up over 2005-2026 (Lehman, etc.). That bias INFLATES results — exactly the kind of lie the
+Gauntlet exists to catch, and it can't catch this one because it's baked into the input
+universe. So a grade-A here is a **STRONG CANDIDATE pending survivorship-free validation**,
+not a green light for capital. Honest status: promising, unproven.
+
+**Next steps (future sessions):** (a) re-validate on a POINT-IN-TIME constituents universe
+(survivorship-free) — the decisive test; (b) apply the same hysteresis to the value+momentum
+combo; (c) ONLY IF (a) holds, this is the genuine second edge → build the deferred
+multi-strategy capital-allocation engine to run trend + value with a clean capital split.
+
+**Verified:** 416 tests passing (+2 hysteresis tests), lint+format clean, coverage 91%,
+deployed trend strategy unaffected (separate universe).
+
+---
+
 ## Session 25 — Multi-agent correctness audit: 22 fixes + doc reconciliation
 
 Ran an 11-agent audit workflow (6 subsystem audits + adversarial verification + doc-drift

@@ -145,3 +145,21 @@ def test_deterministic():
         return sigs
 
     assert run() == run()
+
+
+def test_exit_rank_buffer_validation():
+    with pytest.raises(ValueError):
+        CrossAssetValueStrategy("s", [A], exit_rank_buffer=-1)
+
+
+def test_hysteresis_band_membership():
+    # Hysteresis = enter in the strict top_k, but hold while inside top_k+exit_rank_buffer.
+    # Ranks by value desc: BBB(0), AAA(1), CCC(2).
+    s = CrossAssetValueStrategy(
+        "s", [A, B, C], value_period=4, skip_recent=0, top_k=1, exit_rank_buffer=1, vol_window=2
+    )
+    s._value = {"AAA": 0.2, "BBB": 0.5, "CCC": 0.1}
+    assert s._in_top("BBB", s.top_k)  # entry band (top-1) = just BBB
+    assert not s._in_top("AAA", s.top_k)  # AAA can't be newly entered
+    assert s._in_top("AAA", s.top_k + s.exit_rank_buffer)  # but a HELD AAA stays (top-2 band)
+    assert not s._in_top("CCC", s.top_k + s.exit_rank_buffer)  # CCC out of both bands

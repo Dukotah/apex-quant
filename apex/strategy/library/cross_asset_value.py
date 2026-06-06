@@ -76,6 +76,7 @@ class CrossAssetValueStrategy(BaseStrategy):
         value_period: int = 1260,
         skip_recent: int = 252,
         top_k: int = 3,
+        exit_rank_buffer: int = 0,
         use_trend_filter: bool = False,
         trend_period: int = 200,
         vol_window: int = 60,
@@ -91,11 +92,14 @@ class CrossAssetValueStrategy(BaseStrategy):
             raise ValueError("skip_recent must be < value_period")
         if top_k < 1:
             raise ValueError("top_k must be >= 1")
+        if exit_rank_buffer < 0:
+            raise ValueError("exit_rank_buffer must be >= 0")
         if vol_window < 2:
             raise ValueError("vol_window must be >= 2")
         self.value_period = value_period
         self.skip_recent = skip_recent
         self.top_k = top_k
+        self.exit_rank_buffer = exit_rank_buffer
         self.use_trend_filter = use_trend_filter
         self.trend_period = trend_period
         self.vol_window = vol_window
@@ -145,14 +149,18 @@ class CrossAssetValueStrategy(BaseStrategy):
         pos = self.context.get_position(symbol)
         return pos is not None and pos.quantity > 0
 
-    def _in_top_k(self, ticker: str) -> bool:
-        """Is `ticker` among the top_k cheapest sleeves by current value score?"""
+    def _in_top(self, ticker: str, k: int) -> bool:
+        """Is `ticker` among the top `k` cheapest sleeves by current value score?"""
         ranked = sorted(
             ((t, v) for t, v in self._value.items() if v is not None),
             key=lambda kv: (-kv[1], kv[0]),  # value desc, ticker asc — deterministic tie-break
         )
-        leaders = {t for t, _ in ranked[: self.top_k]}
+        leaders = {t for t, _ in ranked[:k]}
         return ticker in leaders
+
+    def _in_top_k(self, ticker: str) -> bool:
+        """Back-compat: membership in the strict top_k (the entry band)."""
+        return self._in_top(ticker, self.top_k)
 
     # ---- main hook -------------------------------------------------------
 
@@ -176,11 +184,14 @@ class CrossAssetValueStrategy(BaseStrategy):
         else:
             sma = None
 
-        # Wanted = a top-K cheapest sleeve (optionally also in its own uptrend).
-        wanted = self._in_top_k(ticker)
+        held = self._held(bar.symbol)
+        # Enter only in the strict top_k; once held, keep the name until it drops out of the
+        # wider (top_k + exit_rank_buffer) band. This hysteresis cuts the churn from names
+        # oscillating across the rank boundary — the dominant turnover/cost driver. With the
+        # default buffer of 0 the hold band == the entry band (original behaviour).
+        wanted = self._in_top(ticker, self.top_k + self.exit_rank_buffer if held else self.top_k)
         if self.use_trend_filter:
             wanted = wanted and sma is not None and bar.close > Decimal(str(sma))
-        held = self._held(bar.symbol)
         signals: List[SignalEvent] = []
 
         if wanted and not held:

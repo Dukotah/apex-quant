@@ -424,6 +424,146 @@ def validate_value_momentum():
     )
 
 
+# Probe (3) universe: ~42 liquid, sector-diverse large-cap US single names (SPY rides in
+# the data file as the Gate-7 benchmark only; the strategy universe excludes it). CAVEAT:
+# Yahoo only serves currently-listed names, so this set is SURVIVORSHIP-BIASED (it omits
+# the names that delisted/blew up over 2005-2026). That bias INFLATES results, so a FAIL
+# here is conclusive while a marginal PASS must be discounted.
+_SINGLE_NAMES = [
+    "AAPL",
+    "MSFT",
+    "NVDA",
+    "ORCL",
+    "CSCO",
+    "IBM",
+    "INTC",
+    "QCOM",
+    "TXN",
+    "ADBE",
+    "JPM",
+    "BAC",
+    "WFC",
+    "GS",
+    "AXP",
+    "C",
+    "JNJ",
+    "PFE",
+    "MRK",
+    "ABT",
+    "UNH",
+    "BMY",
+    "PG",
+    "KO",
+    "PEP",
+    "WMT",
+    "MCD",
+    "HD",
+    "NKE",
+    "COST",
+    "DIS",
+    "XOM",
+    "CVX",
+    "COP",
+    "GE",
+    "CAT",
+    "BA",
+    "HON",
+    "MMM",
+    "UPS",
+    "T",
+    "VZ",
+]
+_SINGLE_NAMES_DATA = "data/real/single_names.csv"
+# Regenerate (data/real/ is gitignored — downloaded data is not committed):
+#   python -m scripts.fetch_yahoo SPY AAPL MSFT NVDA ORCL CSCO IBM INTC QCOM TXN ADBE \
+#     JPM BAC WFC GS AXP C JNJ PFE MRK ABT UNH BMY PG KO PEP WMT MCD HD NKE COST DIS \
+#     XOM CVX COP GE CAT BA HON MMM UPS T VZ --start 2005-01-01 --out data/real/single_names.csv
+
+
+def _single_name_risk() -> RiskConfig:
+    # ~10 concurrent holdings of 42, inverse-vol sized; cap per name ~12% so the book can
+    # reach full exposure, and raise the position-count ceiling above top_k.
+    return RiskConfig(
+        max_position_size_pct=Decimal("0.12"),
+        max_total_exposure_pct=Decimal("1.0"),
+        max_leverage=Decimal("1.0"),
+        max_drawdown_pct=Decimal("0.99"),
+        max_daily_loss_pct=Decimal("0.99"),
+        require_stop_loss=True,
+        max_open_positions=15,
+    )
+
+
+def validate_value_momentum_singlenames():
+    """
+    Session-26 probe (3): the combined value+momentum score on a LARGE single-name
+    cross-section (42 large-caps) instead of 7 ETFs. Directly tests the S24/S25 conclusion
+    that the long-only premium was too weak ONLY because the ETF cross-section was tiny —
+    42 names give the rank far more to separate. Hold the top-10 by the equal-weight
+    value(1260b/skip 252b) + momentum(126b) rank. Survivorship-biased universe (see note).
+    """
+    from apex.strategy.library.value_momentum import ValueMomentumStrategy
+
+    syms = [Symbol(t, AssetClass.EQUITY) for t in _SINGLE_NAMES]
+
+    def make(vw):
+        return lambda: ValueMomentumStrategy(
+            "value_momentum_sn",
+            syms,
+            value_period=1260,
+            skip_recent=252,
+            mom_period=126,
+            top_k=10,
+            value_weight=Decimal(str(vw)),
+        )
+
+    return run_gauntlet_from_csv(
+        "value_momentum_SINGLENAMES",
+        make("0.5"),
+        _SINGLE_NAMES_DATA,
+        syms,
+        benchmark_ticker="SPY",
+        risk_config=_single_name_risk(),
+        param_variants=[("vw-0.35", make("0.35")), ("vw-0.65", make("0.65"))],
+        rebalance_period_bars=21,
+    )
+
+
+def validate_value_singlenames():
+    """
+    Session-26 probe (3), pure-value arm: cross-asset VALUE (long-horizon reversal) on the
+    same 42 single names, for apples-to-apples comparison vs the combined score and vs the
+    7-ETF result. Hold the top-10 cheapest by 5y reversal (skip last 1y). Trend filter OFF.
+    Hysteresis: enter in the top-10 but hold until a name drops out of the top-20 (a 2x band
+    chosen a priori) — cuts the boundary-churn turnover that left monthly value at Sharpe@2x
+    0.47, just under the cost-stress bar.
+    """
+    from apex.strategy.library.cross_asset_value import CrossAssetValueStrategy
+
+    syms = [Symbol(t, AssetClass.EQUITY) for t in _SINGLE_NAMES]
+
+    def make(vp):
+        return lambda: CrossAssetValueStrategy(
+            "xasset_value_sn",
+            syms,
+            value_period=vp,
+            skip_recent=252,
+            top_k=10,
+            exit_rank_buffer=10,
+        )
+
+    return run_gauntlet_from_csv(
+        "cross_asset_value_SINGLENAMES",
+        make(1260),
+        _SINGLE_NAMES_DATA,
+        syms,
+        benchmark_ticker="SPY",
+        risk_config=_single_name_risk(),
+        param_variants=[("window-20%", make(1008)), ("window+20%", make(1512))],
+        rebalance_period_bars=21,
+    )
+
+
 def validate_value_pool():
     """
     Session-22 probe (1): cross-asset VALUE on the RICHER 13-ETF sleeve pool, not smart-7.
@@ -519,7 +659,11 @@ def main() -> None:
     which = sys.argv[1] if len(sys.argv) > 1 else "dual_momentum"
     if len(sys.argv) > 2:  # optional data-file override
         DATA = SECTORS = sys.argv[2]
-    if which in ("value_momentum", "valmom", "vm", "valuemom"):
+    if which in ("vm_singlenames", "vmsn", "valmom_sn"):
+        report, inputs = validate_value_momentum_singlenames()
+    elif which in ("value_singlenames", "valsn", "vsn"):
+        report, inputs = validate_value_singlenames()
+    elif which in ("value_momentum", "valmom", "vm", "valuemom"):
         report, inputs = validate_value_momentum()
     elif which in ("value_pool", "valpool", "vpool", "value13"):
         report, inputs = validate_value_pool()
