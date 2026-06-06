@@ -82,8 +82,8 @@ def test_full_gauntlet_returns_graded_report():
         param_variants=[("a", factory), ("b", factory)],
         mc_iterations=100,
     )
-    # The pipeline ran all seven gates and produced a graded report.
-    assert len(report.gates) == 7
+    # The pipeline ran all ten gates (7 core + 3 overfitting) and graded them.
+    assert len(report.gates) == 10
     assert isinstance(report.grade, Grade)
     assert isinstance(report.paper_approved, bool)
     assert isinstance(inputs, GauntletInputs)
@@ -122,7 +122,7 @@ def test_run_gauntlet_from_csv(tmp_path):
         "sma_from_csv", factory, str(path), [sym], "SYN",
         risk_config=_full_risk(), mc_iterations=80,
     )
-    assert len(report.gates) == 7
+    assert len(report.gates) == 10
     assert isinstance(report.grade, Grade)
     assert inputs.num_trades >= 0
     assert len(report.render()) > 0

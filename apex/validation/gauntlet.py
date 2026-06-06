@@ -1,14 +1,17 @@
 """
 apex.validation.gauntlet
 ========================
-The orchestrator. Runs all seven gates and produces the honest confidence grade
+The orchestrator. Runs all ten gates and produces the honest confidence grade
 described in docs/VALIDATION_GAUNTLET.md.
 
 This module defines the data structures and the grading logic. Gates 3 and 4
 (walk-forward, Monte Carlo) are implemented in their own modules. Gates 1, 2, 5,
-6, 7 are implemented here as straightforward metric checks. Gates that require a
-live backtester (cost stress, parameter sweep) take an injected backtest callable
-so they integrate with the Phase 5 engine when it exists.
+6, 7 are implemented here as straightforward metric checks. Gates 8-10 are the
+overfitting battery (Deflated/Probabilistic Sharpe, Probability of Backtest
+Overfitting via CSCV, and capacity/turnover sanity) built on the Bailey & Lopez
+de Prado statistics in metrics.py. Gates that require a live backtester (cost
+stress, parameter sweep) take an injected backtest callable so they integrate
+with the Phase 5 engine when it exists.
 
 The Gauntlet NEVER outputs "this will be profitable." It outputs a graded,
 multi-dimensional truth report. See module docs for the philosophy.
@@ -30,10 +33,10 @@ class GateStatus(str, Enum):
 
 
 class Grade(str, Enum):
-    A = "A"        # all 7 clean
-    B = "B"        # all 7, some warnings
-    C = "C"        # marginal (5-6 pass)
-    FAIL = "FAIL"  # any hard gate (1-5) failed
+    A = "A"        # all gates clean
+    B = "B"        # all gates, some (<=2) warnings
+    C = "C"        # marginal (3+ warnings, no hard fail)
+    FAIL = "FAIL"  # any hard gate failed (1-5 core + 8-10 overfitting)
 
 
 @dataclass(frozen=True)
@@ -96,6 +99,29 @@ MIN_PROFIT_FACTOR = 1.3
 OOS_SHARPE_RATIO_FLOOR = 0.70        # OOS Sharpe must be >= 70% of in-sample
 COST_STRESS_SHARPE_FLOOR = 0.50      # must stay > 0.5 Sharpe at 2x cost
 MAX_BENCHMARK_CORRELATION = 0.50
+
+# --- Overfitting gates (Bailey & Lopez de Prado). HARD fails: passing the
+# point-estimate gates while these flag is the signature of a curve-fit mirage. ---
+
+# Gate 8 — Deflated Sharpe. Probability the edge survives selection bias must be
+# convincingly above a coin flip. 0.90 is the standard confidence bar; the DSR
+# already deflates for how many trials were tried, so this is a strict test.
+MIN_DEFLATED_SHARPE_PROB = 0.90
+# When the DSR can't be computed (e.g. the caller never reported how many
+# variants were tried) we fall back to the PSR vs a Sharpe-0 reference at the
+# same confidence — "is the edge distinguishable from zero at all?"
+MIN_PROBABILISTIC_SHARPE = 0.90
+
+# Gate 9 — Probability of Backtest Overfitting (CSCV). PBO is the fraction of
+# CSCV splits where the in-sample champion was below-median out of sample. >= 0.5
+# means selection is no better than random (pure overfit); we demand it stay
+# comfortably below half.
+MAX_PBO = 0.50
+
+# Gate 10 — Capacity / turnover sanity. The strategy's gross edge must cover its
+# trading costs several times over, and it must clear a hard minimum trade count
+# (a Sharpe on too few trades is not statistically credible — see MIN_TRADES_FLOOR).
+MIN_CAPACITY_SCORE = 2.0
 
 
 def regime_aware_min_trades(
@@ -254,6 +280,120 @@ def evaluate_gate7_benchmark(
     return GateResult("Gate 7 Benchmark/Correlation", GateStatus.WARN,
                       f"neither beats SPY nor diversifies (corr {correlation_to_benchmark:.2f})",
                       is_hard_gate=False)
+
+
+def evaluate_gate8_deflated_sharpe(
+    returns: list[float],
+    num_trials: int,
+    *,
+    trial_sharpes: list[float] | None = None,
+    periods_per_year: int = metrics.TRADING_DAYS_PER_YEAR,
+) -> GateResult:
+    """
+    Gate 8 — Deflated Sharpe Ratio (HARD). Is the headline Sharpe real once you
+    account for sample length, fat tails, AND how many configurations were tried?
+
+    Uses the Deflated Sharpe Ratio when the spread of the tried-strategy Sharpes
+    is available (``num_trials`` > 1 and ``trial_sharpes`` provided / inferable);
+    otherwise falls back to the Probabilistic Sharpe Ratio against a zero
+    reference (the weaker "is it even non-zero?" question), and SAYS which it used.
+
+    FAILS CLOSED: too few returns, or a probability below the bar, → FAIL.
+    """
+    if len(returns) < 4:
+        return GateResult("Gate 8 Deflated Sharpe", GateStatus.FAIL,
+                          f"only {len(returns)} returns — cannot deflate, fail closed",
+                          is_hard_gate=True)
+
+    used_dsr = num_trials >= 2 and trial_sharpes is not None and len(trial_sharpes) >= 2
+    if used_dsr:
+        prob = metrics.deflated_sharpe_ratio(
+            returns, num_trials=num_trials, trial_sharpes=trial_sharpes,
+            periods_per_year=periods_per_year,
+        )
+        bar = MIN_DEFLATED_SHARPE_PROB
+        label = f"DSR p={prob:.2f} over {num_trials} trials"
+    else:
+        prob = metrics.probabilistic_sharpe_ratio(
+            returns, reference_sharpe=0.0, periods_per_year=periods_per_year,
+        )
+        bar = MIN_PROBABILISTIC_SHARPE
+        label = f"PSR p={prob:.2f} vs SR=0 (no trial count → fell back to PSR)"
+
+    if prob < bar:
+        return GateResult("Gate 8 Deflated Sharpe", GateStatus.FAIL,
+                          f"{label} < {bar:.2f} — Sharpe likely a selection-bias mirage",
+                          is_hard_gate=True)
+    return GateResult("Gate 8 Deflated Sharpe", GateStatus.PASS, label,
+                      is_hard_gate=True)
+
+
+def evaluate_gate9_pbo(
+    performance_matrix: list[list[float]],
+    *,
+    n_splits: int = 16,
+    seed: int = 42,
+) -> GateResult:
+    """
+    Gate 9 — Probability of Backtest Overfitting via CSCV (HARD).
+
+    ``performance_matrix[t][c]`` = performance of configuration ``c`` in time
+    slice ``t``. PBO is the fraction of combinatorial splits where the in-sample
+    champion landed below-median out of sample. >= MAX_PBO ⇒ selecting by
+    backtest is no better than a coin flip ⇒ FAIL.
+
+    FAILS CLOSED: an empty / unusable matrix yields PBO=1.0 ⇒ FAIL.
+    """
+    if not performance_matrix or len(performance_matrix) < 4:
+        return GateResult("Gate 9 PBO (CSCV)", GateStatus.FAIL,
+                          "matrix too small to run CSCV — fail closed",
+                          is_hard_gate=True)
+    pbo = metrics.probability_of_backtest_overfitting(
+        performance_matrix, n_splits=n_splits, seed=seed,
+    )
+    if pbo >= MAX_PBO:
+        return GateResult("Gate 9 PBO (CSCV)", GateStatus.FAIL,
+                          f"PBO {pbo:.0%} >= {MAX_PBO:.0%} — config selection no better than luck",
+                          is_hard_gate=True)
+    return GateResult("Gate 9 PBO (CSCV)", GateStatus.PASS,
+                      f"PBO {pbo:.0%} < {MAX_PBO:.0%}", is_hard_gate=True)
+
+
+def evaluate_gate10_capacity(
+    num_trades: int,
+    annualized_return_estimate: float,
+    annual_turnover: float,
+    *,
+    cost_per_turn: float = 0.001,
+    min_trades_floor: int = MIN_TRADES_FLOOR,
+) -> GateResult:
+    """
+    Gate 10 — Capacity & Turnover Sanity (HARD).
+
+    Two fail-closed guards rolled into one gate:
+      * a HARD minimum trade count (below ``min_trades_floor`` a Sharpe is not
+        statistically credible regardless of cadence), and
+      * a capacity ratio: gross annualized return must cover its annual trading
+        cost (turnover × cost_per_turn) at least ``MIN_CAPACITY_SCORE`` times.
+
+    Catches the high-turnover "edge" that is real but smaller than its costs, and
+    the lucky few-trade chart that no statistic can defend.
+    """
+    failures: list[str] = []
+    if num_trades < min_trades_floor:
+        failures.append(f"{num_trades} trades<{min_trades_floor} floor")
+
+    cap = metrics.capacity_score(annualized_return_estimate, annual_turnover,
+                                 cost_per_turn=cost_per_turn)
+    cap_label = "inf" if cap == float("inf") else f"{cap:.1f}x"
+    if cap < MIN_CAPACITY_SCORE:
+        failures.append(f"capacity {cap_label}<{MIN_CAPACITY_SCORE:.0f}x cost")
+
+    if failures:
+        return GateResult("Gate 10 Capacity/Turnover", GateStatus.FAIL,
+                          "; ".join(failures), is_hard_gate=True)
+    return GateResult("Gate 10 Capacity/Turnover", GateStatus.PASS,
+                      f"{num_trades} trades, capacity {cap_label} cost", is_hard_gate=True)
 
 
 def grade_and_assemble(strategy_name: str, gates: list[GateResult],

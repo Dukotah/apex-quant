@@ -73,6 +73,42 @@ class GauntletInputs:
     sharpe_at_2x_cost: float
     benchmark_sharpe: float
     correlation_to_benchmark: float
+    # Overfitting diagnostics (Gates 8-10).
+    deflated_sharpe_prob: float = 0.0
+    probability_of_overfitting: float = 1.0
+    capacity_score: float = 0.0
+    annual_turnover: float = 0.0
+
+
+def _slice_sharpes(equity_curve: List[float], n_slices: int) -> List[float]:
+    """
+    Cut an equity curve into ``n_slices`` contiguous chunks and score each chunk
+    by its (per-period) Sharpe. This is one configuration's row-wise performance
+    vector for the CSCV performance matrix. Returns 0.0 for chunks too short to
+    score, so every configuration yields a same-length vector.
+    """
+    out: List[float] = []
+    m = len(equity_curve)
+    if m < n_slices + 1 or n_slices < 1:
+        return [0.0] * max(n_slices, 0)
+    edges = [round(i * m / n_slices) for i in range(n_slices + 1)]
+    for lo, hi in zip(edges, edges[1:]):
+        chunk = equity_curve[lo:hi]
+        out.append(metrics.sharpe_ratio(metrics.returns_from_equity(chunk)))
+    return out
+
+
+def _estimate_turnover_from_trades(num_trades: int, n_days: int,
+                                   periods_per_year: int = 252) -> float:
+    """
+    Coarse annual one-way turnover proxy when explicit weight paths aren't
+    available: trades per year (each round-trip ≈ one unit of turnover). This is
+    deliberately conservative — it never UNDER-states turnover, so the capacity
+    gate fails closed rather than flattering a high-churn strategy.
+    """
+    if n_days <= 0:
+        return 0.0
+    return num_trades * (periods_per_year / n_days)
 
 
 def run_full_gauntlet(
@@ -91,7 +127,7 @@ def run_full_gauntlet(
     rebalance_period_bars: Optional[int] = None,
 ) -> Tuple[gauntlet.GauntletReport, GauntletInputs]:
     """
-    Run all seven gates and return (report, inputs).
+    Run all ten gates (7 core + 3 overfitting) and return (report, inputs).
 
     Args:
         strategy_name:   label for the report.
@@ -170,10 +206,14 @@ def run_full_gauntlet(
     g5 = gauntlet.evaluate_gate5_cost_stress(sharpe_2x)
 
     # ---- Gate 6: Parameter sensitivity (optional sweep). ----
+    # Retain each variant's full equity curve too — Gates 8 (DSR trial spread)
+    # and 9 (CSCV) reuse them so we don't pay for extra backtests.
     neighbor_sharpes: List[float] = []
+    variant_curves: List[List[float]] = []
     for _, variant_factory in (param_variants or []):
         v = run_backtest(list(events), variant_factory(), risk_config,
                          initial_capital=initial_capital, slippage_pct=slippage_pct)
+        variant_curves.append(list(v.equity_curve))
         neighbor_sharpes.append(metrics.sharpe_ratio(metrics.returns_from_equity(v.equity_curve)))
     g6 = gauntlet.evaluate_gate6_param_sensitivity(neighbor_sharpes, full_sharpe)
 
@@ -184,7 +224,53 @@ def run_full_gauntlet(
     corr = metrics.correlation(full_returns, bench_returns)
     g7 = gauntlet.evaluate_gate7_benchmark(full_sharpe, bench_sharpe, corr)
 
-    gates = [g1, g2, g3, g4, g5, g6, g7]
+    # ---- Gate 8: Deflated Sharpe (selection-bias-aware significance). ----
+    # The configurations actually tried are the headline strategy plus every
+    # parameter variant swept for Gate 6; their Sharpes are the "trials".
+    trial_sharpes = [full_sharpe] + neighbor_sharpes
+    num_trials = len(trial_sharpes)
+    g8 = gauntlet.evaluate_gate8_deflated_sharpe(
+        full_returns, num_trials=num_trials, trial_sharpes=trial_sharpes,
+    )
+
+    # ---- Gate 9: Probability of Backtest Overfitting (CSCV). ----
+    # Build the performance matrix from the configurations we have. Need >= 2
+    # configs and an even number of time slices >= 4; otherwise the gate fails
+    # closed inside evaluate_gate9_pbo.
+    config_curves = [list(full.equity_curve)] + variant_curves
+    n_slices = 16 if len(full.equity_curve) >= 17 else (len(full.equity_curve) - 1)
+    if n_slices % 2 != 0:
+        n_slices -= 1
+    if len(config_curves) >= 2 and n_slices >= 4:
+        per_config = [_slice_sharpes(c, n_slices) for c in config_curves]
+        # performance_matrix[t][c]: transpose configs-by-slices to slices-by-configs.
+        perf_matrix = [
+            [per_config[c][t] for c in range(len(per_config))]
+            for t in range(n_slices)
+        ]
+        g9 = gauntlet.evaluate_gate9_pbo(perf_matrix)
+        pbo_val = metrics.probability_of_backtest_overfitting(perf_matrix)
+    else:
+        # No parameter sweep ⇒ no configuration field to test for overfitting.
+        # This can only WARN: it is missing evidence, not evidence of overfit.
+        g9 = gauntlet.GateResult(
+            "Gate 9 PBO (CSCV)", gauntlet.GateStatus.WARN,
+            "no parameter sweep provided — cannot run CSCV", is_hard_gate=False,
+        )
+        pbo_val = 1.0
+
+    # ---- Gate 10: Capacity & turnover sanity. ----
+    ann_ret = metrics.annualized_return(full.equity_curve)
+    ann_turnover = _estimate_turnover_from_trades(len(full.trade_returns), n_days)
+    g10 = gauntlet.evaluate_gate10_capacity(
+        num_trades=len(full.trade_returns),
+        annualized_return_estimate=ann_ret,
+        annual_turnover=ann_turnover,
+        cost_per_turn=float(slippage_pct),
+    )
+    cap_val = metrics.capacity_score(ann_ret, ann_turnover, cost_per_turn=float(slippage_pct))
+
+    gates = [g1, g2, g3, g4, g5, g6, g7, g8, g9, g10]
     report = gauntlet.grade_and_assemble(
         strategy_name, gates,
         realistic_dd=mc.realistic_max_drawdown,
@@ -198,6 +284,12 @@ def run_full_gauntlet(
         sharpe_at_2x_cost=sharpe_2x,
         benchmark_sharpe=bench_sharpe,
         correlation_to_benchmark=corr,
+        deflated_sharpe_prob=metrics.deflated_sharpe_ratio(
+            full_returns, num_trials=num_trials, trial_sharpes=trial_sharpes,
+        ) if num_trials >= 2 else metrics.probabilistic_sharpe_ratio(full_returns),
+        probability_of_overfitting=pbo_val,
+        capacity_score=cap_val,
+        annual_turnover=ann_turnover,
     )
     return report, inputs
 
