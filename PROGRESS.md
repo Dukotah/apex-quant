@@ -2,6 +2,14 @@
 
 Running log so the owner can glance in anytime. Newest first.
 
+## 2026-06-06 (cont.) — local dashboard + W8 finding
+
+- **Local dashboard** (`scripts/dashboard.py`, stdlib only): `python -m scripts.dashboard` →
+  http://127.0.0.1:8787 — live status + shipped phases + key results + recent log, auto-refresh.
+  Smoke-tested end-to-end (HTTP 200, all sections render); pure `build_page` unit-tested.
+- **W8 finding:** survivorship-free data isn't available free (Yahoo has no delisted tickers) →
+  true W8 needs a paid source (owner spend decision). Free-tier stress evidence is the substitute.
+
 ## 2026-06-06 (cont.) — Phase F1/F2 MERGED + Phase F3: second edge proven
 
 - **Phase F1/F2 shipped & merged** (PR #6, CI green): edge-validation suite, ops CLIs
