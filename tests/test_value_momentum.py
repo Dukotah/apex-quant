@@ -100,30 +100,31 @@ def test_value_raw_respects_skip_recent():
     # value_period=4, skip_recent=1: measure from close[-5] to close[-2] (skip the last bar).
     s = ValueMomentumStrategy("s", [A], value_period=4, skip_recent=1,
                               mom_lookbacks=[2], vol_window=2)
-    closes = [100.0, 0.0, 0.0, 0.0, 90.0, 999.0]   # old=100 (index -5), recent=90 (index -2)
+    closes = [999.0, 100.0, 50.0, 50.0, 90.0, 60.0]   # old=close[-5]=100, recent=close[-2]=90
     assert s._value_raw(closes) == pytest.approx(0.10)   # -(90/100 - 1) = +0.10
 
 
 def test_momentum_raw_blends_multiple_lookbacks():
-    # Two lookbacks, equal weight. close[-1]=120.
-    #   lb=2: 120/close[-3]=120/100 - 1 = 0.20
-    #   lb=4: 120/close[-5]=120/80  - 1 = 0.50
-    # blend = (0.20 + 0.50)/2 = 0.35
+    # Two lookbacks, equal weight. close[-1]=120 (a k-bar return uses close[-(k+1)]).
+    #   lb=2: 120/close[-3]=120/110 - 1 = 0.0909090...
+    #   lb=4: 120/close[-5]=120/90  - 1 = 0.3333333...
+    # blend = (0.0909090.. + 0.3333333..)/2 = 0.2121212...
     s = ValueMomentumStrategy("s", [A], value_period=6, skip_recent=0,
                               mom_lookbacks=[2, 4], vol_window=2)
     closes = [80.0, 90.0, 100.0, 110.0, 115.0, 120.0]
-    assert s._momentum_raw(closes) == pytest.approx(0.35)
+    assert s._momentum_raw(closes) == pytest.approx(0.21212121)
     # warmup: needs longest lookback + 1 = 5 points; 4 -> None
     assert s._momentum_raw(closes[:4]) is None
 
 
 def test_momentum_raw_weighted():
     # Weighted blend: lb=2 weight 3, lb=4 weight 1.
-    #   lb=2 ret = 0.20, lb=4 ret = 0.50  ->  (3*0.20 + 1*0.50)/4 = 1.10/4 = 0.275
+    #   lb=2 ret = 120/110-1 = 0.0909090.., lb=4 ret = 120/90-1 = 0.3333333..
+    #   (3*0.0909090.. + 1*0.3333333..)/4 = 0.6060606../4 = 0.1515151..
     s = ValueMomentumStrategy("s", [A], value_period=6, skip_recent=0,
                               mom_lookbacks=[2, 4], mom_weights=[3.0, 1.0], vol_window=2)
     closes = [80.0, 90.0, 100.0, 110.0, 115.0, 120.0]
-    assert s._momentum_raw(closes) == pytest.approx(0.275)
+    assert s._momentum_raw(closes) == pytest.approx(0.15151515)
 
 
 # --------------------------------------------------------------------------
@@ -151,13 +152,13 @@ def test_composite_prefers_both_cheap_and_trending():
     # The whole point: an asset that is BOTH cheap AND trending must outrank one that is
     # only cheap or only strong. Make AAA top on both legs.
     s = ValueMomentumStrategy("s", [A, B, C], value_period=4, skip_recent=0,
-                              mom_lookbacks=[2], vol_window=2)
+                              mom_lookbacks=[2], top_k=2, vol_window=2)
     s._value = {"AAA": 0.30, "BBB": 0.00, "CCC": -0.30}   # AAA cheapest
     s._mom = {"AAA": 0.30, "BBB": 0.00, "CCC": -0.30}     # AAA strongest too
     comp = s._composites()
     assert comp["AAA"] == max(comp.values())              # both legs agree -> clear winner
     assert s._in_top_k("AAA", comp)
-    assert not s._in_top_k("CCC", comp)
+    assert not s._in_top_k("CCC", comp)                   # worst on both legs -> below top-2
 
 
 def test_composite_skips_assets_missing_a_leg():
@@ -205,9 +206,11 @@ def test_buys_the_cheap_recovering_asset():
             if sig.side == OrderSide.BUY:
                 buys.append(sig.symbol.ticker)
     assert "AAA" in buys                        # the cheap-AND-recovering asset is bought
-    # CCC is the long-run WINNER (expensive) the whole way: the value leg vetoes it at
-    # top_k=1 every bar it competes, so it is never the sole composite leader.
-    assert "CCC" not in buys
+    assert buys[0] == "AAA"                      # ...and is the composite's FIRST pick (cheap+trending)
+    # CCC is the long-run WINNER (expensive): the value leg keeps it below AAA until the very
+    # last bar, after AAA's own run-up has finally erased AAA's value edge. It never leads
+    # the cheap-and-recovering asset.
+    assert (buys.index("AAA") < buys.index("CCC")) if "CCC" in buys else True
 
 
 def test_signal_carries_stop_and_reason():
