@@ -293,6 +293,47 @@ def validate_value():
     )
 
 
+def validate_value_pool():
+    """
+    Session-22 probe (1): cross-asset VALUE on the RICHER 13-ETF sleeve pool, not smart-7.
+    The thesis is that a value premium too weak in 7 ETFs (standalone Sharpe 0.30,
+    edge < costs) may strengthen when the cross-sectional rank has more to separate — the
+    top-3 cheapest of 13 are more extreme than the top-3 of 7. Same params as the smart-7
+    baseline (value_period=1260 ~5y, skip_recent=252 ~1y, top_k=3) so the standalone
+    Gauntlet is apples-to-apples; only the universe changes. Trend filter OFF (PURE value).
+    Caveat: several pool sleeves (FXY/DBB/DBO/BWX/HYG/TIP) only start ~2007, so with the
+    ~6y warmup the measured window is ~2013-2026 — shorter than smart-7's 2006-2026.
+    """
+    from apex.strategy.library.cross_asset_value import CrossAssetValueStrategy
+    assets = ["SPY", "EFA", "TLT", "GLD", "DBC", "UUP", "DBA",
+              "FXY", "DBB", "DBO", "TIP", "BWX", "HYG"]
+    syms = [Symbol(t, AssetClass.ETF) for t in assets]
+    risk = RiskConfig(
+        max_position_size_pct=Decimal("0.34"), max_total_exposure_pct=Decimal("1.0"),
+        max_leverage=Decimal("1.0"), max_drawdown_pct=Decimal("0.99"),
+        max_daily_loss_pct=Decimal("0.99"), require_stop_loss=True,
+    )
+
+    def factory():
+        return CrossAssetValueStrategy("xasset_value_pool", syms, value_period=1260,
+                                       skip_recent=252, top_k=3)
+
+    def lo():
+        return CrossAssetValueStrategy("xasset_value_pool", syms, value_period=1008,
+                                       skip_recent=252, top_k=3)
+
+    def hi():
+        return CrossAssetValueStrategy("xasset_value_pool", syms, value_period=1512,
+                                       skip_recent=252, top_k=3)
+
+    return run_gauntlet_from_csv(
+        "cross_asset_value_POOL", factory, "data/real/sleeve_pool.csv", syms,
+        benchmark_ticker="SPY", risk_config=risk,
+        param_variants=[("window-20%", lo), ("window+20%", hi)],
+        rebalance_period_bars=21,
+    )
+
+
 def validate_trend_bond():
     """Cash-drag-fixed trend: hold SPY above its 200d SMA, rotate to AGG below."""
     syms = [Symbol("SPY", AssetClass.ETF), Symbol("AGG", AssetClass.ETF)]
@@ -319,7 +360,9 @@ def main() -> None:
     which = sys.argv[1] if len(sys.argv) > 1 else "dual_momentum"
     if len(sys.argv) > 2:                 # optional data-file override
         DATA = SECTORS = sys.argv[2]
-    if which in ("value", "val", "xvalue"):
+    if which in ("value_pool", "valpool", "vpool", "value13"):
+        report, inputs = validate_value_pool()
+    elif which in ("value", "val", "xvalue"):
         report, inputs = validate_value()
     elif which in ("smart7", "s7"):
         report, inputs = validate_multiasset_smart7()

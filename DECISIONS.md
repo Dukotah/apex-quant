@@ -6,6 +6,46 @@
 
 ---
 
+## Session 23 — Second-edge probe (1): richer ETF pool DILUTES value, doesn't strengthen it
+
+Pulled the Session-22 frontier thread. The open question was whether cross-asset value's
+too-weak premium (smart-7 standalone Sharpe 0.30, edge < costs) could be strengthened by
+giving the cross-sectional rank **more sleeves to separate** — the first of the three logged
+next probes. Ran the *existing* `CrossAssetValueStrategy` (unchanged: value_period 1260,
+skip_recent 252, top_k 3, trend filter OFF) on the **13-ETF `sleeve_pool`** universe
+(smart-7 + FXY/DBB/DBO/TIP/BWX/HYG) instead of smart-7, via a new documented-reference
+`validate_value_pool()` in `scripts/validate_real.py` (CLI: `value_pool`). Apples-to-apples
+— only the universe changed.
+
+**Result — a decisive NEGATIVE: the richer pool makes value WORSE, not better.**
+- Full Sharpe **−0.21** (was +0.30 on smart-7); in-sample −0.39; **Sharpe@2x-cost −0.32**.
+- **Monte Carlo p=0.823** — indistinguishable from luck (smart-7 was 0.091). Grade FAIL.
+- Correlation to benchmark stays low (0.23, Gate 7 PASS) — the diversification is still
+  real, but the sleeve is now *unprofitable*, so it's even less deployable than smart-7 value.
+
+**Why:** the extra six sleeves are currencies (FXY/UUP), commodity sub-sectors
+(DBB/DBO/DBA), inflation/credit/intl bonds (TIP/HYG/BWX) — none carry a clean long-horizon
+*value* (multi-year mean-reversion) premium. Ranking them by 5y reversal doesn't sharpen the
+signal, it injects noise (hence MC p → 0.82). "More to rank" only helps if the additions
+share the premium being ranked; these don't. Secondary caveat: the late-launching ETFs push
+the effective measured window to ~2013–2026 (6y warmup), shorter than smart-7's 2006–2026 —
+but a +0.30 → −0.21 swing is far too large to be a window artifact.
+
+**What this changes:** probe (1) is closed negatively — a bigger ETF basket is NOT the path;
+the limit is the *kind* of assets, not the count. The frontier narrows to the two remaining
+Session-22 probes: **(2) a combined per-asset value+momentum score** (hold assets that are
+both cheap AND trending, on smart-7 — keep the universe that at least had a weak positive
+premium) and **(3) accept a real value premium needs single-names or shorting**. Probe (2) is
+the next buildable module and the more promising of the two (it stays in the universe where
+value was at least weakly positive, and combines two genuinely different-in-kind signals).
+Kept `validate_value_pool()` as a tested documented-failure reference, matching the
+rsi2 / cross_sectional_momentum / cross_asset_value precedent.
+
+**Verified:** Gauntlet ran end-to-end on real 2006–2026 sleeve_pool data; lint clean. No
+strategy code changed (pure measurement on the existing strategy), so test count unchanged.
+
+---
+
 ## Session 22 — Cross-asset VALUE: the FIRST uncorrelated 2nd edge (but too weak to deploy)
 
 Re-opened the second-edge hunt with the one long-only return driver the prior sessions

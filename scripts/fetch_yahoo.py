@@ -62,9 +62,9 @@ def fetch_symbol(symbol: str, rng: str = "15y", start: str | None = None) -> Lis
 
     rows: List[dict] = []
     for i, ts in enumerate(stamps):
-        o, h, l, c, v = (quote["open"][i], quote["high"][i], quote["low"][i],
-                         quote["close"][i], quote["volume"][i])
-        if None in (o, h, l, c):
+        o, h, lo, c, v = (quote["open"][i], quote["high"][i], quote["low"][i],
+                          quote["close"][i], quote["volume"][i])
+        if None in (o, h, lo, c):
             continue  # holiday / halted bar — skip, don't fabricate
         # CRITICAL: O/H/L and close must share ONE adjustment basis. Yahoo gives
         # raw O/H/L but a split/dividend-adjusted close; mixing them yields corrupt
@@ -73,11 +73,11 @@ def fetch_symbol(symbol: str, rng: str = "15y", start: str | None = None) -> Lis
         # adjusted (total-return) basis used for strategy math.
         adj_c = adj[i] if (adj and adj[i] is not None) else c
         ratio = (adj_c / c) if c else 1.0
-        o, h, l, close = o * ratio, h * ratio, l * ratio, adj_c
+        o, h, lo, close = o * ratio, h * ratio, lo * ratio, adj_c
         date = datetime.fromtimestamp(ts, tz=timezone.utc).date().isoformat()
         rows.append({
             "timestamp": date, "symbol": symbol,
-            "open": f"{o:.6f}", "high": f"{h:.6f}", "low": f"{l:.6f}",
+            "open": f"{o:.6f}", "high": f"{h:.6f}", "low": f"{lo:.6f}",
             "close": f"{close:.6f}", "volume": int(v or 0),
         })
     return rows
