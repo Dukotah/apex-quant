@@ -4,27 +4,24 @@ scripts/temporal_robustness.py
 Phase F1.2 — temporal robustness of the single-name value edge (DECISIONS Session 27).
 
 THE QUESTION. The grade-A Sharpe of the CrossAssetValue edge is measured over the full
-2005-2026 sample. But what if the edge only lived in one regime (e.g. the mean-reversion
-bonanza of 2009-2014)? A regime-dependent edge is not worth deploying: it could be in a
-dead zone right now.
+2005-2026 sample. But what if the edge only lived in one regime (e.g. the 2009-2014
+mean-reversion bonanza)? A regime-dependent edge could be in a dead zone right now.
 
-THE TEST (no look-ahead, no re-fitting). Slice the event stream into:
-  (a) CONSECUTIVE windows  — e.g. five roughly equal sub-periods.
-  (b) EXPANDING windows    — 4-yr seed, then add 4 yr at a time (anchored start).
+THE METHOD (correct for a LONG-lookback strategy). The value signal needs ~5y (1,513 bars)
+of warmup before it trades, so you CANNOT just backtest 4-year slices of the data — every
+slice would be warmup-starved and trade nothing (a trap an earlier draft of this tool fell
+into). Instead: run ONE full backtest with full warmup, then slice the resulting daily
+EQUITY CURVE by calendar year and compute each year's Sharpe. That isolates per-regime
+performance from the actually-traded curve. We do it at 1x and 2x cost. Years before the
+first trade are flat (no variance) and are flagged WARMUP, not counted against the edge.
 
-Run the SAME CrossAssetValueStrategy and _risk()/_full_sharpe() from
-survivorship_stress.py on each slice, and report per-period full Sharpe + Sharpe@2x.
+VERDICT (over ACTIVE years only — those where the book actually moved):
+  "consistent"        — no active year is materially negative (the edge never flipped)
+  "regime-dependent"  — one or more active years are materially negative
 
-VERDICT:
-  "consistent"        — all sub-period Sharpe@2x > 0 (the edge has never flip-negative)
-  "regime-dependent"  — at least one sub-period Sharpe@2x <= 0
-
-The operator can see both the rolling stability and the full-period baseline side by side.
-
-Determinism is guaranteed: no RNG, no datetime.now() in logic.
+Determinism: no RNG, no datetime.now() in logic.
 
 Run:  python -m scripts.temporal_robustness
-      python -m scripts.temporal_robustness --periods 5 --data data/real/single_names.csv
 """
 
 from __future__ import annotations
@@ -33,168 +30,75 @@ import argparse
 import logging
 import sys
 from decimal import Decimal
-from typing import Sequence
 
-from apex.core.events import MarketEvent
+from apex.backtest.backtester import run_backtest
 from apex.core.models import AssetClass, Symbol
 from apex.data.historical_feed import HistoricalDataFeed
-from scripts.survivorship_stress import (
-    _UNIVERSE,
-    _full_sharpe,
-)
+from apex.validation import metrics
+from scripts.survivorship_stress import _UNIVERSE, _risk, _strategy
 
 _DATA = "data/real/single_names.csv"
 _BENCHMARK = "SPY"
 _SLIPPAGE = Decimal("0.001")
+# A year is "materially negative" only below this Sharpe — tiny wobbles in a thin
+# transition year shouldn't read as a regime failure.
+_NEG_TOL = -0.25
 
 
-# ----------------------------------------------------------------- period slicing (pure)
+# ----------------------------------------------------------------- slicing (pure)
 
 
-def slice_into_periods(
-    events: Sequence[MarketEvent],
-    n_periods: int,
-) -> list[list[MarketEvent]]:
+def slice_curve_by_year(equity: list[float], timestamps: list) -> list[tuple[int, list[float]]]:
     """
-    Split `events` into `n_periods` consecutive chunks of roughly equal size.
+    Group a daily equity curve into per-calendar-year segments.
 
-    Pure function: given the same events and n_periods returns the same slices.
-    Empty events or n_periods <= 0 returns [].  n_periods > len(events) returns
-    as many single-event slices as there are events.
+    Pure: returns [(year, [equity...]), ...] ordered by year. `equity` and `timestamps`
+    are parallel lists (as produced by a backtest result). Mismatched lengths are zipped
+    to the shorter.
     """
-    events = list(events)
-    if not events or n_periods <= 0:
-        return []
-    n_periods = min(n_periods, len(events))
-    total = len(events)
-    # Distribute remainder events into the first (total % n_periods) slices.
-    base, rem = divmod(total, n_periods)
-    slices: list[list[MarketEvent]] = []
-    start = 0
-    for i in range(n_periods):
-        size = base + (1 if i < rem else 0)
-        slices.append(events[start : start + size])
-        start += size
-    return slices
+    buckets: dict[int, list[float]] = {}
+    for e, ts in zip(equity, timestamps):
+        buckets.setdefault(ts.year, []).append(e)
+    return [(y, buckets[y]) for y in sorted(buckets)]
 
 
-def slice_expanding(
-    events: Sequence[MarketEvent],
-    n_periods: int,
-) -> list[list[MarketEvent]]:
-    """
-    Build `n_periods` expanding-window slices, all anchored at the first event.
-
-    Window i covers events[0 : (i+1)*step], where step = total // n_periods.
-    The final window is always the full event list.
-
-    Pure function: deterministic given the same inputs.
-    """
-    events = list(events)
-    if not events or n_periods <= 0:
-        return []
-    n_periods = min(n_periods, len(events))
-    total = len(events)
-    step = max(1, total // n_periods)
-    slices: list[list[MarketEvent]] = []
-    for i in range(1, n_periods + 1):
-        end = min(i * step, total)
-        slices.append(events[:end])
-        if end >= total:
-            break
-    # Ensure the last slice is always the full stream.
-    if slices and len(slices[-1]) < total:
-        slices.append(events)
-    return slices
+def year_sharpe(segment: list[float]) -> float:
+    """Annualized Sharpe of one year's equity segment (0.0 if < 2 points)."""
+    rets = metrics.returns_from_equity(segment)
+    return metrics.sharpe_ratio(rets) if len(rets) >= 2 else 0.0
 
 
-# ----------------------------------------------------------------- label helpers (pure)
-
-
-def _date_range_label(period_events: list[MarketEvent]) -> str:
-    """Return 'YYYY-MM-DD..YYYY-MM-DD' label for a slice, or '-' if empty."""
-    if not period_events:
-        return "-"
-    first = period_events[0].bar.timestamp.date().isoformat()
-    last = period_events[-1].bar.timestamp.date().isoformat()
-    return f"{first}..{last}"
-
-
-def _period_years(period_events: list[MarketEvent]) -> float:
-    """Return approximate length of a period in years, or 0 if < 2 events."""
-    if len(period_events) < 2:
-        return 0.0
-    delta = period_events[-1].bar.timestamp - period_events[0].bar.timestamp
-    return delta.days / 365.25
+def is_active(segment: list[float]) -> bool:
+    """A year is 'active' (post-warmup, actually trading) if its equity moved at all."""
+    return len(segment) >= 2 and max(segment) != min(segment)
 
 
 # ----------------------------------------------------------------- report
 
 
-def _run_period(
-    period_events: list[MarketEvent],
-    label: str,
-    window_type: str,
-    idx: int,
-) -> dict:
-    """Run the value edge on one period and return a result dict."""
-    sharpe_1x, n_trades = _full_sharpe(period_events, _SLIPPAGE)
-    sharpe_2x, _ = _full_sharpe(period_events, _SLIPPAGE * Decimal("2"))
-    years = _period_years(period_events)
-    return {
-        "window_type": window_type,
-        "period": idx + 1,
-        "label": label,
-        "years": years,
-        "n_bars": len(period_events),
-        "n_trades": n_trades,
-        "sharpe_1x": sharpe_1x,
-        "sharpe_2x": sharpe_2x,
-    }
+def _per_year(equity: list[float], timestamps: list, slippage: Decimal) -> dict:
+    """{year: sharpe} for one backtest's curve (used for both 1x and 2x)."""
+    return {y: year_sharpe(seg) for y, seg in slice_curve_by_year(equity, timestamps)}
 
 
-def _print_table(rows: list[dict], title: str) -> None:
-    print(f"\n{'=' * 72}")
-    print(f"  {title}")
-    print(f"{'=' * 72}")
-    print(
-        f"{'#':>3}  {'Period':^25}  {'yrs':>4}  {'trades':>6}  "
-        f"{'Sharpe@1x':>9}  {'Sharpe@2x':>9}  {'pass':>5}"
+def _verdict(year_rows: list[dict]) -> str:
+    """Consistency over ACTIVE years using the 2x-cost Sharpe."""
+    active = [r for r in year_rows if r["active"]]
+    if not active:
+        return "VERDICT: no active years — strategy never traded (check warmup/data)."
+    negatives = [r for r in active if r["sharpe_2x"] < _NEG_TOL]
+    n = len(active)
+    pos = sum(1 for r in active if r["sharpe_2x"] > 0)
+    if not negatives:
+        return (
+            f"VERDICT: consistent — across {n} active years none is materially negative "
+            f"(Sharpe@2x < {_NEG_TOL}); {pos}/{n} are outright positive. Not one-regime."
+        )
+    labels = ", ".join(str(r["year"]) for r in negatives)
+    return (
+        f"VERDICT: regime-dependent — {len(negatives)}/{n} active years are materially "
+        f"negative at 2x cost ({labels}). The edge is not uniform across regimes."
     )
-    print("-" * 72)
-    for r in rows:
-        passed = "YES" if r["sharpe_2x"] > 0 else "no"
-        print(
-            f"{r['period']:>3}  {r['label']:^25}  {r['years']:>4.1f}  {r['n_trades']:>6}  "
-            f"{r['sharpe_1x']:>9.2f}  {r['sharpe_2x']:>9.2f}  {passed:>5}",
-            flush=True,
-        )
-
-
-def _verdict(rows_consec: list[dict], rows_expand: list[dict]) -> str:
-    """
-    Emit a one-line verdict based on consecutive sub-period Sharpe@2x.
-    All > 0 → consistent.  Any <= 0 → regime-dependent.
-    """
-    if not rows_consec:
-        return "VERDICT: no sub-period data — cannot assess temporal robustness."
-
-    failing = [r for r in rows_consec if r["sharpe_2x"] <= 0]
-    min_sharpe2 = min(r["sharpe_2x"] for r in rows_consec)
-    n = len(rows_consec)
-
-    if not failing:
-        return (
-            f"VERDICT: consistent — all {n} sub-periods have Sharpe@2x > 0 "
-            f"(min {min_sharpe2:.2f}). The value edge is not one-regime."
-        )
-    else:
-        pct = len(failing) / n
-        labels = ", ".join(r["label"] for r in failing)
-        return (
-            f"VERDICT: regime-dependent — {len(failing)}/{n} sub-periods ({pct:.0%}) "
-            f"have Sharpe@2x <= 0. Weak periods: {labels}."
-        )
 
 
 def _utf8() -> None:
@@ -204,21 +108,11 @@ def _utf8() -> None:
         pass
 
 
-# ----------------------------------------------------------------- main
-
-
 def main() -> int:
     _utf8()
     logging.disable(logging.WARNING)
-
     ap = argparse.ArgumentParser(
-        description="Temporal-robustness analysis of the single-name value edge."
-    )
-    ap.add_argument(
-        "--periods",
-        type=int,
-        default=5,
-        help="Number of consecutive sub-periods (default: 5 gives ~4-yr windows over 2005-2026)",
+        description="Temporal-robustness (per-calendar-year) of the single-name value edge."
     )
     ap.add_argument("--data", default=_DATA)
     args = ap.parse_args()
@@ -236,41 +130,37 @@ def main() -> int:
         print("Regenerate it — see the command in scripts/validate_real.py.", file=sys.stderr)
         return 1
 
-    n_periods = args.periods
     print(
-        f"Temporal robustness: {len(_UNIVERSE)} names, {len(events)} total bars, "
-        f"{n_periods} sub-periods.\n"
-        f"Edge baseline (full sample):",
+        f"Temporal robustness (per-year, single full backtest): {len(_UNIVERSE)} names, "
+        f"{len(events)} bars.\nRunning the full backtest at 1x and 2x cost ...",
         flush=True,
     )
-    full_1x, full_trades = _full_sharpe(events, _SLIPPAGE)
-    full_2x, _ = _full_sharpe(events, _SLIPPAGE * Decimal("2"))
-    print(
-        f"  Sharpe@1x = {full_1x:.2f}  Sharpe@2x = {full_2x:.2f}  trades = {full_trades}",
-        flush=True,
-    )
+    res1 = run_backtest(events, _strategy(), _risk(), slippage_pct=_SLIPPAGE)
+    res2 = run_backtest(events, _strategy(), _risk(), slippage_pct=_SLIPPAGE * Decimal("2"))
+    full1 = metrics.sharpe_ratio(metrics.returns_from_equity(res1.equity_curve))
+    full2 = metrics.sharpe_ratio(metrics.returns_from_equity(res2.equity_curve))
+    print(f"  full-sample Sharpe@1x={full1:.2f}  Sharpe@2x={full2:.2f}  trades={res1.num_trades}\n")
 
-    # ---- consecutive sub-periods ----
-    consec_slices = slice_into_periods(events, n_periods)
-    rows_consec: list[dict] = []
-    for i, sl in enumerate(consec_slices):
-        label = _date_range_label(sl)
-        print(f"  Running consecutive period {i + 1}/{n_periods}: {label} ...", flush=True)
-        rows_consec.append(_run_period(sl, label, "consecutive", i))
+    s1 = _per_year(res1.equity_curve, res1.equity_timestamps, _SLIPPAGE)
+    s2 = _per_year(res2.equity_curve, res2.equity_timestamps, _SLIPPAGE * Decimal("2"))
+    active_map = {
+        y: is_active(seg)
+        for y, seg in slice_curve_by_year(res1.equity_curve, res1.equity_timestamps)
+    }
+    rows = [
+        {"year": y, "sharpe_1x": s1[y], "sharpe_2x": s2.get(y, 0.0), "active": active_map[y]}
+        for y in sorted(s1)
+    ]
 
-    _print_table(rows_consec, f"CONSECUTIVE SUB-PERIODS  (n={n_periods})")
-
-    # ---- expanding windows ----
-    expand_slices = slice_expanding(events, n_periods)
-    rows_expand: list[dict] = []
-    for i, sl in enumerate(expand_slices):
-        label = _date_range_label(sl)
-        print(f"  Running expanding window {i + 1}/{len(expand_slices)}: {label} ...", flush=True)
-        rows_expand.append(_run_period(sl, label, "expanding", i))
-
-    _print_table(rows_expand, f"EXPANDING WINDOWS  (n={len(expand_slices)})")
-
-    print(f"\n{_verdict(rows_consec, rows_expand)}", flush=True)
+    print(f"{'year':>6}  {'Sharpe@1x':>9}  {'Sharpe@2x':>9}  {'state':>7}")
+    print("-" * 38)
+    for r in rows:
+        state = "active" if r["active"] else "warmup"
+        print(
+            f"{r['year']:>6}  {r['sharpe_1x']:>9.2f}  {r['sharpe_2x']:>9.2f}  {state:>7}",
+            flush=True,
+        )
+    print(f"\n{_verdict(rows)}", flush=True)
     return 0
 
 
