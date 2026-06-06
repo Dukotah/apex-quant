@@ -33,7 +33,7 @@ def test_gate8_passes_genuine_edge_single_trial():
 def test_gate8_fails_overfit_mirage_many_trials():
     # A Sharpe that would PASS the naive significance test (PSR vs zero > 0.90)
     # but was the BEST of hundreds of tries → deflation drops it below the bar.
-    returns = _edge_returns(250, mean=0.0014, sd=0.012, seed=2)
+    returns = _edge_returns(250, mean=0.0017, sd=0.011, seed=2)
     from apex.validation import metrics
     # Sanity: undeflated, this edge looks real.
     assert metrics.probabilistic_sharpe_ratio(returns, reference_sharpe=0.0) > 0.90
