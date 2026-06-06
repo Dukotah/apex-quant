@@ -97,8 +97,8 @@ apex-quant/
 │   │   ├── models.py          ✅ Bar, Tick, Symbol, Position (asset-agnostic, frozen)
 │   │   ├── events.py          ✅ Market/Signal/Order/Fill/Halt events (frozen)
 │   │   ├── config.py          ✅ AppConfig + the MODE switch
-│   │   ├── event_bus.py       🔲 Central event queue (Phase 1)
-│   │   └── clock.py           🔲 Time abstraction: real vs simulated (Phase 1)
+│   │   ├── event_bus.py       ✅ Central event queue (Phase 1)
+│   │   └── clock.py           ✅ Time abstraction: real vs simulated (Phase 1)
 │   ├── data/
 │   │   ├── base_feed.py       ✅ BaseDataFeed (ABC)
 │   │   ├── historical_feed.py ✅ CSV/Parquet replay for backtest (Phase 2)
@@ -106,15 +106,21 @@ apex-quant/
 │   │   └── normalizer.py      ✅ Raw → Bar/Tick conversion (tested)
 │   ├── strategy/
 │   │   ├── base_strategy.py   ✅ BaseStrategy (ABC) + StrategyContext
-│   │   ├── indicators.py      🔲 SMA/EMA/RSI/MACD/BB/ATR, tested (Phase 3)
-│   │   └── library/           🔲 Concrete strategies (specs written, impl pending)
-│   │       ├── dual_momentum.py        📋 spec'd — THE ANCHOR (build first)
-│   │       ├── rsi2_mean_reversion.py  📋 spec'd — tactical complement
-│   │       ├── rsi2_vol_filtered.py    📋 spec'd — the improvement
-│   │       └── etf_rotation.py         📋 spec'd — the diversifier
+│   │   ├── indicators.py      ✅ SMA/EMA/RSI/MACD/BB/ATR, tested (Phase 3)
+│   │   └── library/           ✅ Strategies (one deployed + research references)
+│   │       ├── multi_asset_trend.py        ✅ DEPLOYED — 7-sleeve inverse-vol trend (grade A)
+│   │       ├── dual_momentum.py            ✅ built, tested (research reference)
+│   │       ├── rsi2_mean_reversion.py      ✅ built, tested (research reference)
+│   │       ├── rsi2_vol_filtered.py        ✅ built, tested (research reference)
+│   │       ├── etf_rotation.py             ✅ built, tested (research reference)
+│   │       ├── trend_bond.py               ✅ built, tested (research reference)
+│   │       ├── cross_sectional_momentum.py ✅ research — correlated to trend
+│   │       ├── cross_asset_value.py        ✅ research — uncorrelated but too weak
+│   │       ├── short_term_reversal.py      ✅ research — fails long-only
+│   │       └── value_momentum.py           ✅ research — value+momentum combo (turnover-killed)
 │   ├── risk/
 │   │   ├── risk_manager.py    ✅ RiskManager + RiskConfig (the gatekeeper)
-│   │   └── portfolio.py       🔲 Position/cash/equity/drawdown tracker (Phase 4)
+│   │   └── portfolio.py       ✅ Position/cash/equity/drawdown tracker (Phase 4)
 │   ├── validation/           ✅ THE GAUNTLET — see docs/VALIDATION_GAUNTLET.md
 │   │   ├── metrics.py         ✅ Sharpe/Sortino/DD/PF/correlation (tested)
 │   │   ├── monte_carlo.py     ✅ Gate 4: edge-vs-luck test (tested)
@@ -126,7 +132,7 @@ apex-quant/
 │       ├── alpaca.py          ✅ Live Alpaca execution (injectable BrokerClient)
 │       ├── factory.py         ✅ MODE flag → right engine (paper+live wired)
 │       └── engine.py          ✅ Main orchestration loop
-├── tests/                     🔲 pytest suite, mirrors apex/ structure
+├── tests/                     ✅ pytest suite, mirrors apex/ structure (414 tests passing)
 ├── config/                    ← YAML strategy/risk configs
 ├── docs/                      ← Phase specs and reference
 ├── scripts/
@@ -206,19 +212,23 @@ use wall-clock time, or use unseeded randomness.
 
 ## Current Build Status
 
-See `ROADMAP.md` for the full plan. Quick status (**336 tests passing**):
+See `ROADMAP.md` for the full plan. Quick status (**414 tests passing**):
 
 - **Phase 1 (Core):** Models, events, config, event bus, clock ✅.
 - **Phase 2 (Data):** Base, historical feed, Alpaca feed, normalizer ✅.
-- **Phase 3 (Strategy):** Base, indicators, 4 library strategies + SMA ref ✅.
+- **Phase 3 (Strategy):** Base, indicators, 10 library strategies + SMA ref ✅.
 - **Phase 4 (Risk):** RiskManager (reduce-aware) + Portfolio ✅.
 - **Phase 5 (Execution):** Simulated + Alpaca execution, factory (paper+live),
   engine loop, backtester, `run_once` cron cycle ✅.
+- **Phase 6 (Live ops):** drift monitor, kill switch, ntfy alerts, paper-gate report ✅.
 
-All five phases are code-complete and tested offline. The only remaining work
-needs real infrastructure: verify the Alpaca adapters against live **paper keys**,
-wire the GitHub Actions cron, then run the mandatory 30-day paper gate (rule 17)
-before any live capital. See `DECISIONS.md` Session 5.
+All five build phases are code-complete; the Alpaca adapters are verified against live
+**paper keys** and the GitHub Actions cron is wired and running GREEN. The multi-asset
+trend strategy (7-sleeve inverse-vol, Gauntlet grade A) is **LIVE on paper**. The sole
+remaining gate before live capital is the mandatory 30-day paper period (rule 17), in
+progress — watch it with `python -m scripts.report`. The long-only second-edge hunt has
+concluded that trend is the sole deployable edge in this universe. See `DECISIONS.md`
+(newest entries on top).
 
 ---
 

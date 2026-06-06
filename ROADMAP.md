@@ -196,10 +196,11 @@ both with a clean capital split.
 | Cost-stress + param-sweep wiring | `apex/backtest/gauntlet_runner.py` | ✅ (backtester now feeds all 7 gates) |
 | Drift monitor (live-vs-backtest) | `apex/validation/drift_monitor.py` | ✅ |
 
-The statistical core is built and tested (28 tests passing). Gates 3, 5, and 6
-have framework code that activates once the Phase 5 backtester exists to feed
-them real per-window equity curves. Verified working: the Gauntlet correctly
-passes a real edge (grade A) and kills an overfit mirage at Gate 2.
+The statistical core is built and tested (34 tests across metrics/Monte-Carlo/gauntlet,
+plus drift_monitor and gauntlet_runner). All 7 gates are live: the Phase 5 backtester +
+`gauntlet_runner` feed real per-window equity curves to Gates 3, 5, and 6. Verified
+working: the Gauntlet correctly passes a real edge (grade A) and kills an overfit mirage
+at Gate 2.
 
 **Done when:** a strategy can be run through all 7 gates against the real
 backtester and produce a graded report; the drift monitor auto-quarantines a

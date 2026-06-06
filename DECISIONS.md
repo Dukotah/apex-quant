@@ -6,6 +6,54 @@
 
 ---
 
+## Session 25 — Multi-agent correctness audit: 22 fixes + doc reconciliation
+
+Ran an 11-agent audit workflow (6 subsystem audits + adversarial verification + doc-drift
+detection) over the whole codebase, then applied the confirmed findings as the safety
+layer (every batch verified: 414 tests pass, lint clean, deployed strategy still grade A).
+24 findings confirmed real; 22 applied, 2 deliberately declined.
+
+**Determinism (Golden Rule 10) — top-K ranking had no tie-break**, so equal scores resolved
+by construction-time symbol order. Added a ticker secondary key in value_momentum,
+cross_sectional_momentum, cross_asset_value, short_term_reversal. (Regression-tested.)
+
+**Safety / correctness:**
+- alpaca: idempotency key was `order.event_id` (a fresh UUID every cron run) → a retried
+  cycle could DOUBLE-SUBMIT. Now a stable `client_order_id` hashed from the logical trade
+  (strategy:symbol:side:date). Also send qty as `str` (exact Decimal, no float rounding).
+- run_once: `is_latest` used one global max timestamp → silently dropped ALL signals (exits
+  included) for any symbol whose last bar predated another's (e.g. a commodity ETF trading
+  when equities are closed). Now each symbol's own latest bar drives its flag.
+- gauntlet_runner: off-by-one dropped the final trading day from the last walk-forward fold.
+- engine: `_Snapshot` lacked `realized_volatility`, so vol-targeting was silently skipped on
+  rotation bars; now propagated. Short-cover trade returns recorded. End-of-stream pending
+  orders are warned, not silently abandoned.
+- portfolio: a BUY exactly covering a short left a zero-qty zombie position (inflating the
+  position count) and never booked the short's realized PnL — both fixed (regression-tested).
+- risk_manager: OrderEvents/HaltEvents now inherit the signal's bar-time instead of
+  `utc_now()` (deterministic audit trail); `reset_daily` keys off a structured
+  `_halt_triggered_by` field instead of substring-matching the human reason.
+- gauntlet/drift_monitor: GauntletReport stores `validated_sharpe` directly; DriftMonitor
+  reads it instead of back-calculating `floor/floor_ratio` (wrong for any non-default ratio).
+- fetch_yahoo: guarded adjclose index/empty-list IndexErrors. alpaca_feed: reset per-call
+  quality counters. monte_carlo: removed a dead order-shuffle null (2000 wasted iters/run).
+
+**Deliberately NOT applied (judgment calls):** (1) metrics `pstdev`→`stdev` for Sharpe — a
+sample-vs-population convention worth ~1.7%; applying it would shift every validated Sharpe
+and invalidate the documented grade-A / OOS-1.34 numbers for no behavioural gain. (2) the
+`Grade.C` unreachable branch — harmless dead code; changing grading logic adds risk for a
+cosmetic win. Both noted here so the call is on record.
+
+**Docs reconciled** to reality across CLAUDE.md / README.md / ROADMAP.md: test count
+336→414, all build phases marked done, the strategy table lists all 10 library strategies
+(1 deployed + 9 research references), validation count corrected 28→34, and the stale
+"remaining work = wire the cron" status replaced with "cron live, paper gate in progress."
+
+**Verified:** 414 tests passing (+6 regression tests in `tests/test_audit_regressions.py`),
+lint clean, deployed strategy re-run through the Gauntlet still grade A (OOS 1.34, full 0.82).
+
+---
+
 ## Session 24 — Second-edge probe (2): combined per-asset value+momentum — FAILS on turnover
 
 Built the more promising of the two remaining Session-22 probes: a per-asset COMBINED

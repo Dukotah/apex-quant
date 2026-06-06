@@ -65,15 +65,17 @@ No strategy, risk, or data code changes when you switch. Ever.
 | Phase | Module | Status |
 |-------|--------|--------|
 | 1 | Core models, events, config | done |
-| 1 | Event bus, clock | todo |
-| 2 | Data feeds (base done) | todo |
-| 3 | Indicators + strategies (base done) | todo |
-| 4 | Risk manager (done, tested) / portfolio | in progress |
-| 5 | Execution (base done) / engine loop | todo |
+| 1 | Event bus, clock | done |
+| 2 | Data feeds (base, historical, Alpaca, normalizer) | done |
+| 3 | Indicators + strategies | done |
+| 4 | Risk manager / portfolio | done |
+| 5 | Execution / engine loop / backtester / run_once | done |
+| 6 | Live ops (drift monitor, kill switch, paper-gate report) | done |
 
-The four base classes are complete and the Risk Manager is smoke-tested:
-compliant signals get sized correctly, missing stops get rejected, and a
-drawdown breach halts the whole system.
+All five build phases are code-complete with **414 tests passing**. The multi-asset
+trend strategy (7-sleeve inverse-vol, Gauntlet grade A 7/7) is **live on paper** via a
+GitHub Actions cron against an Alpaca paper account. The mandatory 30-day paper gate is
+in progress before any live capital.
 
 ---
 
