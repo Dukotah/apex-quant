@@ -190,9 +190,12 @@ class DriftMonitor:
         **kwargs,
     ) -> "DriftMonitor":
         """
-        Build a monitor straight from a GauntletReport. The report stores
-        quarantine_sharpe_floor = floor_ratio * validated_sharpe, so the validated
-        Sharpe is recovered as floor / floor_ratio.
+        Build a monitor straight from a GauntletReport. Reads the validated (walk-forward)
+        Sharpe directly off the report. Older reports that predate that field fall back to
+        recovering it as quarantine_sharpe_floor / floor_ratio (correct only when the report
+        was assembled with this same floor_ratio).
         """
-        validated = report.quarantine_sharpe_floor / floor_ratio if floor_ratio else 0.0
+        validated = getattr(report, "validated_sharpe", None)
+        if not validated:
+            validated = report.quarantine_sharpe_floor / floor_ratio if floor_ratio else 0.0
         return cls(report.strategy_name, validated, floor_ratio=floor_ratio, **kwargs)

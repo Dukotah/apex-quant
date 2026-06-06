@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from datetime import datetime
 from decimal import Decimal
 from typing import Optional
 
@@ -88,6 +89,7 @@ class RiskManager:
         self._config = config           # private + frozen = tamper-resistant
         self._halted: bool = False
         self._halt_reason: str = ""
+        self._halt_triggered_by: str = ""   # structured cause, not the human-readable reason
 
     # ---- public API -------------------------------------------------------
 
@@ -111,7 +113,7 @@ class RiskManager:
                 return None
 
             # 1. Drawdown / daily-loss circuit breakers (may trigger global halt).
-            halt = self._check_circuit_breakers(portfolio)
+            halt = self._check_circuit_breakers(portfolio, signal.timestamp)
             if halt is not None:
                 self._trigger_halt(halt.reason, halt.triggered_by)
                 self._reject(signal, halt.reason)
@@ -163,7 +165,7 @@ class RiskManager:
                 take_profit=take_profit,
                 strategy_id=signal.strategy_id,
                 signal_id=signal.event_id,
-                timestamp=utc_now(),
+                timestamp=signal.timestamp or utc_now(),
             )
             logger.info(
                 "APPROVED %s %s qty=%s stop=%s (strategy=%s)",
@@ -234,8 +236,11 @@ class RiskManager:
 
     # ---- individual checks (private) --------------------------------------
 
-    def _check_circuit_breakers(self, portfolio) -> Optional[HaltEvent]:
+    def _check_circuit_breakers(
+        self, portfolio, when: Optional[datetime] = None
+    ) -> Optional[HaltEvent]:
         """Max drawdown and max daily loss. These halt the WHOLE system."""
+        ts = when or utc_now()   # bar-time when available → deterministic audit trail
         equity = Decimal(str(portfolio.equity))
         peak = Decimal(str(portfolio.peak_equity))
         day_start = Decimal(str(portfolio.day_start_equity))
@@ -247,7 +252,7 @@ class RiskManager:
                     reason=f"max drawdown breached: {drawdown:.2%} >= "
                            f"{self._config.max_drawdown_pct:.2%}",
                     triggered_by="max_drawdown",
-                    timestamp=utc_now(),
+                    timestamp=ts,
                 )
 
         if day_start > 0:
@@ -257,7 +262,7 @@ class RiskManager:
                     reason=f"max daily loss breached: {daily_loss:.2%} >= "
                            f"{self._config.max_daily_loss_pct:.2%}",
                     triggered_by="max_daily_loss",
-                    timestamp=utc_now(),
+                    timestamp=ts,
                 )
         return None
 
@@ -392,6 +397,7 @@ class RiskManager:
         if not self._halted:
             self._halted = True
             self._halt_reason = reason
+            self._halt_triggered_by = triggered_by
             logger.critical("TRADING HALTED [%s]: %s", triggered_by, reason)
 
     def _reject(self, signal: SignalEvent, reason: str) -> None:
@@ -403,7 +409,8 @@ class RiskManager:
 
     def reset_daily(self) -> None:
         """Call at the start of each trading day to clear the daily-loss halt."""
-        if self._halt_reason and "daily loss" in self._halt_reason:
+        if self._halt_triggered_by == "max_daily_loss":
             self._halted = False
             self._halt_reason = ""
+            self._halt_triggered_by = ""
             logger.info("Daily risk state reset.")

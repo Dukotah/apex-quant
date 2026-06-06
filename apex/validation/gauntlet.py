@@ -52,6 +52,7 @@ class GauntletReport:
     paper_approved: bool
     realistic_max_drawdown: float   # from Monte Carlo — size around THIS
     quarantine_sharpe_floor: float  # auto-quarantine if live Sharpe drops below
+    validated_sharpe: float = 0.0   # walk-forward Sharpe the floor derives from (stored, not back-calculated)
     notes: list[str] = field(default_factory=list)
 
     def render(self) -> str:
@@ -291,5 +292,6 @@ def grade_and_assemble(strategy_name: str, gates: list[GateResult],
         paper_approved=approved,
         realistic_max_drawdown=realistic_dd,
         quarantine_sharpe_floor=quarantine_floor,
+        validated_sharpe=validated_sharpe,
         notes=notes,
     )
