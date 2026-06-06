@@ -6,6 +6,39 @@
 
 ---
 
+## Session 28 — F1.4 VERDICT: the value edge is real-enough-to-pursue (live gate stays on survivorship-free data)
+
+Three independent robustness axes + a corrected Gauntlet all say the single-name value edge
+is NOT a survivorship mirage:
+
+- **Survivorship (F1.1, `survivorship_stress.py`):** inject random delistings (held name
+  crashes −80% and stops trading) at a swept hazard. At a HEAVY 2%/yr hazard (~12 of 42 names
+  blow up) the median Sharpe@2x is **0.67** vs 0.70 clean, 80% of stressed universes still
+  clear the cost bar. The edge degrades gracefully, not catastrophically.
+- **Temporal (F1.2, `temporal_robustness.py`):** per-calendar-year on one full backtest —
+  2005-09 warmup, then **16/17 active years (2010-2026) positive** across GFC recovery, 2018
+  selloff, COVID, 2022 bear → VERDICT "consistent, not one-regime."
+- **Universe (F1.3, `universe_robustness.py`):** 8 random 30-of-42 subsets → median Sharpe@2x
+  **0.70, min 0.67, 100% pass** → VERDICT "BROAD." The edge doesn't hinge on specific names.
+- **Gauntlet (W2-corrected efficiency):** value still grade A (eff 3.46), deployed trend still
+  grade A (eff 1.08).
+
+**THE CALL (decisive):** GREENLIGHT Phase F3 — build the second-edge / capital-allocation
+engine — but in RESEARCH/BACKTEST mode only. **The live-capital gate stays BLOCKED on
+survivorship-FREE (point-in-time constituents) validation (W8).** Rationale: every number
+above is still computed on a SURVIVOR universe; F1.1 *approximates* the bias with synthetic
+delistings but cannot replicate the idiosyncratic paths of the real delisted names. The
+evidence is strong enough to justify building effort, NOT strong enough to risk capital.
+Build the vehicle; don't fund it until the edge is proven on honest data.
+
+Also this session: W2 fixed the walk-forward efficiency metric (return-ratio that exploded
+to 66-397 → bounded OOS-Sharpe/IS-Sharpe); added the Bar OHLC invariant (Session-8 guard);
+shipped F2 ops CLIs (status, preflight) + local-CI parity + README via a 5-agent fan-out,
+all integrated and verified serially (caught + fixed the agents' temporal-warmup bug and a
+preflight encoding nit). Suite green.
+
+---
+
 ## Session 27 — Took ownership; founder docs + Phase F1 (validate the value edge)
 
 Operator mandate: act as owner, ship. Added `VISION.md`, `TASKS.md`, `PROGRESS.md`; reframed

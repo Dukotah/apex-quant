@@ -2,6 +2,29 @@
 
 Running log so the owner can glance in anytime. Newest first.
 
+## 2026-06-06 (cont.) — F1.4 VERDICT + Phase F1/F2 ready to ship
+
+- **VERDICT (F1.4): the value edge is real-enough-to-pursue, not a survivorship mirage.**
+  Survivorship 0.67@2%/yr haircut · temporal 16/17 yrs positive (all regimes) · universe
+  median 0.70 across 8 subsets, 100% pass · both strategies still grade A under the fixed
+  efficiency metric. **GREENLIGHT F3 in research/backtest mode; live-capital gate stays
+  BLOCKED on survivorship-free data (W8).** Build the vehicle, don't fund it yet.
+- **W2 done** (efficiency fix verified: deployed eff 1.08, value eff 3.46, both grade A).
+- Shipping the Phase F1/F2 PR next: full local gate → push → open PR with summary.
+
+## 2026-06-06 (cont.) — full workload + evidence landing
+
+- Drafted **WORKLOAD.md** (W1–W10, current state → "winning") and started working it.
+- **W2 (Gate-3 efficiency fix):** the walk-forward "efficiency" was a return ratio
+  (stitched cumulative OOS return / single in-sample window return) → it exploded to 66–397.
+  Rewrote it as OOS-Sharpe / in-sample-Sharpe (bounded, scale-free; ~1 = edge holds, <0.5 =
+  decay) + 2 unit tests. Pending a gauntlet regression check (deployed strategy must stay A).
+- **F1.2 temporal (rewritten) result:** 2005–09 correctly flagged warmup; **16/17 active
+  years (2010–2026) positive across GFC-recovery / 2018 / COVID / 2022 bear → VERDICT
+  "consistent, not one-regime."** Strong evidence the value edge isn't a single-regime fluke.
+- **F1.3 universe:** in flight (draw 0 → Sharpe@2× 0.69 on a 30-of-42 subset; robust so far).
+- Next: regression gauntlets → F1.4 verdict → Phase F1/F2 PR.
+
 ## 2026-06-06 (cont.) — F1.1 result + parallel buildout
 
 - **F1.1 survivorship stress tool shipped** (`scripts/survivorship_stress.py` + injection

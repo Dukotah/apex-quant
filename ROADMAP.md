@@ -11,7 +11,7 @@ Status legend: ✅ done · 🔲 to build · 🚧 in progress
 The framework is **functionally complete and live on paper**. The forward work is no longer
 "build the engine" — it is **prove an edge is real, make a second one, and operate cleanly.**
 
-## Phase F1 — Validate & de-risk the value edge *(current)*
+## Phase F1 — Validate & de-risk the value edge ✅ *(verdict: real-enough-to-pursue; live gate on W8)*
 
 The S26 single-name value edge is grade A but on a **survivorship-biased** universe. Decide
 whether it is likely real before spending another hour building on it.

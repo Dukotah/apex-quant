@@ -9,7 +9,7 @@ Live board. `todo` / `doing` / `done`. See `ROADMAP.md` for phases, `PROGRESS.md
 | F1.1 | Survivorship stress tool + auto-verdict + tests. | done |
 | F1.2 | Temporal robustness tool (`scripts/temporal_robustness.py`) + tests. | done |
 | F1.3 | Universe robustness tool (`scripts/universe_robustness.py`) + tests. | done |
-| F1.4 | Written verdict in DECISIONS.md from F1.1–F1.3 evidence. | doing |
+| F1.4 | Verdict in DECISIONS.md (Session 28): real-enough-to-pursue; live gate on W8. | done |
 
 ## Phase F2 — Operator experience & observability
 
@@ -24,11 +24,13 @@ Live board. `todo` / `doing` / `done`. See `ROADMAP.md` for phases, `PROGRESS.md
 | Task | Status |
 |------|--------|
 | Local CI parity (`make check` / `scripts/check.{sh,ps1}`) + README quickstart/operating. | done |
-| `Bar.__post_init__` OHLC invariant (low ≤ open/close ≤ high). | doing (serial) |
+| `Bar.__post_init__` OHLC invariant (low ≤ open/close ≤ high). | done |
+| W2: walk-forward efficiency = OOS/IS Sharpe (was an exploding return ratio). | done |
 
-## Phase F3 — Second edge → allocation engine *(gated on F1.4 verdict)*
+## Phase F3 — Second edge → allocation engine *(F1.4 greenlit for RESEARCH; live gate on W8)*
 
 | # | Task | Status |
 |---|------|--------|
 | F3.1 | Hysteresis on value+momentum combo; pick the stronger. | todo |
 | F3.2 | Multi-strategy allocation backtest (trend + value, capital split). | todo |
+| W8 | Survivorship-free (point-in-time) validation — the live-capital gate. | todo |
