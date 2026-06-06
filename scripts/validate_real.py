@@ -293,6 +293,48 @@ def validate_value():
     )
 
 
+def validate_value_momentum():
+    """
+    Session-23 probe (2): the COMBINED per-asset value+momentum score on smart-7 — the AQR
+    "Value and Momentum Everywhere" combination. Stays in the universe where value was at
+    least weakly positive (probe (1) closed the richer-pool route). Holds the top-3 sleeves
+    by an equal-weight blend of the value rank (long-horizon reversal, 1260b/skip 252b) and
+    the momentum rank (126b return). Trend filter OFF — measure the pure combined signal.
+    Param-sweep perturbs the blend ratio (value_weight) to check the result isn't a
+    knife-edge weight. Apples-to-apples with validate_value (same universe, risk, rebalance).
+    """
+    from apex.strategy.library.value_momentum import ValueMomentumStrategy
+    assets = ["SPY", "EFA", "TLT", "GLD", "DBC", "UUP", "DBA"]
+    syms = [Symbol(t, AssetClass.ETF) for t in assets]
+    risk = RiskConfig(
+        max_position_size_pct=Decimal("0.34"), max_total_exposure_pct=Decimal("1.0"),
+        max_leverage=Decimal("1.0"), max_drawdown_pct=Decimal("0.99"),
+        max_daily_loss_pct=Decimal("0.99"), require_stop_loss=True,
+    )
+
+    def factory():
+        return ValueMomentumStrategy("value_momentum", syms, value_period=1260,
+                                     skip_recent=252, mom_period=126, top_k=3,
+                                     value_weight=Decimal("0.5"))
+
+    def vlo():
+        return ValueMomentumStrategy("value_momentum", syms, value_period=1260,
+                                     skip_recent=252, mom_period=126, top_k=3,
+                                     value_weight=Decimal("0.35"))
+
+    def vhi():
+        return ValueMomentumStrategy("value_momentum", syms, value_period=1260,
+                                     skip_recent=252, mom_period=126, top_k=3,
+                                     value_weight=Decimal("0.65"))
+
+    return run_gauntlet_from_csv(
+        "value_momentum_REAL", factory, "data/real/multiasset_smart7.csv", syms,
+        benchmark_ticker="SPY", risk_config=risk,
+        param_variants=[("vw-0.35", vlo), ("vw-0.65", vhi)],
+        rebalance_period_bars=21,
+    )
+
+
 def validate_value_pool():
     """
     Session-22 probe (1): cross-asset VALUE on the RICHER 13-ETF sleeve pool, not smart-7.
@@ -360,7 +402,9 @@ def main() -> None:
     which = sys.argv[1] if len(sys.argv) > 1 else "dual_momentum"
     if len(sys.argv) > 2:                 # optional data-file override
         DATA = SECTORS = sys.argv[2]
-    if which in ("value_pool", "valpool", "vpool", "value13"):
+    if which in ("value_momentum", "valmom", "vm", "valuemom"):
+        report, inputs = validate_value_momentum()
+    elif which in ("value_pool", "valpool", "vpool", "value13"):
         report, inputs = validate_value_pool()
     elif which in ("value", "val", "xvalue"):
         report, inputs = validate_value()

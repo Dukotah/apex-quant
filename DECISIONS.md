@@ -6,6 +6,50 @@
 
 ---
 
+## Session 24 — Second-edge probe (2): combined per-asset value+momentum — FAILS on turnover
+
+Built the more promising of the two remaining Session-22 probes: a per-asset COMBINED
+value+momentum score (the AQR "Value and Momentum Everywhere" combination), kept on smart-7
+where value was at least weakly positive (probe (1) [S23] closed the richer-pool route).
+New module `apex/strategy/library/value_momentum.py` (`ValueMomentumStrategy`) + 7 tests:
+each bar, rank the eligible universe by value (1260b reversal, skip 252b) and by momentum
+(126b return) separately, combine as `value_weight*value_rank + (1-value_weight)*mom_rank`
+(equal-weight default), hold the top-3 by the LOWEST combined rank — names that are both
+cheap AND trending. Ranks (not raw scores) are fused because the two legs live on different
+scales. Long/flat, inverse-vol sized, position-aware; optional absolute trend filter (OFF).
+Wired `validate_value_momentum()` into `scripts/validate_real.py` (CLI: `value_momentum`),
+param-sweep perturbing value_weight 0.35/0.65.
+
+**Result — FAIL, and WORSE than pure value, with a clear mechanism: TURNOVER.**
+- Full Sharpe **+0.17** (pure value was +0.30; trend 0.82). In-sample Sharpe −0.28,
+  **Sharpe@2x-cost −0.26 (edge < costs)**, MC p=0.179 (not significant). Grade FAIL.
+- **908 trades vs pure value's 265 (~3.4x).** The combined RANK flips whenever EITHER leg
+  moves, so holdings churn far more under the 21-bar rebalance; the extra cost drag turns a
+  weak-but-positive sleeve into a sub-cost one. The eye-catching OOS Sharpe 0.89 is a lucky
+  recent regime, not persistent (walk-forward efficiency 0.00, in-sample negative).
+- Two real positives that DON'T rescue it: Gate 6 param-sensitivity PASSES (robust plateau
+  across value_weight — not a knife-edge fit), and correlation to benchmark drops to 0.18
+  (even more uncorrelated than value's 0.29). But a lower correlation cannot lift a sleeve
+  whose cost-adjusted Sharpe is NEGATIVE — it gets the same ~0% long-only blend weight value
+  did (value had +0.30 full Sharpe and still got 0%; this is strictly worse on cost-stress).
+
+**What this settles:** probes (1) and (2) together close the long-only second-edge hunt for
+THIS 7-ETF universe. A bigger basket dilutes value (S23); fusing value+momentum per-asset
+dilutes it further via turnover (S24). Neither lever works because the binding constraint is
+the small cross-section: 7 asset-class ETFs don't offer enough names to harvest a value or
+value/momentum premium net of costs. The honest frontier is now ONLY probe (3): a real
+value/value-momentum premium needs a LARGE single-name cross-section or SHORTING — a genuine
+architectural step (new data universe + long/short risk handling), NOT another long-only ETF
+reshuffle. Absent that, **trend remains the sole deployable edge in this universe**, and the
+highest-value forward work is the live 30-day paper gate (`scripts/report.py`), not more
+backtests. Kept `ValueMomentumStrategy` as a tested documented-failure reference (matching
+rsi2 / cross_sectional_momentum / cross_asset_value).
+
+**Verified:** 408 tests passing (+7), lint clean, Gauntlet ran end-to-end on real 2006-2026
+smart-7 data.
+
+---
+
 ## Session 23 — Second-edge probe (1): richer ETF pool DILUTES value, doesn't strengthen it
 
 Pulled the Session-22 frontier thread. The open question was whether cross-asset value's
