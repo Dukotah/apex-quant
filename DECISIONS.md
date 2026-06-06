@@ -6,6 +6,20 @@
 
 ---
 
+## Session 27 — Took ownership; founder docs + Phase F1 (validate the value edge)
+
+Operator mandate: act as owner, ship. Added `VISION.md`, `TASKS.md`, `PROGRESS.md`; reframed
+`ROADMAP.md` to a forward founder view (Phases F1–F3 + IMPROVEMENTS) over the preserved
+Phase 1–6 build history. **Decision: do NOT build the allocation engine next** — it is the
+vehicle for an *unproven* edge. The S26 single-name value edge is grade A but on a
+survivorship-biased universe, and survivorship bias is *especially* dangerous for a buy-the-
+laggard value strategy (Yahoo omits exactly the delisted deep-laggards value would have
+bought and lost on). So Phase F1 attacks that risk head-on with a delisting-hazard stress
+test before anything is built on top of the edge. Work proceeds on branch
+`phase-1-edge-validation`, PR per phase with green CI.
+
+---
+
 ## Session 26 — Probe (3): single-name cross-section + hysteresis → FIRST grade-A second edge (survivorship caveat)
 
 Tested the one escape hatch S24/S25 left open: the long-only value premium was too weak

@@ -1,9 +1,74 @@
-# Apex Quant — Build Roadmap
+# Apex Quant — Roadmap
 
-The system is built in 5 sequential phases. Each phase has concrete deliverables.
-**Complete phases in order.** Each session builds ONE module from the current phase.
+> **Forward (founder) view first; the original Phase 1–6 build roadmap is preserved below as
+> "Build history."** See `VISION.md` for the bar and what winning looks like, `TASKS.md` for
+> the live board, `PROGRESS.md` for the running log.
 
 Status legend: ✅ done · 🔲 to build · 🚧 in progress
+
+## Where we are
+
+The framework is **functionally complete and live on paper**. The forward work is no longer
+"build the engine" — it is **prove an edge is real, make a second one, and operate cleanly.**
+
+## Phase F1 — Validate & de-risk the value edge *(current)*
+
+The S26 single-name value edge is grade A but on a **survivorship-biased** universe. Decide
+whether it is likely real before spending another hour building on it.
+
+- **F1.1** Survivorship stress tool: model the bias (delisted laggards Yahoo omits) as a
+  delisting-hazard haircut on held names; sweep the hazard rate and report how the edge
+  degrades. *Done when:* a tool + test exist and produce a hazard→Sharpe@2x curve.
+- **F1.2** Temporal robustness: does the edge hold across sub-periods, or is it one regime?
+- **F1.3** Universe robustness: re-run on a larger / shuffled / decile-shifted universe.
+- **F1.4** Written verdict in `DECISIONS.md`: real-enough-to-pursue or survivorship mirage.
+- **Definition of done:** a defensible, evidence-backed verdict; tooling reusable for any
+  future single-name strategy; tests green.
+
+## Phase F2 — Operator experience & observability
+
+Make running the live system a glance, not a log dig.
+
+- **F2.1** Unified status CLI (`python -m apex.status` or `scripts/status.py`): one command →
+  mode, halt state, positions, equity, drawdown, paper-gate day N/30, drift vs backtest.
+- **F2.2** Preflight health check (config, keys present, data fresh, broker reachable seam).
+- **F2.3** Tighten alerts (only actionable ones; daily heartbeat).
+- **Definition of done:** `status` gives a trustworthy one-screen read; tests green.
+
+## Phase F3 — Second edge → allocation engine *(gated on F1 verdict)*
+
+ONLY if F1 says the value edge is real:
+
+- **F3.1** Apply hysteresis to the value+momentum combo; pick the stronger of the two.
+- **F3.2** Multi-strategy capital-allocation engine (the deferred build item): run trend +
+  value with a deterministic, risk-aware capital split; full Gauntlet on the blend.
+- **Definition of done:** the blend clears the Gauntlet and runs through `run_once` with a
+  clean split; correlation and combined Sharpe documented.
+
+---
+
+## IMPROVEMENTS *(found while operating — build the ones worth building)*
+
+- [ ] **Survivorship-honest data path** — a free-ish point-in-time constituents source, or a
+  documented paid one, so single-name research isn't survivorship-blind by default.
+- [ ] **`Bar.__post_init__` invariant**: assert `low <= open/close <= high` (would have caught
+  the Session-8 data-corruption bug at the source). Verify synthetic generators comply first.
+- [ ] **Coverage uplift** on the thinnest modules (`backtester` 62%, `base_strategy` 78%,
+  `config` 79%, `metrics` 81%).
+- [ ] **Gate-3 walk-forward "efficiency" metric** reports anomalous values (e.g. 66, 397) —
+  investigate the ratio (likely divide-by-near-zero in a window) and recalibrate or relabel.
+- [ ] **Local dev parity**: a one-shot `make check` / `tox`-style command that runs the exact
+  CI gates (ruff check, ruff format --check, pytest+cov) so CI never surprises us again.
+- [ ] **Decimal `_ANN`/vol path**: the realized-vol path is intentionally float; document the
+  Decimal/float boundary so it isn't "fixed" into a bug later.
+- [ ] **README quickstart** for a cold-start operator (clone → install → run a Gauntlet →
+  read status).
+
+---
+
+# Build history — original Phase 1–6 roadmap (complete)
+
+The system was built in sequential phases. **All complete.** Kept for provenance.
 
 ---
 
