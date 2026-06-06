@@ -113,6 +113,56 @@ isn't an edge — it's leverage on the market dressed up as alpha.*
 
 ---
 
+## The Overfitting Gates (8–10)
+
+Gates 1–7 ask "is this edge real on the data we have?" Gates 8–10 ask the harder,
+adversarial question the literature says actually kills strategies: **"how much of
+this Sharpe is selection bias — the best of many lucky draws?"** They are
+implemented from Bailey & Lopez de Prado and are all **hard fails**.
+
+### Gate 8 — Deflated / Probabilistic Sharpe Ratio
+A point Sharpe is a biased, noisy estimate. The **Probabilistic Sharpe Ratio
+(PSR)** is the probability the *true* Sharpe exceeds a reference, given the sample
+length AND the non-normality of returns — negative skew (crash risk) and fat tails
+both *reduce* confidence. The **Deflated Sharpe Ratio (DSR)** goes further: it sets
+the reference to the **expected maximum Sharpe achievable by pure luck** after `N`
+trials (the configurations actually swept), using the order-statistics bound
+`E[max SR] ≈ √V · [(1−γ)·Φ⁻¹(1−1/N) + γ·Φ⁻¹(1−1/(N·e))]`.
+- Found a 1.8 Sharpe on the first try → barely deflates.
+- Found the same 1.8 after 500 parameter tries → deflates toward 0.
+- **Pass bar: probability ≥ 0.90.** When the number of trials isn't reported, it
+  falls back to the PSR vs a zero reference ("is it even non-zero?") and says so.
+
+*This is the single most direct antidote to "I tuned until it looked good."*
+
+### Gate 9 — Probability of Backtest Overfitting (CSCV)
+**Combinatorially-Symmetric Cross-Validation.** Given a performance matrix
+(`perf[t][c]` = configuration `c`'s score in time-slice `t`), split the time
+slices into two halves *every possible way*. For each split: pick the config that
+was **best in-sample**, then record its **rank out-of-sample**. **PBO** is the
+fraction of splits where the in-sample champion landed in the **bottom half** out
+of sample — i.e. where chasing the best backtest actively *hurt* you.
+- PBO ≈ 0 → selecting by backtest reliably transfers (a real edge field).
+- PBO ≈ 0.5 → selection is no better than a coin flip (classic overfitting).
+- **Pass bar: PBO < 0.50.** Runs exhaustively on small matrices and falls back to
+  deterministic, seeded sampling of splits on large ones (cheap on free CI).
+
+When no parameter sweep is supplied there is no configuration field to test, so the
+gate **WARNs** (missing evidence) rather than failing — it never invents a verdict.
+
+### Gate 10 — Capacity & Turnover Sanity
+Two fail-closed guards in one gate:
+- A **hard minimum trade count** (below the credibility floor, a Sharpe means
+  nothing regardless of cadence).
+- A **capacity ratio** = gross annualized return ÷ (annual turnover × cost/turn).
+  The edge must cover its own trading costs several times over.
+- **Pass bar: capacity ≥ 2× cost AND trades ≥ the floor.**
+
+*Catches the high-turnover "edge" that is real but smaller than its costs — the
+overtrading strategy that dies the moment slippage is honest.*
+
+---
+
 ## The Realistic Output: a Confidence Grade, Not a Promise
 
 The Gauntlet does NOT output "this will be profitable." It outputs an honest,
@@ -141,9 +191,10 @@ Re-validate after 30 days of paper. Quarantine if live Sharpe < 0.66.
 - **C** — passes 5-6. Marginal. Paper only, low conviction, likely decay risk.
 - **FAIL** — fails any of Gates 1-5. Does not advance. Archive and learn from it.
 
-Gates 1-5 are **hard fails**. Gates 6-7 can issue warnings that lower the grade
-without blocking, since a diversifying strategy with mild parameter sensitivity
-can still earn its place in a portfolio.
+Gates 1-5 and the overfitting gates 8-10 are **hard fails**. Gates 6-7 can issue
+warnings that lower the grade without blocking, since a diversifying strategy with
+mild parameter sensitivity can still earn its place in a portfolio. (Gate 9 also
+*warns* rather than failing when no parameter sweep was supplied to test against.)
 
 ---
 
