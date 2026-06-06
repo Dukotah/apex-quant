@@ -148,7 +148,7 @@ class CrossAssetValueStrategy(BaseStrategy):
         """Is `ticker` among the top_k cheapest sleeves by current value score?"""
         ranked = sorted(
             ((t, v) for t, v in self._value.items() if v is not None),
-            key=lambda kv: kv[1], reverse=True,
+            key=lambda kv: (-kv[1], kv[0]),   # value desc, ticker asc — deterministic tie-break
         )
         leaders = {t for t, _ in ranked[: self.top_k]}
         return ticker in leaders

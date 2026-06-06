@@ -6,11 +6,13 @@ AlpacaExecutionEngine: real order submission to Alpaca (paper or live).
 This is the only place in the system that can move real money, so it is built to
 fail safe at every step:
 
-  - **Idempotent submits.** Each OrderEvent already carries a stable ``event_id``;
-    we pass it to Alpaca as the ``client_order_id``. Before submitting we ask the
-    broker whether an order with that id already exists — so a retried cron run
-    (the same OrderEvent re-evaluated) can never double-submit. The broker, not
-    our memory, is the source of truth for "did this already go through."
+  - **Idempotent submits.** We derive a STABLE ``client_order_id`` by hashing the
+    LOGICAL trade (strategy + symbol + side + trade date) — NOT the OrderEvent's
+    ``event_id``, which is a fresh UUID on every cron run and so could never dedupe a
+    retry. Before submitting we ask the broker whether an order with that id already
+    exists — so a retried cron run (the same daily decision re-evaluated) can never
+    double-submit. The broker, not our memory, is the source of truth for "did this
+    already go through."
 
   - **Broker-truth fills.** A FillEvent is emitted ONLY from what the broker
     reports filled (``filled_qty`` / ``filled_avg_price``) — never an optimistic
@@ -34,6 +36,7 @@ lazily-imported wrapper verified against paper keys, not in CI.
 """
 from __future__ import annotations
 
+import hashlib
 import logging
 import time
 from decimal import Decimal
@@ -162,7 +165,11 @@ class AlpacaExecutionEngine(BaseExecutionEngine):
                 f"AlpacaExecutionEngine supports MARKET orders only, got {order.order_type}"
             )
 
-        client_order_id = order.event_id   # stable → idempotency key
+        # STABLE idempotency key from the logical trade — NOT order.event_id (a fresh
+        # UUID per cron run, which could never dedupe a retry of the same daily decision).
+        _trade_date = order.timestamp.date().isoformat() if order.timestamp else "nodate"
+        _key_src = f"{order.strategy_id}:{order.symbol.ticker}:{order.side.value}:{_trade_date}"
+        client_order_id = hashlib.sha256(_key_src.encode()).hexdigest()[:32]
 
         # Idempotency: if this exact order already reached the broker, adopt it
         # instead of submitting again.
@@ -323,7 +330,7 @@ class _AlpacaClientAdapter:  # pragma: no cover - thin live wrapper, verified in
     def submit_market_order(self, symbol, qty, side, client_order_id, time_in_force):
         req = self._MarketOrderRequest(
             symbol=symbol,
-            qty=float(qty),
+            qty=str(qty),   # string preserves the exact Decimal (no float rounding on fractionals)
             side=self._AlSide(side),
             time_in_force=self._AlTIF(time_in_force),
             client_order_id=client_order_id,

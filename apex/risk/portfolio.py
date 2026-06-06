@@ -31,7 +31,7 @@ from apex.core.models import OrderSide, Position, Symbol
 # Rolling daily-return window for realized-volatility targeting (annualized).
 _VOL_WINDOW = 30
 _VOL_MIN_OBS = 20
-_ANN = Decimal(str(252 ** 0.5))
+_ANN = Decimal(252).sqrt()   # exact, no float intermediary
 
 logger = logging.getLogger("apex.risk.portfolio")
 
@@ -105,7 +105,17 @@ class Portfolio:
 
         if fill.side == OrderSide.BUY:
             self._cash -= qty * price + commission
-            self._positions[ticker] = self._apply_buy(existing, fill.symbol, qty, price)
+            # Book realized P&L when this BUY covers a short, mirroring the SELL branch.
+            if existing is not None and existing.quantity < _ZERO:
+                covered = min(qty, -existing.quantity)
+                self._realized_pnl += (
+                    (existing.avg_entry_price - price) * covered * fill.symbol.contract_multiplier
+                )
+            new_pos = self._apply_buy(existing, fill.symbol, qty, price)
+            if new_pos.quantity == _ZERO:
+                self._positions.pop(ticker, None)   # exact cover — don't leave a zero-qty zombie
+            else:
+                self._positions[ticker] = new_pos
 
         else:  # SELL
             self._cash += qty * price - commission

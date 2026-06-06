@@ -165,7 +165,9 @@ class ValueMomentumStrategy(BaseStrategy):
     @staticmethod
     def _ranks(tickers: List[str], scores: Dict[str, Optional[float]]) -> Dict[str, int]:
         """0-based rank of each ticker by score, DESCENDING (highest score -> rank 0)."""
-        ordered = sorted(tickers, key=lambda t: scores[t], reverse=True)  # type: ignore[index]
+        # Ticker is a deterministic secondary key so equal scores never depend on the
+        # construction-time symbol order (Golden Rule 10 — determinism is sacred).
+        ordered = sorted(tickers, key=lambda t: (-scores[t], t))  # type: ignore[operator]
         return {t: i for i, t in enumerate(ordered)}
 
     def _wanted_set(self) -> set[str]:
@@ -178,8 +180,10 @@ class ValueMomentumStrategy(BaseStrategy):
         m_rank = self._ranks(eligible, self._mom)
         combined = sorted(
             eligible,
-            key=lambda t: self.value_weight * v_rank[t]
-            + (1.0 - self.value_weight) * m_rank[t],
+            key=lambda t: (
+                self.value_weight * v_rank[t] + (1.0 - self.value_weight) * m_rank[t],
+                t,  # deterministic tie-break on equal combined rank
+            ),
         )
         return set(combined[: self.top_k])
 

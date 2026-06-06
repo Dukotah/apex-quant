@@ -57,8 +57,10 @@ def fetch_symbol(symbol: str, rng: str = "15y", start: str | None = None) -> Lis
     result = payload["chart"]["result"][0]
     stamps = result["timestamp"]
     quote = result["indicators"]["quote"][0]
-    # Prefer adjusted close (total return) when Yahoo provides it.
-    adj = result["indicators"].get("adjclose", [{}])[0].get("adjclose")
+    # Prefer adjusted close (total return) when Yahoo provides it. Guard both the
+    # absent-key and present-but-empty-list cases ([] -> IndexError on [0]).
+    adjclose_list = result["indicators"].get("adjclose") or []
+    adj = adjclose_list[0].get("adjclose") if adjclose_list else None
 
     rows: List[dict] = []
     for i, ts in enumerate(stamps):
@@ -71,7 +73,7 @@ def fetch_symbol(symbol: str, rng: str = "15y", start: str | None = None) -> Lis
         # bars (e.g. an adjusted close below the raw low) that wreck sizing/P&L.
         # Scale O/H/L by the same ratio (adjclose/close) so the whole bar is on the
         # adjusted (total-return) basis used for strategy math.
-        adj_c = adj[i] if (adj and adj[i] is not None) else c
+        adj_c = adj[i] if (adj and i < len(adj) and adj[i] is not None) else c
         ratio = (adj_c / c) if c else 1.0
         o, h, lo, close = o * ratio, h * ratio, lo * ratio, adj_c
         date = datetime.fromtimestamp(ts, tz=timezone.utc).date().isoformat()

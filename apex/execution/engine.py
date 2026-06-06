@@ -61,6 +61,7 @@ class _Snapshot:
     open_positions: Dict[str, object]
     exposure: Decimal
     last_price: Dict[str, Decimal]
+    realized_volatility: Optional[float] = None   # so vol-targeting works on rotation bars
 
 
 @dataclass
@@ -195,6 +196,14 @@ class TradingEngine:
         # Record the final day and assemble the result.
         if prev_ts is not None:
             self._record_equity(prev_ts)
+        # Any order still queued at end-of-stream never got a bar to fill against (a symbol
+        # gap, a data error, or a signal on the very last bar). Surface it loudly rather
+        # than silently abandoning capital the risk snapshot already allocated.
+        for order in self._pending:
+            logger.warning(
+                "OrderEvent %s for %s never filled (no subsequent bar) — dropped.",
+                order.event_id, order.symbol.ticker,
+            )
         self.result.final_equity = float(self.portfolio.equity)
         self.result.num_trades = len(self.result.trade_returns)
         self.result.halted = self.risk_manager.is_halted
@@ -275,6 +284,7 @@ class TradingEngine:
             open_positions=positions,
             exposure=exposure,
             last_price=self.portfolio.last_price,
+            realized_volatility=getattr(self.portfolio, "realized_volatility", None),
         )
 
     def _fill_pending(self, ticker: str, price: Decimal) -> None:
@@ -304,6 +314,13 @@ class TradingEngine:
             entry = pos_before.avg_entry_price
             if entry > 0:
                 self.result.trade_returns.append(float((fill.fill_price - entry) / entry))
+                self.result.trade_timestamps.append(self._current_ts)
+        # A BUY that covers an existing short realizes a round-trip return too — without
+        # this, Monte Carlo (Gate 4) would see an incomplete trade set for short strategies.
+        elif fill.side == OrderSide.BUY and pos_before is not None and pos_before.quantity < 0:
+            entry = pos_before.avg_entry_price
+            if entry > 0:
+                self.result.trade_returns.append(float((entry - fill.fill_price) / entry))
                 self.result.trade_timestamps.append(self._current_ts)
 
         self.result.fills.append(fill)

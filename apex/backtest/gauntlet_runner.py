@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Callable, List, Optional, Sequence, Tuple
 
@@ -146,7 +146,10 @@ def run_full_gauntlet(
         # Warm the strategy up on [tr_start, te_start) then measure on [te_start, te_end).
         warm_lo = days[tr_start]
         test_lo = days[te_start]
-        test_hi = days[min(te_end, n_days - 1)]
+        # te_end is an EXCLUSIVE day index. The final fold has te_end == n_days, so we
+        # can't index days[te_end]; use a sentinel one day past the last bar to KEEP the
+        # last trading day (the exclusive `< test_hi` filter would otherwise drop it).
+        test_hi = days[te_end] if te_end < n_days else days[-1] + timedelta(days=1)
         window_events = _events_in_day_range(events, warm_lo, test_hi)
         if len(window_events) < 2:
             return [1.0, 1.0]

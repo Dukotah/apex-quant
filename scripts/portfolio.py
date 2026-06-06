@@ -25,7 +25,7 @@ from __future__ import annotations
 import sys
 from decimal import Decimal
 from itertools import combinations_with_replacement
-from typing import Dict, List, Tuple
+from typing import Dict, List
 
 import numpy as np
 
@@ -36,8 +36,8 @@ from apex.risk.risk_manager import RiskConfig
 from apex.strategy.library.dual_momentum import DualMomentumStrategy
 from apex.strategy.library.rsi2_mean_reversion import RSI2MeanReversionStrategy
 from apex.strategy.library.rsi2_vol_filtered import RSI2VolFilteredStrategy
-from apex.strategy.library.trend_bond import TrendBondStrategy
 from apex.strategy.library.sma_crossover import SMACrossoverStrategy
+from apex.strategy.library.trend_bond import TrendBondStrategy
 
 SLEEVE_RISK = RiskConfig(
     max_position_size_pct=Decimal("1.0"), max_total_exposure_pct=Decimal("1.0"),

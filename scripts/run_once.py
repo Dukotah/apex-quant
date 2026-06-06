@@ -349,7 +349,13 @@ def _evaluate(events: List[MarketEvent], strategies: Sequence[BaseStrategy],
     bars = [e.bar for e in events if e.bar is not None]
     if not bars:
         return []
-    latest_ts = bars[-1].timestamp
+    # Each symbol's OWN most recent bar drives its is_latest flag. A single global max
+    # would silently drop ALL signals (exits included) for any symbol whose last bar
+    # predates another's — e.g. a commodity ETF trading on a day equities are closed.
+    # Events are sorted (timestamp, ticker), so the last write per ticker is its max.
+    latest_per_sym: dict = {}
+    for b in bars:
+        latest_per_sym[b.symbol.ticker] = b.timestamp
 
     context = StrategyContext()
     quarantined: set[str] = set()
@@ -372,7 +378,7 @@ def _evaluate(events: List[MarketEvent], strategies: Sequence[BaseStrategy],
         # what a position-aware strategy needs to act correctly on the latest bar
         # (e.g. enter an established trend on a cold start, not wait for a new cross).
         context.sync_state(positions=dict(portfolio.open_positions), equity=portfolio.equity)
-        is_latest = bar.timestamp == latest_ts
+        is_latest = bar.timestamp == latest_per_sym.get(bar.symbol.ticker)
         for strat in strategies:
             if strat.strategy_id in quarantined:
                 continue

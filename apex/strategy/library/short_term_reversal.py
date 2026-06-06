@@ -121,8 +121,9 @@ class ShortTermReversalStrategy(BaseStrategy):
         ]
         if not candidates:
             return False
-        # ascending by recent return → most negative (most oversold) first
-        candidates.sort(key=lambda kv: kv[1])
+        # ascending by recent return → most negative (most oversold) first;
+        # ticker as secondary key keeps the bottom-K deterministic on equal returns.
+        candidates.sort(key=lambda kv: (kv[1], kv[0]))
         chosen = {t for t, _ in candidates[: self.bottom_k]}
         return ticker in chosen
 

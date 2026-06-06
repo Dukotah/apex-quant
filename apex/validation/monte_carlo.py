@@ -109,17 +109,9 @@ def run_monte_carlo(
     median_ret = boot_total_returns[len(boot_total_returns) // 2]
     worst_5pct_ret = boot_total_returns[int(0.05 * len(boot_total_returns))]
 
-    # --- Null hypothesis: shuffle trade ORDER (no replacement). If the edge is ---
-    # real it shouldn't depend on order much; this builds a luck distribution. ---
-    null_sharpes: list[float] = []
-    for _ in range(iterations):
-        shuffled = trade_returns[:]
-        rng.shuffle(shuffled)
-        eq = _equity_from_trade_returns(shuffled)
-        null_sharpes.append(metrics.sharpe_ratio(metrics.returns_from_equity(eq)))
-
-    # Note: shuffling order alone preserves Sharpe for i.i.d. returns, so we also
-    # build a sign-randomized null to test whether the MAGNITUDE of edge is real.
+    # --- Null hypothesis: sign-randomized returns. Shuffling trade ORDER alone preserves
+    # the Sharpe for i.i.d. returns (a useless null), so we flip each trade's SIGN at random
+    # to build a luck distribution that tests whether the MAGNITUDE of the edge is real. ---
     sign_null_sharpes: list[float] = []
     for _ in range(iterations):
         randomized = [

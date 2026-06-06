@@ -118,7 +118,7 @@ class CrossSectionalMomentumStrategy(BaseStrategy):
         """Is `ticker` among the top_k sleeves by current momentum?"""
         ranked = sorted(
             ((t, m) for t, m in self._mom.items() if m is not None),
-            key=lambda kv: kv[1], reverse=True,
+            key=lambda kv: (-kv[1], kv[0]),   # score desc, ticker asc — deterministic tie-break
         )
         leaders = {t for t, _ in ranked[: self.top_k]}
         return ticker in leaders

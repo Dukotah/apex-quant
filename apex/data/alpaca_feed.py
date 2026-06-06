@@ -166,6 +166,11 @@ class AlpacaDataFeed(BaseDataFeed):
         if end < start:
             raise ValueError("fetch_bars end is before start")
 
+        # Reset per-call quality counters so a second fetch in the same session reports
+        # this call's counts, not a running total since construction.
+        self.skipped_rows = 0
+        self.gaps_detected = 0
+
         tf = timeframe or self.timeframe
         tickers = [s.ticker for s in self.symbols]
         raw_by_ticker = self._fetch_with_retry(tickers, start, end, tf)
