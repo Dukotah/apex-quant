@@ -247,8 +247,8 @@ def test_normal_weekend_gap_not_flagged():
 def test_get_latest_bars_trims_to_lookback_per_ticker():
     def fetcher(tickers, start, end, tf):
         return {
-            "NVDA": [_bar(f"2024-01-{d:02d}", 10, 11, 9, 10 + d, 100) for d in range(1, 11)]
-        }  # 10 bars
+            "NVDA": [_bar(f"2024-01-{d:02d}", 10, 11, 9, 10, 100) for d in range(1, 11)]
+        }  # 10 bars (valid OHLC: close within [low, high]; the test asserts on dates)
 
     feed = AlpacaDataFeed([NVDA], bar_fetcher=fetcher, sleep=lambda _s: None)
     feed.connect()

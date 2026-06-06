@@ -94,6 +94,11 @@ class Bar:
             raise ValueError(f"Bar timestamp must be timezone-aware (UTC): {self}")
         if self.high < self.low:
             raise ValueError(f"Bar high < low: {self}")
+        # open/close must sit inside [low, high]. This is the invariant that would have
+        # caught the Session-8 data bug at the source (an adjusted close below the raw low,
+        # from mixing adjustment bases) instead of letting corrupt bars reach sizing/P&L.
+        if not (self.low <= self.open <= self.high and self.low <= self.close <= self.high):
+            raise ValueError(f"Bar open/close outside [low, high]: {self}")
         if any(p < 0 for p in (self.open, self.high, self.low, self.close)):
             raise ValueError(f"Bar contains negative price: {self}")
         if self.volume < 0:

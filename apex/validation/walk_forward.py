@@ -45,7 +45,7 @@ class WalkForwardResult:
     stitched_max_drawdown: float
     stitched_total_return: float
     in_sample_sharpe: float
-    walk_forward_efficiency: float  # WF return / in-sample return
+    walk_forward_efficiency: float  # OOS stitched Sharpe / in-sample Sharpe (~1=holds, <0.5=decay)
     num_windows: int
     worst_window_drawdown: float
     passed: bool
@@ -149,8 +149,12 @@ def run_walk_forward(
     # In-sample reference: backtest over the very first training window.
     is_equity = backtest_fn(0, train_bars, 0, train_bars)
     is_sharpe = metrics.sharpe_ratio(metrics.returns_from_equity(is_equity))
-    is_ret = metrics.total_return(is_equity)
-    efficiency = (stitched_ret / is_ret) if is_ret > 0 else 0.0
+    # Walk-forward efficiency = how much of the in-sample EDGE survives out-of-sample.
+    # Use SHARPE (rate-normalized), NOT total return: stitched_ret aggregates many OOS
+    # windows while is_ret is a single in-sample window, so their ratio explodes (we saw
+    # 66-397). Sharpe/Sharpe is the standard, bounded, scale-free measure — ~1.0 means the
+    # edge fully held up out-of-sample, < 0.5 means decay/overfit.
+    efficiency = (stitched_sharpe / is_sharpe) if is_sharpe > 0 else 0.0
 
     passed = stitched_sharpe >= min_stitched_sharpe and efficiency >= min_efficiency
 
