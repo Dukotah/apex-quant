@@ -33,10 +33,11 @@ priority. Each item: **what · why · definition of done**. Status: `todo` / `do
 
 - **W7 · F2.3 alerts** — make ntfy alerts actionable-only + a once-daily heartbeat so silence
   is meaningful. **DoD:** alert policy documented + tested with a fake notifier; no spam.
-- **W8 · Survivorship-honest data path** — document (and if a free source exists, wire) a
-  point-in-time constituents universe so single-name research isn't survivorship-blind. The
-  decisive test the W1 verdict will flag as the real gate before deploying the value edge.
-  **DoD:** either a working survivorship-free fetch or a crisp documented plan + the paid option.
+- **W8 · Survivorship-free validation** — ⛔ BLOCKED ON OWNER DECISION (S30): free path is a
+  dead end (Yahoo serves no delisted tickers), so true W8 needs a PAID dataset
+  (CRSP/Norgate/Sharadar, ~$50-150/mo) — conflicts with $0-infra. Choice: (1) pay → run W8 →
+  fund value live; or (2) accept the free-tier stress evidence for a small (~10-15%) value
+  sleeve sized to the stressed numbers. Not survivorship-proven until (1).
 - **W9 · Coverage uplift** — thin modules (`backtester` 62%, `base_strategy` 78%, `config`
   79%, `metrics` 81%). **DoD:** each ≥ 85%; suite green.
 

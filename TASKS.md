@@ -34,4 +34,4 @@ Live board. `todo` / `doing` / `done`. See `ROADMAP.md` for phases, `PROGRESS.md
 | F3.1 | Hysteresis on value+momentum; **chose pure value** (lower turnover, less trend-corr). | done |
 | F3.2 | Allocation backtest: **20% value lifts blend Sharpe 0.82→0.99 at corr 0.24, DD flat**. | done |
 | F3.3 | Build the live multi-strategy allocation engine (~20% value / 80% trend). | todo (gated on W8) |
-| W8 | Survivorship-free (point-in-time) validation — the live-capital gate. | todo |
+| W8 | Survivorship-free validation — ⛔ needs PAID delisted data (owner spend decision, S30). | blocked |

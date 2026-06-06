@@ -6,6 +6,29 @@
 
 ---
 
+## Session 30 — W8 feasibility: survivorship-free data needs a PAID source (free path is a dead end)
+
+Probed whether the live-capital gate (W8, survivorship-free validation) is achievable on free
+data. **It is not.** Yahoo serves NO history for delisted tickers (LEH/BSC/WAMUQ/ENRNQ all
+return empty; live AAPL fetches fine) — by construction a free feed only has survivors, which
+is exactly the bias W8 must remove. So a true survivorship-free backtest requires a PAID
+delisted-securities dataset (CRSP, Norgate, or Sharadar/Nasdaq Data Link ~$50-150/mo). That
+conflicts with the project's $0-infra principle, so it's an OWNER spend decision, not a build.
+
+**Implication for going live with the value edge — two honest paths:**
+1. **Pay for delisted data → run W8 properly** → then fund the value sleeve live. Cleanest,
+   costs money, breaks the $0 rule.
+2. **Accept the free-tier evidence as sufficient for a SMALL live allocation.** The F1.1
+   synthetic-delisting STRESS test is our best free proxy and it held (median Sharpe@2x 0.67
+   at a heavy 2%/yr haircut), corroborated by temporal (16/17 yrs) and universe (100%) breadth.
+   A conservative ~10-15% value sleeve sized for the stressed (not clean) numbers is a
+   defensible small-bet-on-strong-evidence — but it is NOT survivorship-proven.
+
+Pending that decision, F3.3 (the allocation ENGINE) is still buildable in BACKTEST mode and the
+deployed trend strategy is unaffected. Recorded so the gate is explicit, not silently skipped.
+
+---
+
 ## Session 29 — Phase F3: value is a REAL second edge — 20% value lifts the blend Sharpe 0.82 → 0.99
 
 **F3.1 — pick the second-edge candidate.** Added hysteresis (`exit_rank_buffer`) to
