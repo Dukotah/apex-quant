@@ -27,10 +27,11 @@ Live board. `todo` / `doing` / `done`. See `ROADMAP.md` for phases, `PROGRESS.md
 | `Bar.__post_init__` OHLC invariant (low ≤ open/close ≤ high). | done |
 | W2: walk-forward efficiency = OOS/IS Sharpe (was an exploding return ratio). | done |
 
-## Phase F3 — Second edge → allocation engine *(F1.4 greenlit for RESEARCH; live gate on W8)*
+## Phase F3 — Second edge → allocation engine *(research proven; live gate on W8)*
 
 | # | Task | Status |
 |---|------|--------|
-| F3.1 | Hysteresis on value+momentum combo; pick the stronger. | todo |
-| F3.2 | Multi-strategy allocation backtest (trend + value, capital split). | todo |
+| F3.1 | Hysteresis on value+momentum; **chose pure value** (lower turnover, less trend-corr). | done |
+| F3.2 | Allocation backtest: **20% value lifts blend Sharpe 0.82→0.99 at corr 0.24, DD flat**. | done |
+| F3.3 | Build the live multi-strategy allocation engine (~20% value / 80% trend). | todo (gated on W8) |
 | W8 | Survivorship-free (point-in-time) validation — the live-capital gate. | todo |

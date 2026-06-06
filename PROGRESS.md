@@ -2,6 +2,21 @@
 
 Running log so the owner can glance in anytime. Newest first.
 
+## 2026-06-06 (cont.) — Phase F1/F2 MERGED + Phase F3: second edge proven
+
+- **Phase F1/F2 shipped & merged** (PR #6, CI green): edge-validation suite, ops CLIs
+  (status/preflight), local-CI parity, Bar invariant, walk-forward efficiency fix.
+- **Phase F3 (branch `phase-3-second-edge`):**
+  - **F3.1** added hysteresis to the value+momentum combo (also grade A) but **chose pure
+    value** as the pairing — ¼ the turnover, and the combo's momentum reintroduces correlation
+    to the deployed trend (defeats the purpose).
+  - **F3.2 allocation backtest — DIVERSIFICATION WIN:** trend 0.82 + value 0.74 at corr
+    **+0.24**; **20% value / 80% trend → Sharpe 0.99 (+0.17, +21%) with drawdown flat at 7%.**
+    The value edge is a real, book-improving second edge.
+- **Decision:** greenlight F3.3 (build the live ~20/80 allocation engine) but keep it gated
+  behind W8 (survivorship-free validation) before any live value capital.
+- Next: open the Phase F3 PR; then F3.3 build (engine) / W8 (the live gate).
+
 ## 2026-06-06 (cont.) — F1.4 VERDICT + Phase F1/F2 ready to ship
 
 - **VERDICT (F1.4): the value edge is real-enough-to-pursue, not a survivorship mirage.**

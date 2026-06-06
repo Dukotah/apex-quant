@@ -20,16 +20,14 @@ priority. Each item: **what · why · definition of done**. Status: `todo` / `do
 
 ## NEXT — Phase F3: second edge → allocation *(gated on W1 verdict being positive)*
 
-- **W4 · F3.1 hysteresis on value+momentum** — add `exit_rank_buffer` to ValueMomentumStrategy
-  (mirror CrossAssetValue); re-run the single-name Gauntlet; pick the stronger of pure-value vs
-  combo as the second-edge candidate. **DoD:** both measured, winner chosen + logged, tests.
-- **W5 · F3.2 allocation backtest** — `scripts/allocate.py`: backtest a capital split between
-  the deployed trend edge (smart-7) and the value edge (single-names), align daily returns,
-  report combined Sharpe / correlation / drawdown vs each alone; sweep the split. Research
-  tool, NOT wired live. **DoD:** combined vs standalone documented; pure split-math unit-tested.
-- **W6 · F3.3 allocation engine (gated on W5 showing real lift)** — a deterministic, risk-aware
-  multi-strategy allocator the engine can run; full Gauntlet on the blend. **DoD:** blend
-  clears the Gauntlet; runs through a backtest with a clean split; correlation documented.
+- **W4 · F3.1 hysteresis on value+momentum** — ✅ DONE: combo reaches grade A with hysteresis,
+  but **chose pure value** (¼ the turnover; combo's momentum reintroduces trend-correlation).
+- **W5 · F3.2 allocation backtest** — ✅ DONE (`scripts/allocate.py`): **20% value / 80% trend
+  → Sharpe 0.82→0.99 (+0.17) at corr +0.24, drawdown flat at 7%. Diversification WIN.**
+- **W6 · F3.3 allocation engine** — *gated on W8.* W5 proved the lift, so build the live,
+  risk-aware ~20/80 allocator. **Do NOT fund the value sleeve live until W8 clears** (value is
+  still on a survivor universe). **DoD:** blend clears the Gauntlet; runs through a backtest
+  with a clean split; live wiring config-gated and off by default.
 
 ## THEN — Phase F2.3 + robustness hardening
 

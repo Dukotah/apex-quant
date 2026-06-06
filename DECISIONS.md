@@ -6,6 +6,35 @@
 
 ---
 
+## Session 29 — Phase F3: value is a REAL second edge — 20% value lifts the blend Sharpe 0.82 → 0.99
+
+**F3.1 — pick the second-edge candidate.** Added hysteresis (`exit_rank_buffer`) to
+ValueMomentumStrategy; with it the value+momentum combo also reaches grade A (Sharpe@2x 0.73,
+575 trades) — but **chose PURE VALUE** (cross_asset_value single-names + hysteresis; Sharpe@2x
+0.70, 147 trades) as the pairing candidate. The combo's +0.03 Sharpe isn't worth 4x the
+turnover, and — decisive — its momentum leg reintroduces correlation to the DEPLOYED trend
+strategy, shrinking the diversification that's the whole reason to add a second edge. The
+combo stays as corroboration that the value premium is real.
+
+**F3.2 — does the blend actually lift the book?** `scripts/allocate.py` ran trend (smart-7)
+and value (single-names) full-capital, aligned 5030 common days (2006-2026), swept the split:
+- **Correlation(trend, value) = +0.24** — genuinely uncorrelated.
+- Standalone: trend Sharpe **0.82**, value **0.74**.
+- **Best blend = 20% value / 80% trend → Sharpe 0.99 (+0.17, a 21% lift) with max drawdown
+  UNCHANGED at 7%.** Every blend from 20-40% value beats trend alone.
+- **VERDICT: DIVERSIFICATION WIN — a real second edge.** A modest value sleeve materially
+  improves risk-adjusted return at no drawdown cost — exactly the textbook value/trend pairing.
+
+**THE CALL:** the second edge is proven *in research*. Greenlight **F3.3 (build the live
+multi-strategy allocation engine, ~20% value / 80% trend)** — BUT it stays gated behind **W8
+(survivorship-free validation)** before any live capital, because the value leg is still on a
+survivor universe (DECISIONS S28). Build the engine; don't fund the value sleeve live until
+W8 clears. Research tools (`allocate.py`, robustness suite) are reusable for that gate.
+
+All verified: pure align/blend helpers unit-tested; both strategies still grade A; suite green.
+
+---
+
 ## Session 28 — F1.4 VERDICT: the value edge is real-enough-to-pursue (live gate stays on survivorship-free data)
 
 Three independent robustness axes + a corrected Gauntlet all say the single-name value edge
