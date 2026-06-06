@@ -64,7 +64,28 @@ def test_validation():
     with pytest.raises(ValueError):
         ValueMomentumStrategy("s", [A], top_k=0)
     with pytest.raises(ValueError):
+        ValueMomentumStrategy("s", [A], exit_rank_buffer=-1)
+    with pytest.raises(ValueError):
         ValueMomentumStrategy("s", [A], value_weight=Decimal("1.5"))
+
+
+def test_hysteresis_band_widens_hold_set():
+    # exit_rank_buffer widens the hold band: top_k=1 entry, top_2 hold. Combined ranks put
+    # BBB#0, AAA#1 → entry set {BBB}; the wider hold band (k=2) also keeps AAA.
+    s = ValueMomentumStrategy(
+        "s",
+        [A, B, C],
+        value_period=4,
+        skip_recent=0,
+        mom_period=2,
+        top_k=1,
+        exit_rank_buffer=1,
+        vol_window=2,
+    )
+    s._value = {"AAA": 0.1, "BBB": 0.9, "CCC": 0.0}
+    s._mom = {"AAA": 0.1, "BBB": 0.9, "CCC": 0.0}
+    assert s._wanted_set(s.top_k) == {"BBB"}  # strict entry band
+    assert s._wanted_set(s.top_k + s.exit_rank_buffer) == {"BBB", "AAA"}  # wider hold band
 
 
 def test_warmup_no_signals():

@@ -82,6 +82,7 @@ class ValueMomentumStrategy(BaseStrategy):
         skip_recent: int = 252,
         mom_period: int = 126,
         top_k: int = 3,
+        exit_rank_buffer: int = 0,
         value_weight: Decimal = Decimal("0.5"),
         use_trend_filter: bool = False,
         trend_period: int = 200,
@@ -100,6 +101,8 @@ class ValueMomentumStrategy(BaseStrategy):
             raise ValueError("mom_period must be >= 2")
         if top_k < 1:
             raise ValueError("top_k must be >= 1")
+        if exit_rank_buffer < 0:
+            raise ValueError("exit_rank_buffer must be >= 0")
         if not (Decimal("0") <= value_weight <= Decimal("1")):
             raise ValueError("value_weight must be in [0, 1]")
         if vol_window < 2:
@@ -108,6 +111,7 @@ class ValueMomentumStrategy(BaseStrategy):
         self.skip_recent = skip_recent
         self.mom_period = mom_period
         self.top_k = top_k
+        self.exit_rank_buffer = exit_rank_buffer
         self.value_weight = float(value_weight)
         self.use_trend_filter = use_trend_filter
         self.trend_period = trend_period
@@ -171,8 +175,11 @@ class ValueMomentumStrategy(BaseStrategy):
         ordered = sorted(tickers, key=lambda t: (-scores[t], t))  # type: ignore[operator]
         return {t: i for i, t in enumerate(ordered)}
 
-    def _wanted_set(self) -> set[str]:
-        """The top_k sleeves by combined value+momentum rank (lower = better on both)."""
+    def _wanted_set(self, k: int | None = None) -> set[str]:
+        """The top `k` sleeves by combined value+momentum rank (lower = better on both).
+        Defaults to the strict top_k (the entry band)."""
+        if k is None:
+            k = self.top_k
         eligible = [
             t
             for t in self._closes
@@ -189,7 +196,7 @@ class ValueMomentumStrategy(BaseStrategy):
                 t,  # deterministic tie-break on equal combined rank
             ),
         )
-        return set(combined[: self.top_k])
+        return set(combined[:k])
 
     # ---- main hook -------------------------------------------------------
 
@@ -215,10 +222,15 @@ class ValueMomentumStrategy(BaseStrategy):
         else:
             sma = None
 
-        wanted = ticker in self._wanted_set()
+        held = self._held(bar.symbol)
+        # Enter in the strict top_k; once held, keep until the name drops out of the wider
+        # top_(k + exit_rank_buffer) band. Hysteresis cuts boundary-churn turnover (the same
+        # lever that lifted pure value to grade A). Default buffer 0 == original behaviour.
+        wanted = ticker in self._wanted_set(
+            self.top_k + self.exit_rank_buffer if held else self.top_k
+        )
         if self.use_trend_filter:
             wanted = wanted and sma is not None and bar.close > Decimal(str(sma))
-        held = self._held(bar.symbol)
         signals: List[SignalEvent] = []
 
         if wanted and not held:

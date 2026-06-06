@@ -35,15 +35,19 @@ Make running the live system a glance, not a log dig.
 - **F2.3** Tighten alerts (only actionable ones; daily heartbeat).
 - **Definition of done:** `status` gives a trustworthy one-screen read; tests green.
 
-## Phase F3 — Second edge → allocation engine *(gated on F1 verdict)*
+## Phase F3 — Second edge → allocation engine *(research PROVEN; live gate on W8)*
 
-ONLY if F1 says the value edge is real:
+F1 verdict was positive, so:
 
-- **F3.1** Apply hysteresis to the value+momentum combo; pick the stronger of the two.
-- **F3.2** Multi-strategy capital-allocation engine (the deferred build item): run trend +
-  value with a deterministic, risk-aware capital split; full Gauntlet on the blend.
-- **Definition of done:** the blend clears the Gauntlet and runs through `run_once` with a
-  clean split; correlation and combined Sharpe documented.
+- **F3.1** ✅ chose **pure value** as the second-edge candidate (hysteresis combo also grade A
+  but ¼ the turnover loses, and the combo's momentum reintroduces trend-correlation).
+- **F3.2** ✅ allocation backtest (`scripts/allocate.py`): **20% value / 80% trend → blend
+  Sharpe 0.82 → 0.99 (+0.17) at correlation +0.24, drawdown flat at 7% — a diversification
+  WIN.** The value edge is a real, book-improving second edge.
+- **F3.3** 🔲 build the live, risk-aware multi-strategy allocator (~20/80). Gated on W8: do
+  NOT fund the value sleeve live until survivorship-free validation clears.
+- **Definition of done:** the blend clears the Gauntlet and runs through a backtest with a
+  clean split; live wiring is config-gated and off until W8.
 
 ---
 
