@@ -514,6 +514,7 @@ def validate_value_momentum_singlenames():
             skip_recent=252,
             mom_period=126,
             top_k=10,
+            exit_rank_buffer=10,  # hold top-10 entries until they drop out of top-20 (cut churn)
             value_weight=Decimal(str(vw)),
         )
 
