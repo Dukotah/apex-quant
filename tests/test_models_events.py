@@ -63,6 +63,33 @@ def test_bar_rejects_high_below_low():
         )
 
 
+def test_bar_rejects_close_above_high():
+    # The Session-8-catching invariant: open/close must lie inside [low, high].
+    with pytest.raises(ValueError):
+        Bar(
+            symbol=_sym(),
+            timestamp=_ts(),
+            open=Decimal("10"),
+            high=Decimal("11"),
+            low=Decimal("9"),
+            close=Decimal("12"),  # adjusted close below/above the bar's range — corrupt
+            volume=Decimal("100"),
+        )
+
+
+def test_bar_rejects_open_below_low():
+    with pytest.raises(ValueError):
+        Bar(
+            symbol=_sym(),
+            timestamp=_ts(),
+            open=Decimal("8"),  # open beneath the low
+            high=Decimal("11"),
+            low=Decimal("9"),
+            close=Decimal("10"),
+            volume=Decimal("100"),
+        )
+
+
 def test_bar_rejects_negative_price():
     with pytest.raises(ValueError):
         Bar(
