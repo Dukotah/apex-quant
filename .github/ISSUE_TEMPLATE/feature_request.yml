@@ -1,0 +1,48 @@
+name: Feature / module request
+description: Propose new engine functionality (not a strategy — use the strategy template for those).
+title: "feat: <short summary>"
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        New work is built **one module per session**, in roadmap order. Make sure
+        this fits the architecture in `CLAUDE.md` before proposing it.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / motivation
+      description: What gap does this fill? Why now?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: The module/change you envision. Include the event(s) it consumes/emits.
+    validations:
+      required: true
+  - type: dropdown
+    id: phase
+    attributes:
+      label: Roadmap phase
+      options:
+        - Phase 1 — Core
+        - Phase 2 — Data feeds
+        - Phase 3 — Strategy / indicators
+        - Phase 4 — Risk manager / portfolio
+        - Phase 5 — Execution / integration
+        - Phase 6 — Live operations & expansion
+        - Validation Gauntlet
+        - CI / tooling / docs
+    validations:
+      required: true
+  - type: checkboxes
+    id: rules
+    attributes:
+      label: Architecture fit
+      options:
+        - label: Communicates only through events (no cross-module internals).
+        - label: Money/prices/quantities use Decimal; new models are frozen.
+        - label: Deterministic and I/O-free where the rules require it.
+        - label: Will ship with tests (math asserted against known values).

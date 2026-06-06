@@ -28,8 +28,26 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
-addopts = "-v --tb=short"
+# Coverage is wired in here so a bare `pytest` (locally and in CI) measures it.
+# --cov-fail-under is the regression floor: the build fails if coverage drops
+# below it. The floor is set CONSERVATIVELY at 70% because the exact current
+# coverage could not be measured in this environment (no local interpreter).
+# The suite is large (336+ tests) and almost certainly well above this; once a
+# real CI run reports the true number, RAISE this floor to ~5 points below it
+# so it ratchets up and can't silently regress.
+addopts = "-v --tb=short --cov=apex --cov-report=term-missing --cov-fail-under=70"
 
 [tool.coverage.run]
 source = ["apex"]
+branch = true
 omit = ["*/tests/*", "*/__init__.py"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "@(abc\\.)?abstractmethod",
+]

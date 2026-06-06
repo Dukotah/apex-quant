@@ -1,0 +1,56 @@
+name: Strategy proposal
+description: Propose a new trading strategy for the library (Phase 3 / Phase 6).
+title: "strategy: <name>"
+labels: ["strategy", "phase-3"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Read `docs/STRATEGY_PLAYBOOK.md` first. A strategy must clear the
+        **Validation Gauntlet** before deployment. Strategies emit signals only —
+        they never size or place orders (Golden Rule 2).
+  - type: textarea
+    id: thesis
+    attributes:
+      label: Edge / thesis
+      description: What inefficiency does this exploit? Why should it persist?
+    validations:
+      required: true
+  - type: textarea
+    id: rules
+    attributes:
+      label: Entry / exit rules
+      description: Precise, deterministic rules. Which indicators (from apex.strategy.indicators)?
+    validations:
+      required: true
+  - type: input
+    id: universe
+    attributes:
+      label: Universe & timeframe
+      placeholder: "e.g. SPY/EFA/TLT/GLD/DBC, daily bars"
+    validations:
+      required: true
+  - type: textarea
+    id: stop
+    attributes:
+      label: Suggested stop-loss logic
+      description: Every signal must suggest a stop (the risk manager validates it).
+    validations:
+      required: true
+  - type: input
+    id: correlation
+    attributes:
+      label: Expected correlation to deployed strategies
+      description: Uncorrelated edges are the priority (see ROADMAP Phase 6).
+      placeholder: "e.g. low corr to multi_asset_trend"
+  - type: checkboxes
+    id: gauntlet
+    attributes:
+      label: Validation plan
+      options:
+        - label: Will be run through all 7 Gauntlet gates before any deployment.
+          required: true
+        - label: Ships with a test feeding known bars and asserting expected signals.
+          required: true
+        - label: No I/O, no wall-clock time, no unseeded randomness in the logic.
+          required: true

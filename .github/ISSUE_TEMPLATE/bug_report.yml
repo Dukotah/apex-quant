@@ -1,0 +1,74 @@
+name: Bug report
+description: Something behaves incorrectly or unsafely.
+title: "bug: <short summary>"
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. For anything touching **risk or money handling**,
+        treat it as high severity — the engine must fail closed.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: Actual behavior, with the exact error/log output if any.
+      placeholder: Paste logs here. Redact any keys (there shouldn't be any).
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: A minimal, deterministic repro. Include the failing test if you have one.
+      placeholder: |
+        1. ...
+        2. ...
+    validations:
+      required: true
+  - type: dropdown
+    id: phase
+    attributes:
+      label: Affected area (roadmap phase)
+      options:
+        - Phase 1 — Core (models / events / config / bus / clock)
+        - Phase 2 — Data feeds
+        - Phase 3 — Strategy / indicators
+        - Phase 4 — Risk manager / portfolio
+        - Phase 5 — Execution / engine / run_once
+        - Phase 6 — Live operations
+        - Validation Gauntlet
+        - CI / tooling
+    validations:
+      required: true
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - Critical — risk/safety or money handling affected
+        - High — wrong results / determinism broken
+        - Medium — incorrect but contained
+        - Low — cosmetic / docs
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      placeholder: "Python 3.11/3.12, OS, APEX_MODE (backtest/paper/live)"
+  - type: checkboxes
+    id: rules
+    attributes:
+      label: Confirm
+      options:
+        - label: I checked this isn't expected fail-closed behavior (Golden Rule 6).
+          required: true
+        - label: No secrets/keys are included in this report.
+          required: true

@@ -1,0 +1,50 @@
+# Apex Quant — pre-commit hooks
+# ============================================================
+# Local quality gates that run before every commit, mirroring CI so problems
+# are caught on your machine instead of in a failed pipeline.
+#
+# Setup (one time):
+#   pip install -r requirements-dev.txt
+#   pre-commit install
+#
+# Run on everything manually:
+#   pre-commit run --all-files
+#
+# Golden Rule 16: secrets come from env vars only. The detect-secrets hook
+# below blocks accidental key commits; .secrets.baseline tracks known/false
+# positives (regenerate with: detect-secrets scan > .secrets.baseline).
+# ============================================================
+
+repos:
+  # Ruff: lint + format. Versions are pinned for reproducibility; bump as needed.
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.3.7
+    hooks:
+      - id: ruff
+        name: ruff (lint)
+        args: [--fix]
+      - id: ruff-format
+        name: ruff (format)
+
+  # General hygiene.
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-added-large-files
+        args: [--maxkb=1024]
+      - id: check-merge-conflict
+      - id: detect-private-key      # blocks committed *.pem / private keys
+
+  # Secrets scanning — fails the commit if a high-entropy / key-shaped string
+  # appears outside the baseline.
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        name: detect-secrets
+        args: [--baseline, .secrets.baseline]
+        exclude: ^(poetry\.lock|package-lock\.json)$

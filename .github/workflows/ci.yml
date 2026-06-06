@@ -1,22 +1,60 @@
 name: CI
 
+# ============================================================
+# QUALITY GATES — keep the 336+ tests from regressing.
+# ============================================================
+# Runs on every push and pull request, across a Python matrix
+# (3.11 — the project's minimum — and 3.12, what trade.yml runs on).
+#
+# Pipeline per Python version:
+#   1. ruff check          — lint (catch real bugs: undefined names, imports)
+#   2. ruff format --check — formatting is consistent (no auto-fix in CI)
+#   3. mypy                — type check, respecting pyproject [tool.mypy]
+#   4. pytest + coverage   — the full suite, offline, with a coverage floor
+#
+# Plus a standalone secret-scan job (gitleaks) so no API key can land.
+#
+# NO SECRETS REQUIRED. The test suite runs fully offline via dependency-
+# injection seams (injectable fetchers / broker clients / clocks), so CI
+# never touches Alpaca or the network. Do NOT add real keys here.
+#
+# This workflow is CI-only and additive. It does NOT touch trade.yml
+# (the scheduled live/paper runner) in any way.
+# ============================================================
+
 on:
   push:
     branches: [main, develop]
   pull_request:
-    branches: [main]
+    branches: [main, develop]
+
+# Cancel superseded runs on the same ref to save Actions minutes.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Read-only: this workflow never writes to the repo.
+permissions:
+  contents: read
 
 jobs:
   test:
-    name: Lint, Type-check & Test
+    name: Lint, type-check & test (py${{ matrix.python-version }})
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.11', '3.12']
 
-      - name: Set up Python
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: ${{ matrix.python-version }}
           cache: 'pip'
 
       - name: Install dependencies
@@ -26,15 +64,52 @@ jobs:
           pip install -r requirements-dev.txt
 
       - name: Ruff (lint)
-        run: ruff check apex/ tests/
+        run: ruff check apex/ tests/ scripts/
+
+      - name: Ruff (format check)
+        run: ruff format --check apex/ tests/ scripts/
 
       - name: Mypy (type check)
-        run: mypy apex/ || true   # advisory until full type coverage
+        # Respects [tool.mypy] in pyproject.toml. Type coverage is still being
+        # tightened (disallow_untyped_defs = false), so this is advisory for now;
+        # flip `|| true` off once the codebase is fully annotated.
+        run: mypy apex/ || true
 
-      - name: Pytest
-        run: pytest tests/ -v --tb=short
+      - name: Pytest (with coverage)
+        # Coverage config + --cov-fail-under floor live in pyproject.toml
+        # ([tool.coverage.*] and addopts). The suite is fully offline.
+        run: pytest
 
-      - name: Secret scan
+      - name: Coverage report
+        if: always()
+        run: coverage report -m
+
+  secret-scan:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history so gitleaks can scan all commits on a PR
+
+      - name: Gitleaks
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Belt-and-suspenders: a dependency-free grep for the obvious Alpaca key
+      # shapes, so the gate still fires even if the gitleaks action is unavailable.
+      # Alpaca live key ids start with AK..., paper keys with PK....
+      - name: Lightweight key-pattern grep
+        if: always()
+        run: |
+          echo "Scanning tracked files for hardcoded Alpaca-style keys..."
+          if git grep -nIE '\b(AK|PK)[A-Z0-9]{16,}\b' -- ':!*.yml' ':!*.yaml' ':!*.md'; then
+            echo "::error::Possible hardcoded API key detected. Secrets must come from env vars only."
+            exit 1
+          fi
+          echo "No hardcoded key patterns found."
