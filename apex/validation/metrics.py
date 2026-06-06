@@ -11,6 +11,7 @@ including the free GitHub Actions runner, with no heavy installs.
 All functions are pure and deterministic given their inputs. Tested in
 tests/test_metrics.py against hand-computed values.
 """
+
 from __future__ import annotations
 
 import math

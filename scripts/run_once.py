@@ -33,6 +33,7 @@ engine, the clock, even the state path — is injectable, so the entire cycle ru
 end-to-end offline against the SimulatedExecutionEngine with a fake feed. The bare
 ``main()`` wiring that reads real env/keys is the only part that needs live infra.
 """
+
 from __future__ import annotations
 
 import json
@@ -66,9 +67,11 @@ DEFAULT_STATE_PATH = Path("state/apex_state.db")
 
 # --------------------------------------------------------------------- report
 
+
 @dataclass
 class RunReport:
     """The observable outcome of one evaluation cycle."""
+
     timestamp: datetime
     mode: str
     equity: float
@@ -95,6 +98,7 @@ class RunReport:
 
 
 # ------------------------------------------------------------------ state store
+
 
 class StateStore:
     """
@@ -176,6 +180,7 @@ class StateStore:
 
 # ------------------------------------------------------------------- the cycle
 
+
 def run_once(
     config: AppConfig,
     strategies: Sequence[BaseStrategy],
@@ -212,8 +217,9 @@ def run_once(
     feed = feed or AlpacaDataFeed(symbols, timeframe="1Day")
 
     now = clock.now()
-    report = RunReport(timestamp=now, mode=config.mode.value,
-                       equity=float(portfolio.equity), num_positions=0)
+    report = RunReport(
+        timestamp=now, mode=config.mode.value, equity=float(portfolio.equity), num_positions=0
+    )
 
     execution_engine.connect()
     try:
@@ -244,8 +250,9 @@ def run_once(
         if _kill_switch_active():
             report.killed = True
             if latest_signals:
-                logger.critical("KILL SWITCH (APEX_HALT) active — blocking ALL %d orders.",
-                                len(latest_signals))
+                logger.critical(
+                    "KILL SWITCH (APEX_HALT) active — blocking ALL %d orders.", len(latest_signals)
+                )
             latest_signals = []
 
         # 4b. Drift guard: if the live strategy has decayed below its quarantine
@@ -256,8 +263,10 @@ def run_once(
             report.quarantined = True
             kept = [s for s in latest_signals if _signal_reduces(s, portfolio)]
             if len(kept) != len(latest_signals):
-                logger.critical("QUARANTINED (alpha decay) — blocking %d new entr(ies).",
-                                len(latest_signals) - len(kept))
+                logger.critical(
+                    "QUARANTINED (alpha decay) — blocking %d new entr(ies).",
+                    len(latest_signals) - len(kept),
+                )
             latest_signals = kept
 
         _submit_orders(latest_signals, events, risk_manager, portfolio, execution_engine, report)
@@ -284,6 +293,7 @@ def run_once(
 
 # ----------------------------------------------------------------- internals
 
+
 def _collect_symbols(strategies: Sequence[BaseStrategy]) -> List[Symbol]:
     """Union of every strategy's symbols, de-duplicated by ticker, stable order."""
     seen: Dict[str, Symbol] = {}
@@ -293,8 +303,9 @@ def _collect_symbols(strategies: Sequence[BaseStrategy]) -> List[Symbol]:
     return list(seen.values())
 
 
-def _reconcile(engine: BaseExecutionEngine, portfolio: Portfolio,
-               symbols: Sequence[Symbol]) -> bool:
+def _reconcile(
+    engine: BaseExecutionEngine, portfolio: Portfolio, symbols: Sequence[Symbol]
+) -> bool:
     """
     Seed the portfolio from the broker's real positions. Returns True if any
     position was reconciled. The simulator returns {} → nothing to do.
@@ -319,12 +330,20 @@ def _reconcile(engine: BaseExecutionEngine, portfolio: Portfolio,
         # Long → BUY |qty|; short → SELL |qty|. Fill at avg entry: equity is
         # unchanged at seed time, then marked to market when the window replays.
         side = OrderSide.BUY if qty > 0 else OrderSide.SELL
-        portfolio.on_fill(FillEvent(
-            symbol=symbol, side=side, quantity=abs(qty), fill_price=avg,
-            commission=Decimal("0"), slippage=Decimal("0"),
-            order_id="reconcile", broker_order_id="reconcile",
-            timestamp=None, is_paper=engine.is_paper,
-        ))
+        portfolio.on_fill(
+            FillEvent(
+                symbol=symbol,
+                side=side,
+                quantity=abs(qty),
+                fill_price=avg,
+                commission=Decimal("0"),
+                slippage=Decimal("0"),
+                order_id="reconcile",
+                broker_order_id="reconcile",
+                timestamp=None,
+                is_paper=engine.is_paper,
+            )
+        )
     logger.info("Reconciled %d broker position(s) into the portfolio.", len(truth))
     return True
 
@@ -339,8 +358,9 @@ def _load_window(feed: BaseDataFeed, lookback: int, now: datetime) -> None:
         getter(lookback=lookback, end=now)
 
 
-def _evaluate(events: List[MarketEvent], strategies: Sequence[BaseStrategy],
-              portfolio: Portfolio) -> List:
+def _evaluate(
+    events: List[MarketEvent], strategies: Sequence[BaseStrategy], portfolio: Portfolio
+) -> List:
     """
     Replay the window so strategies build their indicator state and the portfolio
     marks to market, then return only the signals emitted on the LATEST bar(s).
@@ -393,8 +413,14 @@ def _evaluate(events: List[MarketEvent], strategies: Sequence[BaseStrategy],
     return latest_signals
 
 
-def _submit_orders(signals: List, events: List[MarketEvent], risk_manager: RiskManager,
-                   portfolio: Portfolio, engine: BaseExecutionEngine, report: RunReport) -> None:
+def _submit_orders(
+    signals: List,
+    events: List[MarketEvent],
+    risk_manager: RiskManager,
+    portfolio: Portfolio,
+    engine: BaseExecutionEngine,
+    report: RunReport,
+) -> None:
     """
     Risk-evaluate the latest signals (reducing/exit signals first so freed capital
     is available to entries) and submit each approved order to the execution engine.
@@ -415,8 +441,12 @@ def _submit_orders(signals: List, events: List[MarketEvent], risk_manager: RiskM
         _submit(order, latest_close, engine, report)
 
 
-def _submit(order: OrderEvent, latest_close: Dict[str, Decimal],
-            engine: BaseExecutionEngine, report: RunReport) -> None:
+def _submit(
+    order: OrderEvent,
+    latest_close: Dict[str, Decimal],
+    engine: BaseExecutionEngine,
+    report: RunReport,
+) -> None:
     """Submit one approved order, priming the simulator's price if it needs one."""
     update_price = getattr(engine, "update_price", None)
     if callable(update_price) and order.symbol.ticker in latest_close:
@@ -449,7 +479,8 @@ def _notify(title: str, message: str, priority: str = "default") -> None:
         return
     try:
         req = urllib.request.Request(
-            f"https://ntfy.sh/{topic}", data=message.encode("utf-8"),
+            f"https://ntfy.sh/{topic}",
+            data=message.encode("utf-8"),
             headers={"Title": title, "Priority": priority, "Tags": "robot"},
         )
         urllib.request.urlopen(req, timeout=10)
@@ -483,7 +514,9 @@ def _drift_monitor(store: Optional[StateStore], mode: str) -> Optional[DriftMoni
     if store is None:
         return None
     try:
-        mon = DriftMonitor("multi_asset_trend", validated_sharpe=DEPLOYED_VALIDATED_SHARPE, window=30)
+        mon = DriftMonitor(
+            "multi_asset_trend", validated_sharpe=DEPLOYED_VALIDATED_SHARPE, window=30
+        )
         for eq in store.recent_equities(mode):
             mon.record_equity(eq)
         return mon
@@ -496,8 +529,11 @@ def _persist(store: Optional[StateStore], report: RunReport, portfolio: Portfoli
     if store is None:
         return
     positions = {
-        t: {"qty": str(p.quantity), "avg_entry_price": str(p.avg_entry_price),
-            "current_price": str(p.current_price)}
+        t: {
+            "qty": str(p.quantity),
+            "avg_entry_price": str(p.avg_entry_price),
+            "current_price": str(p.current_price),
+        }
         for t, p in portfolio.open_positions.items()
     }
     store.save_run(report, positions)
@@ -525,7 +561,7 @@ PRODUCTION_RISK = RiskConfig(
     max_position_size_pct=Decimal("0.16"),
     max_total_exposure_pct=Decimal("1.0"),
     max_leverage=Decimal("1.0"),
-    max_drawdown_pct=Decimal("0.40"),      # catastrophe halt, well above normal DD
+    max_drawdown_pct=Decimal("0.40"),  # catastrophe halt, well above normal DD
     max_daily_loss_pct=Decimal("0.10"),
     require_stop_loss=True,
     # Survive the strategy's deep trend drawdowns: once down 12% from peak, size new
@@ -541,12 +577,14 @@ def _build_strategies(config: AppConfig) -> List[BaseStrategy]:  # pragma: no co
     """The deployed roster: the inverse-vol multi-asset trend strategy."""
     from apex.core.models import AssetClass
     from apex.strategy.library.multi_asset_trend import MultiAssetTrendStrategy
+
     syms = [Symbol(t, AssetClass.ETF) for t in DEPLOYED_UNIVERSE]
     return [MultiAssetTrendStrategy("multi_asset_trend", syms, fast_period=20, slow_period=200)]
 
 
 def main() -> int:  # pragma: no cover - reads real env/keys + network
     import dataclasses
+
     logging.basicConfig(level=logging.INFO)
     config = AppConfig.from_env()
     if config.mode == ExecutionMode.BACKTEST:
@@ -565,4 +603,5 @@ def main() -> int:  # pragma: no cover - reads real env/keys + network
 
 if __name__ == "__main__":  # pragma: no cover
     import sys
+
     sys.exit(main())

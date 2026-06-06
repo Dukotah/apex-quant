@@ -14,6 +14,7 @@ Covered:
   - inverse-volatility sizing: a calmer sleeve earns more conviction than a wilder
     one entering at the same time, and the calmest hits the full cap (1.0).
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -32,8 +33,7 @@ WILD = Symbol("WILD", AssetClass.ETF)
 
 def _bar(sym: Symbol, t: datetime, price: float) -> Bar:
     p = Decimal(str(price))
-    return Bar(symbol=sym, timestamp=t, open=p, high=p, low=p, close=p,
-               volume=Decimal("1000"))
+    return Bar(symbol=sym, timestamp=t, open=p, high=p, low=p, close=p, volume=Decimal("1000"))
 
 
 class _Harness:
@@ -42,24 +42,25 @@ class _Harness:
     portfolio before each bar, and applies emitted signals as IMMEDIATE fills so the
     next bar sees the updated holding (mirrors engine fill-before-dispatch ordering).
     """
+
     def __init__(self, strat: MultiAssetTrendStrategy):
         self.strat = strat
         self.ctx = StrategyContext()
         strat.bind_context(self.ctx)
-        self.held: dict[str, Decimal] = {}   # ticker -> qty
+        self.held: dict[str, Decimal] = {}  # ticker -> qty
         self.t = datetime(2024, 1, 1, tzinfo=timezone.utc)
         self.i = 0
 
     def _refresh(self):
-        self.ctx.sync_state(positions={
-            k: SimpleNamespace(quantity=q) for k, q in self.held.items() if q > 0
-        })
+        self.ctx.sync_state(
+            positions={k: SimpleNamespace(quantity=q) for k, q in self.held.items() if q > 0}
+        )
 
     def step(self, sym: Symbol, price: float):
         self._refresh()
         sigs = self.strat.on_bar(_bar(sym, self.t + timedelta(days=self.i), price))
         self.i += 1
-        for s in sigs:                       # simulate immediate fills
+        for s in sigs:  # simulate immediate fills
             self.held[sym.ticker] = Decimal("1") if s.side == OrderSide.BUY else Decimal("0")
         return sigs
 
@@ -89,7 +90,7 @@ def test_uptrend_emits_buy_with_stop():
     h = _Harness(MultiAssetTrendStrategy("s", [CALM], fast_period=3, slow_period=5, vol_window=3))
     prices = [20, 19, 18, 17, 16, 15, 16, 18, 21, 25, 30]
     buys = [s for s in h.feed(CALM, prices) if s.side == OrderSide.BUY]
-    assert len(buys) == 1                     # enters once, then holds (no pyramiding)
+    assert len(buys) == 1  # enters once, then holds (no pyramiding)
     assert buys[0].suggested_stop_loss is not None
     assert buys[0].suggested_stop_loss < Decimal("30")
     assert Decimal("0") < buys[0].strength <= Decimal("1")
@@ -165,14 +166,15 @@ def test_inverse_vol_calm_outweighs_wild():
     # the weighting can't differentiate them.
     base = [20, 19, 18, 17, 16, 15, 16, 18, 21, 25, 30]
     calm_path = base
-    wild_path = [20 + (p - 20) * 3 for p in base]   # same trend, 3x the wiggle
+    wild_path = [20 + (p - 20) * 3 for p in base]  # same trend, 3x the wiggle
 
     buys: dict[str, Decimal] = {}
     t = datetime(2024, 1, 1, tzinfo=timezone.utc)
     for i in range(len(base)):
         for sym, path in ((CALM, calm_path), (WILD, wild_path)):
-            ctx.sync_state(positions={
-                k: SimpleNamespace(quantity=q) for k, q in held.items() if q > 0})
+            ctx.sync_state(
+                positions={k: SimpleNamespace(quantity=q) for k, q in held.items() if q > 0}
+            )
             for sig in strat.on_bar(_bar(sym, t + timedelta(days=i), path[i])):
                 if sig.side == OrderSide.BUY:
                     buys[sym.ticker] = sig.strength

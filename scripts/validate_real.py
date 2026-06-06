@@ -10,6 +10,7 @@ Usage:
     python -m scripts.validate_real                 # dual momentum on real data
     python -m scripts.validate_real rsi2            # RSI(2) on real SPY
 """
+
 from __future__ import annotations
 
 import sys
@@ -25,8 +26,8 @@ from apex.strategy.library.rsi2_vol_filtered import RSI2VolFilteredStrategy
 from apex.strategy.library.sma_crossover import SMACrossoverStrategy
 from apex.strategy.library.trend_bond import TrendBondStrategy
 
-DATA = "data/real/dm.csv"            # SPY/EFA/AGG
-SECTORS = "data/real/sectors.csv"    # XLK..XLB + AGG + SPY (benchmark)
+DATA = "data/real/dm.csv"  # SPY/EFA/AGG
+SECTORS = "data/real/sectors.csv"  # XLK..XLB + AGG + SPY (benchmark)
 
 # Single-strategy edge test → full deployment (portfolio caps are for live sharing).
 SLEEVE_RISK = RiskConfig(
@@ -34,8 +35,8 @@ SLEEVE_RISK = RiskConfig(
     max_total_exposure_pct=Decimal("1.0"),
     max_leverage=Decimal("1.0"),
     max_drawdown_pct=Decimal("0.99"),
-    max_daily_loss_pct=Decimal("0.99"),   # raw-edge measurement: don't let the
-    require_stop_loss=True,                # daily circuit breaker contaminate Sharpe
+    max_daily_loss_pct=Decimal("0.99"),  # raw-edge measurement: don't let the
+    require_stop_loss=True,  # daily circuit breaker contaminate Sharpe
 )
 
 
@@ -59,7 +60,11 @@ def validate_dual_momentum():
         return DualMomentumStrategy("dm", syms, "SPY", "EFA", "AGG", lookback_window=302)
 
     return run_gauntlet_from_csv(
-        "dual_momentum_REAL", factory, DATA, syms, benchmark_ticker="SPY",
+        "dual_momentum_REAL",
+        factory,
+        DATA,
+        syms,
+        benchmark_ticker="SPY",
         risk_config=SLEEVE_RISK,
         param_variants=[("lookback-20%", lo), ("lookback+20%", hi)],
         rebalance_period_bars=21,
@@ -67,7 +72,7 @@ def validate_dual_momentum():
 
 
 def validate_rsi2():
-    syms = [Symbol("SPY", AssetClass.ETF)]   # feed skips EFA/AGG rows (unsubscribed)
+    syms = [Symbol("SPY", AssetClass.ETF)]  # feed skips EFA/AGG rows (unsubscribed)
 
     def factory():
         return RSI2MeanReversionStrategy("rsi2_mr", syms, entry_threshold=Decimal("10"))
@@ -79,7 +84,11 @@ def validate_rsi2():
         return RSI2MeanReversionStrategy("rsi2_mr", syms, entry_threshold=Decimal("12"))
 
     return run_gauntlet_from_csv(
-        "rsi2_REAL", factory, DATA, syms, benchmark_ticker="SPY",
+        "rsi2_REAL",
+        factory,
+        DATA,
+        syms,
+        benchmark_ticker="SPY",
         risk_config=SLEEVE_RISK,
         param_variants=[("thr-20%", lo), ("thr+20%", hi)],
     )
@@ -98,7 +107,11 @@ def validate_rsi2_vol():
         return RSI2VolFilteredStrategy("rsi2_vol", syms, entry_threshold=Decimal("12"))
 
     return run_gauntlet_from_csv(
-        "rsi2_vol_filtered_REAL", factory, DATA, syms, benchmark_ticker="SPY",
+        "rsi2_vol_filtered_REAL",
+        factory,
+        DATA,
+        syms,
+        benchmark_ticker="SPY",
         risk_config=SLEEVE_RISK,
         param_variants=[("thr-20%", lo), ("thr+20%", hi)],
     )
@@ -121,10 +134,14 @@ def validate_etf_rotation():
         return ETFRotationStrategy("etf_rotation", strat_syms, momentum_period=84, top_k=3)
 
     return run_gauntlet_from_csv(
-        "etf_rotation_REAL", factory, SECTORS, feed_syms, benchmark_ticker="SPY",
+        "etf_rotation_REAL",
+        factory,
+        SECTORS,
+        feed_syms,
+        benchmark_ticker="SPY",
         risk_config=SLEEVE_RISK,
         param_variants=[("mom-20%", lo), ("mom+20%", hi)],
-        rebalance_period_bars=5,   # weekly cadence
+        rebalance_period_bars=5,  # weekly cadence
     )
 
 
@@ -142,7 +159,11 @@ def validate_spy_trend():
         return SMACrossoverStrategy("spy_trend", syms, fast_period=20, slow_period=250)
 
     return run_gauntlet_from_csv(
-        "spy_trend_REAL", factory, DATA, syms, benchmark_ticker="SPY",
+        "spy_trend_REAL",
+        factory,
+        DATA,
+        syms,
+        benchmark_ticker="SPY",
         risk_config=SLEEVE_RISK,
         param_variants=[("slow-25%", lo), ("slow+25%", hi)],
     )
@@ -154,9 +175,12 @@ def validate_multiasset():
     syms = [Symbol(t, AssetClass.ETF) for t in assets]
     # Equal-weight sleeve sizing: 20% max per position, up to 100% total deployed.
     risk = RiskConfig(
-        max_position_size_pct=Decimal("0.20"), max_total_exposure_pct=Decimal("1.0"),
-        max_leverage=Decimal("1.0"), max_drawdown_pct=Decimal("0.99"),
-        max_daily_loss_pct=Decimal("0.99"), require_stop_loss=True,
+        max_position_size_pct=Decimal("0.20"),
+        max_total_exposure_pct=Decimal("1.0"),
+        max_leverage=Decimal("1.0"),
+        max_drawdown_pct=Decimal("0.99"),
+        max_daily_loss_pct=Decimal("0.99"),
+        require_stop_loss=True,
     )
 
     def factory():
@@ -169,8 +193,12 @@ def validate_multiasset():
         return SMACrossoverStrategy("multi_trend", syms, fast_period=20, slow_period=250)
 
     return run_gauntlet_from_csv(
-        "multiasset_trend_REAL", factory, "data/real/multiasset.csv", syms,
-        benchmark_ticker="SPY", risk_config=risk,
+        "multiasset_trend_REAL",
+        factory,
+        "data/real/multiasset.csv",
+        syms,
+        benchmark_ticker="SPY",
+        risk_config=risk,
         param_variants=[("slow-25%", lo), ("slow+25%", hi)],
     )
 
@@ -178,12 +206,16 @@ def validate_multiasset():
 def validate_multiasset_vp():
     """Multi-asset trend with INVERSE-VOL (risk-parity) sizing — the DD-cutter."""
     from apex.strategy.library.multi_asset_trend import MultiAssetTrendStrategy
+
     assets = ["SPY", "EFA", "TLT", "GLD", "DBC"]
     syms = [Symbol(t, AssetClass.ETF) for t in assets]
     risk = RiskConfig(
-        max_position_size_pct=Decimal("0.20"), max_total_exposure_pct=Decimal("1.0"),
-        max_leverage=Decimal("1.0"), max_drawdown_pct=Decimal("0.99"),
-        max_daily_loss_pct=Decimal("0.99"), require_stop_loss=True,
+        max_position_size_pct=Decimal("0.20"),
+        max_total_exposure_pct=Decimal("1.0"),
+        max_leverage=Decimal("1.0"),
+        max_drawdown_pct=Decimal("0.99"),
+        max_daily_loss_pct=Decimal("0.99"),
+        require_stop_loss=True,
     )
 
     def factory():
@@ -196,8 +228,12 @@ def validate_multiasset_vp():
         return MultiAssetTrendStrategy("multi_trend_vp", syms, fast_period=20, slow_period=250)
 
     return run_gauntlet_from_csv(
-        "multiasset_trend_VP_REAL", factory, "data/real/multiasset.csv", syms,
-        benchmark_ticker="SPY", risk_config=risk,
+        "multiasset_trend_VP_REAL",
+        factory,
+        "data/real/multiasset.csv",
+        syms,
+        benchmark_ticker="SPY",
+        risk_config=risk,
         param_variants=[("slow-25%", lo), ("slow+25%", hi)],
     )
 
@@ -205,13 +241,17 @@ def validate_multiasset_vp():
 def validate_multiasset_expanded():
     """Expanded inverse-vol trend: 10 uncorrelated sleeves across asset classes."""
     from apex.strategy.library.multi_asset_trend import MultiAssetTrendStrategy
+
     assets = ["SPY", "EFA", "EEM", "TLT", "IEF", "LQD", "GLD", "SLV", "DBC", "VNQ"]
     syms = [Symbol(t, AssetClass.ETF) for t in assets]
     # ~10 sleeves: 12% cap each (inverse-vol tilts within it), up to 100% deployed.
     risk = RiskConfig(
-        max_position_size_pct=Decimal("0.12"), max_total_exposure_pct=Decimal("1.0"),
-        max_leverage=Decimal("1.0"), max_drawdown_pct=Decimal("0.99"),
-        max_daily_loss_pct=Decimal("0.99"), require_stop_loss=True,
+        max_position_size_pct=Decimal("0.12"),
+        max_total_exposure_pct=Decimal("1.0"),
+        max_leverage=Decimal("1.0"),
+        max_drawdown_pct=Decimal("0.99"),
+        max_daily_loss_pct=Decimal("0.99"),
+        require_stop_loss=True,
     )
 
     def factory():
@@ -224,8 +264,12 @@ def validate_multiasset_expanded():
         return MultiAssetTrendStrategy("multi_trend_x", syms, fast_period=20, slow_period=250)
 
     return run_gauntlet_from_csv(
-        "multiasset_trend_EXPANDED", factory, "data/real/multiasset_expanded.csv", syms,
-        benchmark_ticker="SPY", risk_config=risk,
+        "multiasset_trend_EXPANDED",
+        factory,
+        "data/real/multiasset_expanded.csv",
+        syms,
+        benchmark_ticker="SPY",
+        risk_config=risk,
         param_variants=[("slow-25%", lo), ("slow+25%", hi)],
     )
 
@@ -233,12 +277,16 @@ def validate_multiasset_expanded():
 def validate_multiasset_smart7():
     """Smart expansion: the 5 uncorrelated sleeves + dollar (UUP) + ags (DBA) only."""
     from apex.strategy.library.multi_asset_trend import MultiAssetTrendStrategy
+
     assets = ["SPY", "EFA", "TLT", "GLD", "DBC", "UUP", "DBA"]
     syms = [Symbol(t, AssetClass.ETF) for t in assets]
     risk = RiskConfig(
-        max_position_size_pct=Decimal("0.16"), max_total_exposure_pct=Decimal("1.0"),
-        max_leverage=Decimal("1.0"), max_drawdown_pct=Decimal("0.99"),
-        max_daily_loss_pct=Decimal("0.99"), require_stop_loss=True,
+        max_position_size_pct=Decimal("0.16"),
+        max_total_exposure_pct=Decimal("1.0"),
+        max_leverage=Decimal("1.0"),
+        max_drawdown_pct=Decimal("0.99"),
+        max_daily_loss_pct=Decimal("0.99"),
+        require_stop_loss=True,
     )
 
     def factory():
@@ -251,8 +299,12 @@ def validate_multiasset_smart7():
         return MultiAssetTrendStrategy("multi_trend_s7", syms, fast_period=20, slow_period=250)
 
     return run_gauntlet_from_csv(
-        "multiasset_trend_SMART7", factory, "data/real/multiasset_smart7.csv", syms,
-        benchmark_ticker="SPY", risk_config=risk,
+        "multiasset_trend_SMART7",
+        factory,
+        "data/real/multiasset_smart7.csv",
+        syms,
+        benchmark_ticker="SPY",
+        risk_config=risk,
         param_variants=[("slow-25%", lo), ("slow+25%", hi)],
     )
 
@@ -265,29 +317,40 @@ def validate_value():
     we want PURE value's correlation, not a trend-contaminated hybrid.
     """
     from apex.strategy.library.cross_asset_value import CrossAssetValueStrategy
+
     assets = ["SPY", "EFA", "TLT", "GLD", "DBC", "UUP", "DBA"]
     syms = [Symbol(t, AssetClass.ETF) for t in assets]
     risk = RiskConfig(
-        max_position_size_pct=Decimal("0.34"), max_total_exposure_pct=Decimal("1.0"),
-        max_leverage=Decimal("1.0"), max_drawdown_pct=Decimal("0.99"),
-        max_daily_loss_pct=Decimal("0.99"), require_stop_loss=True,
+        max_position_size_pct=Decimal("0.34"),
+        max_total_exposure_pct=Decimal("1.0"),
+        max_leverage=Decimal("1.0"),
+        max_drawdown_pct=Decimal("0.99"),
+        max_daily_loss_pct=Decimal("0.99"),
+        require_stop_loss=True,
     )
 
     def factory():
-        return CrossAssetValueStrategy("xasset_value", syms, value_period=1260,
-                                       skip_recent=252, top_k=3)
+        return CrossAssetValueStrategy(
+            "xasset_value", syms, value_period=1260, skip_recent=252, top_k=3
+        )
 
     def lo():
-        return CrossAssetValueStrategy("xasset_value", syms, value_period=1008,
-                                       skip_recent=252, top_k=3)
+        return CrossAssetValueStrategy(
+            "xasset_value", syms, value_period=1008, skip_recent=252, top_k=3
+        )
 
     def hi():
-        return CrossAssetValueStrategy("xasset_value", syms, value_period=1512,
-                                       skip_recent=252, top_k=3)
+        return CrossAssetValueStrategy(
+            "xasset_value", syms, value_period=1512, skip_recent=252, top_k=3
+        )
 
     return run_gauntlet_from_csv(
-        "cross_asset_value_REAL", factory, "data/real/multiasset_smart7.csv", syms,
-        benchmark_ticker="SPY", risk_config=risk,
+        "cross_asset_value_REAL",
+        factory,
+        "data/real/multiasset_smart7.csv",
+        syms,
+        benchmark_ticker="SPY",
+        risk_config=risk,
         param_variants=[("window-20%", lo), ("window+20%", hi)],
         rebalance_period_bars=21,
     )
@@ -304,32 +367,58 @@ def validate_value_momentum():
     knife-edge weight. Apples-to-apples with validate_value (same universe, risk, rebalance).
     """
     from apex.strategy.library.value_momentum import ValueMomentumStrategy
+
     assets = ["SPY", "EFA", "TLT", "GLD", "DBC", "UUP", "DBA"]
     syms = [Symbol(t, AssetClass.ETF) for t in assets]
     risk = RiskConfig(
-        max_position_size_pct=Decimal("0.34"), max_total_exposure_pct=Decimal("1.0"),
-        max_leverage=Decimal("1.0"), max_drawdown_pct=Decimal("0.99"),
-        max_daily_loss_pct=Decimal("0.99"), require_stop_loss=True,
+        max_position_size_pct=Decimal("0.34"),
+        max_total_exposure_pct=Decimal("1.0"),
+        max_leverage=Decimal("1.0"),
+        max_drawdown_pct=Decimal("0.99"),
+        max_daily_loss_pct=Decimal("0.99"),
+        require_stop_loss=True,
     )
 
     def factory():
-        return ValueMomentumStrategy("value_momentum", syms, value_period=1260,
-                                     skip_recent=252, mom_period=126, top_k=3,
-                                     value_weight=Decimal("0.5"))
+        return ValueMomentumStrategy(
+            "value_momentum",
+            syms,
+            value_period=1260,
+            skip_recent=252,
+            mom_period=126,
+            top_k=3,
+            value_weight=Decimal("0.5"),
+        )
 
     def vlo():
-        return ValueMomentumStrategy("value_momentum", syms, value_period=1260,
-                                     skip_recent=252, mom_period=126, top_k=3,
-                                     value_weight=Decimal("0.35"))
+        return ValueMomentumStrategy(
+            "value_momentum",
+            syms,
+            value_period=1260,
+            skip_recent=252,
+            mom_period=126,
+            top_k=3,
+            value_weight=Decimal("0.35"),
+        )
 
     def vhi():
-        return ValueMomentumStrategy("value_momentum", syms, value_period=1260,
-                                     skip_recent=252, mom_period=126, top_k=3,
-                                     value_weight=Decimal("0.65"))
+        return ValueMomentumStrategy(
+            "value_momentum",
+            syms,
+            value_period=1260,
+            skip_recent=252,
+            mom_period=126,
+            top_k=3,
+            value_weight=Decimal("0.65"),
+        )
 
     return run_gauntlet_from_csv(
-        "value_momentum_REAL", factory, "data/real/multiasset_smart7.csv", syms,
-        benchmark_ticker="SPY", risk_config=risk,
+        "value_momentum_REAL",
+        factory,
+        "data/real/multiasset_smart7.csv",
+        syms,
+        benchmark_ticker="SPY",
+        risk_config=risk,
         param_variants=[("vw-0.35", vlo), ("vw-0.65", vhi)],
         rebalance_period_bars=21,
     )
@@ -347,30 +436,54 @@ def validate_value_pool():
     ~6y warmup the measured window is ~2013-2026 — shorter than smart-7's 2006-2026.
     """
     from apex.strategy.library.cross_asset_value import CrossAssetValueStrategy
-    assets = ["SPY", "EFA", "TLT", "GLD", "DBC", "UUP", "DBA",
-              "FXY", "DBB", "DBO", "TIP", "BWX", "HYG"]
+
+    assets = [
+        "SPY",
+        "EFA",
+        "TLT",
+        "GLD",
+        "DBC",
+        "UUP",
+        "DBA",
+        "FXY",
+        "DBB",
+        "DBO",
+        "TIP",
+        "BWX",
+        "HYG",
+    ]
     syms = [Symbol(t, AssetClass.ETF) for t in assets]
     risk = RiskConfig(
-        max_position_size_pct=Decimal("0.34"), max_total_exposure_pct=Decimal("1.0"),
-        max_leverage=Decimal("1.0"), max_drawdown_pct=Decimal("0.99"),
-        max_daily_loss_pct=Decimal("0.99"), require_stop_loss=True,
+        max_position_size_pct=Decimal("0.34"),
+        max_total_exposure_pct=Decimal("1.0"),
+        max_leverage=Decimal("1.0"),
+        max_drawdown_pct=Decimal("0.99"),
+        max_daily_loss_pct=Decimal("0.99"),
+        require_stop_loss=True,
     )
 
     def factory():
-        return CrossAssetValueStrategy("xasset_value_pool", syms, value_period=1260,
-                                       skip_recent=252, top_k=3)
+        return CrossAssetValueStrategy(
+            "xasset_value_pool", syms, value_period=1260, skip_recent=252, top_k=3
+        )
 
     def lo():
-        return CrossAssetValueStrategy("xasset_value_pool", syms, value_period=1008,
-                                       skip_recent=252, top_k=3)
+        return CrossAssetValueStrategy(
+            "xasset_value_pool", syms, value_period=1008, skip_recent=252, top_k=3
+        )
 
     def hi():
-        return CrossAssetValueStrategy("xasset_value_pool", syms, value_period=1512,
-                                       skip_recent=252, top_k=3)
+        return CrossAssetValueStrategy(
+            "xasset_value_pool", syms, value_period=1512, skip_recent=252, top_k=3
+        )
 
     return run_gauntlet_from_csv(
-        "cross_asset_value_POOL", factory, "data/real/sleeve_pool.csv", syms,
-        benchmark_ticker="SPY", risk_config=risk,
+        "cross_asset_value_POOL",
+        factory,
+        "data/real/sleeve_pool.csv",
+        syms,
+        benchmark_ticker="SPY",
+        risk_config=risk,
         param_variants=[("window-20%", lo), ("window+20%", hi)],
         rebalance_period_bars=21,
     )
@@ -390,7 +503,11 @@ def validate_trend_bond():
         return TrendBondStrategy("trend_bond", syms, slow_period=250)
 
     return run_gauntlet_from_csv(
-        "trend_bond_REAL", factory, DATA, syms, benchmark_ticker="SPY",
+        "trend_bond_REAL",
+        factory,
+        DATA,
+        syms,
+        benchmark_ticker="SPY",
         risk_config=SLEEVE_RISK,
         param_variants=[("slow-25%", lo), ("slow+25%", hi)],
     )
@@ -400,7 +517,7 @@ def main() -> None:
     _utf8()
     global DATA, SECTORS
     which = sys.argv[1] if len(sys.argv) > 1 else "dual_momentum"
-    if len(sys.argv) > 2:                 # optional data-file override
+    if len(sys.argv) > 2:  # optional data-file override
         DATA = SECTORS = sys.argv[2]
     if which in ("value_momentum", "valmom", "vm", "valuemom"):
         report, inputs = validate_value_momentum()
@@ -431,11 +548,13 @@ def main() -> None:
     print()
     print(report.render())
     print()
-    print(f"  trades={inputs.num_trades}  in-sample Sharpe={inputs.in_sample_sharpe:.2f}  "
-          f"OOS Sharpe={inputs.out_of_sample_sharpe:.2f}  "
-          f"full Sharpe={inputs.full_sharpe:.2f}  "
-          f"Sharpe@2x-cost={inputs.sharpe_at_2x_cost:.2f}  "
-          f"benchmark Sharpe={inputs.benchmark_sharpe:.2f}  corr={inputs.correlation_to_benchmark:.2f}")
+    print(
+        f"  trades={inputs.num_trades}  in-sample Sharpe={inputs.in_sample_sharpe:.2f}  "
+        f"OOS Sharpe={inputs.out_of_sample_sharpe:.2f}  "
+        f"full Sharpe={inputs.full_sharpe:.2f}  "
+        f"Sharpe@2x-cost={inputs.sharpe_at_2x_cost:.2f}  "
+        f"benchmark Sharpe={inputs.benchmark_sharpe:.2f}  corr={inputs.correlation_to_benchmark:.2f}"
+    )
     print()
     print("  DATA: real adjusted-close history (Yahoo) — this is a genuine edge test.")
 

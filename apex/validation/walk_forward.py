@@ -18,6 +18,7 @@ This module provides the windowing/orchestration framework. The actual per-windo
 backtest is injected as a callable (so it works with the Phase 5 backtester once
 that's built). Pure stdlib.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -29,20 +30,22 @@ from apex.validation import metrics
 @dataclass(frozen=True)
 class WalkForwardWindow:
     """One train/test fold."""
+
     train_start: int
-    train_end: int      # exclusive
+    train_end: int  # exclusive
     test_start: int
-    test_end: int       # exclusive
+    test_end: int  # exclusive
 
 
 @dataclass(frozen=True)
 class WalkForwardResult:
     """Aggregate outcome across all folds."""
+
     stitched_sharpe: float
     stitched_max_drawdown: float
     stitched_total_return: float
     in_sample_sharpe: float
-    walk_forward_efficiency: float   # WF return / in-sample return
+    walk_forward_efficiency: float  # WF return / in-sample return
     num_windows: int
     worst_window_drawdown: float
     passed: bool
@@ -149,10 +152,7 @@ def run_walk_forward(
     is_ret = metrics.total_return(is_equity)
     efficiency = (stitched_ret / is_ret) if is_ret > 0 else 0.0
 
-    passed = (
-        stitched_sharpe >= min_stitched_sharpe
-        and efficiency >= min_efficiency
-    )
+    passed = stitched_sharpe >= min_stitched_sharpe and efficiency >= min_efficiency
 
     return WalkForwardResult(
         stitched_sharpe=stitched_sharpe,

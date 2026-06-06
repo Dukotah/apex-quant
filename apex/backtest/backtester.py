@@ -9,6 +9,7 @@ consumes.
 It also exposes a slice-based backtest function compatible with the walk-forward
 framework's `backtest_fn(train_start, train_end, test_start, test_end)` contract.
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -38,8 +39,7 @@ def run_backtest(
         slippage_pct=slippage_pct,
         commission_per_share=commission_per_share,
     )
-    engine = TradingEngine(events, [strategy], risk, portfolio, execution,
-                           fill_timing=fill_timing)
+    engine = TradingEngine(events, [strategy], risk, portfolio, execution, fill_timing=fill_timing)
     return engine.run()
 
 
@@ -57,8 +57,10 @@ def make_slice_backtest_fn(
     for API compatibility; these rules-based strategies are not re-fit per window,
     so training is a warm-up pass rather than an optimization.
     """
-    def backtest_fn(train_start: int, train_end: int,
-                    test_start: int, test_end: int) -> List[float]:
+
+    def backtest_fn(
+        train_start: int, train_end: int, test_start: int, test_end: int
+    ) -> List[float]:
         window = events[test_start:test_end]
         if len(window) < 2:
             return [1.0, 1.0]

@@ -6,6 +6,7 @@ equity recording, trade-return capture, halt enforcement, strategy quarantine,
 and the mode→engine factory. Also probes the RiskManager exit-sizing behavior
 so the integration assumptions are explicit.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -38,15 +39,27 @@ class ScriptedStrategy(BaseStrategy):
         self._i += 1
         buy_bars = self.buy_at if isinstance(self.buy_at, (set, list, tuple)) else {self.buy_at}
         if self._i in buy_bars:
-            return [SignalEvent(symbol=bar.symbol, side=OrderSide.BUY,
-                                strength=Decimal("1.0"), strategy_id=self.strategy_id,
-                                suggested_stop_loss=bar.close * Decimal("0.9"),
-                                reason="scripted buy")]
+            return [
+                SignalEvent(
+                    symbol=bar.symbol,
+                    side=OrderSide.BUY,
+                    strength=Decimal("1.0"),
+                    strategy_id=self.strategy_id,
+                    suggested_stop_loss=bar.close * Decimal("0.9"),
+                    reason="scripted buy",
+                )
+            ]
         if self._i == self.sell_at:
-            return [SignalEvent(symbol=bar.symbol, side=OrderSide.SELL,
-                                strength=Decimal("1.0"), strategy_id=self.strategy_id,
-                                suggested_stop_loss=bar.close * Decimal("1.1"),
-                                reason="scripted sell")]
+            return [
+                SignalEvent(
+                    symbol=bar.symbol,
+                    side=OrderSide.SELL,
+                    strength=Decimal("1.0"),
+                    strategy_id=self.strategy_id,
+                    suggested_stop_loss=bar.close * Decimal("1.1"),
+                    reason="scripted sell",
+                )
+            ]
         return []
 
 
@@ -60,18 +73,26 @@ def _bars(prices, sym=SYM, start=None):
     events = []
     for i, p in enumerate(prices):
         price = Decimal(str(p))
-        bar = Bar(symbol=sym, timestamp=start + timedelta(days=i),
-                  open=price, high=price * Decimal("1.01"),
-                  low=price * Decimal("0.99"), close=price, volume=Decimal("1000"))
+        bar = Bar(
+            symbol=sym,
+            timestamp=start + timedelta(days=i),
+            open=price,
+            high=price * Decimal("1.01"),
+            low=price * Decimal("0.99"),
+            close=price,
+            volume=Decimal("1000"),
+        )
         events.append(MarketEvent(bar=bar))
     return events
 
 
 def _full_risk(**over):
     """RiskConfig allowing full deployment (single-strategy backtest)."""
-    base = dict(max_position_size_pct=Decimal("1.0"),
-                max_total_exposure_pct=Decimal("1.0"),
-                max_leverage=Decimal("1.0"))
+    base = dict(
+        max_position_size_pct=Decimal("1.0"),
+        max_total_exposure_pct=Decimal("1.0"),
+        max_leverage=Decimal("1.0"),
+    )
     base.update(over)
     return RiskConfig(**base)
 
@@ -85,7 +106,7 @@ def _engine(events, strategies, risk_config=None, capital="100000", slippage="0.
 
 def test_buy_fills_at_next_bar_open_with_slippage():
     events = _bars([100, 110, 120, 130])
-    strat = ScriptedStrategy("s", [SYM], buy_at=0)   # buy on bar 0 (close=100)
+    strat = ScriptedStrategy("s", [SYM], buy_at=0)  # buy on bar 0 (close=100)
     engine, portfolio, _ = _engine(events, [strat])
     result = engine.run()
 
@@ -111,7 +132,7 @@ def test_no_lookahead_signal_bar_is_not_the_fill_bar():
 
 def test_equity_recorded_once_per_day():
     events = _bars([100, 101, 102, 103, 104])
-    strat = ScriptedStrategy("s", [SYM])   # no trades
+    strat = ScriptedStrategy("s", [SYM])  # no trades
     engine, _, _ = _engine(events, [strat])
     result = engine.run()
     assert len(result.equity_curve) == 5
@@ -156,8 +177,10 @@ def test_factory_live_alpaca_builds_live_engine():
     # Live Alpaca execution is now built — the factory returns the live (non-paper)
     # engine. (Constructing it does not touch the SDK; connect() would.)
     from apex.execution.alpaca import AlpacaExecutionEngine
-    cfg = AppConfig(mode=ExecutionMode.LIVE, broker=Broker.ALPACA,
-                    alpaca_key="k", alpaca_secret="s")
+
+    cfg = AppConfig(
+        mode=ExecutionMode.LIVE, broker=Broker.ALPACA, alpaca_key="k", alpaca_secret="s"
+    )
     engine = make_execution_engine(cfg)
     assert isinstance(engine, AlpacaExecutionEngine)
     assert engine.is_paper is False
@@ -177,13 +200,13 @@ def test_exit_signal_closes_position_via_reduce_path():
     full exposure where the old exposure-room sizing would have rejected it."""
     events = _bars([100, 101, 102, 103, 104])
     strat = ScriptedStrategy("s", [SYM], buy_at=0, sell_at=2)
-    engine, portfolio, _ = _engine(events, [strat])   # full exposure config
+    engine, portfolio, _ = _engine(events, [strat])  # full exposure config
     result = engine.run()
     # Bought ~1000 shares on bar 0→1; sold them on bar 2→3.
     sides = [f.side for f in result.fills]
     assert OrderSide.BUY in sides and OrderSide.SELL in sides
-    assert "TEST" not in portfolio.open_positions   # fully flat after the exit
-    assert len(result.trade_returns) == 1           # one completed round trip
+    assert "TEST" not in portfolio.open_positions  # fully flat after the exit
+    assert len(result.trade_returns) == 1  # one completed round trip
 
 
 def test_daily_loss_halt_clears_next_day():

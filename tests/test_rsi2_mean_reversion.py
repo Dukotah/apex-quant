@@ -12,6 +12,7 @@ Validates:
   - Determinism: same inputs → same signals.
   - Ignores bars for unknown symbols.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -29,6 +30,7 @@ SYM = Symbol("SPY", AssetClass.ETF)
 # ---------------------------------------------------------------------------
 # Helper utilities
 # ---------------------------------------------------------------------------
+
 
 def _bar(price: float, t: datetime, high: float = None, low: float = None) -> Bar:
     p = Decimal(str(price))
@@ -93,6 +95,7 @@ def _make_recovery(prices: List[float], target: float, length: int) -> List[floa
 # Construction validation
 # ---------------------------------------------------------------------------
 
+
 def test_invalid_sma_params():
     with pytest.raises(ValueError):
         RSI2MeanReversionStrategy("s", [SYM], sma_trend=5, sma_exit=10)
@@ -109,6 +112,7 @@ def test_invalid_stop_loss_pct():
 # Warmup
 # ---------------------------------------------------------------------------
 
+
 def test_no_signal_during_warmup():
     """Fewer than 201 bars → SMA(200) undefined → no signals."""
     strat = RSI2MeanReversionStrategy("s", [SYM])
@@ -122,13 +126,15 @@ def test_no_signal_during_warmup():
 # BUY conditions
 # ---------------------------------------------------------------------------
 
+
 def test_buy_emitted_when_uptrend_and_rsi_oversold():
     """
     Build 210 uptrend bars so SMA(200) is established and price > SMA(200),
     then drive a sharp dip to force RSI(2) < 10.  Expect at least one BUY.
     """
     strat = RSI2MeanReversionStrategy(
-        "s", [SYM],
+        "s",
+        [SYM],
         entry_threshold=Decimal("10"),
         time_stop_bars=0,  # disable time-stop so only SMA(5) exits apply
     )
@@ -154,7 +160,8 @@ def test_buy_emitted_when_uptrend_and_rsi_oversold():
 def test_stop_loss_below_close():
     """Stop-loss must be strictly below the bar close at entry."""
     strat = RSI2MeanReversionStrategy(
-        "s", [SYM],
+        "s",
+        [SYM],
         stop_loss_pct=Decimal("0.02"),
         time_stop_bars=0,
     )
@@ -167,7 +174,10 @@ def test_stop_loss_below_close():
         bar = Bar(
             symbol=SYM,
             timestamp=t + timedelta(days=i),
-            open=price, high=price, low=price, close=price,
+            open=price,
+            high=price,
+            low=price,
+            close=price,
             volume=Decimal("1000000"),
         )
         sigs = strat.on_bar(bar)
@@ -182,38 +192,40 @@ def test_stop_loss_below_close():
 # No BUY when below the trend filter
 # ---------------------------------------------------------------------------
 
+
 def test_no_buy_when_below_200sma():
     """
     Build a downtrend so price falls below SMA(200), then send in oversold RSI.
     No BUY should fire because the trend filter blocks it.
     """
     strat = RSI2MeanReversionStrategy(
-        "s", [SYM],
+        "s",
+        [SYM],
         entry_threshold=Decimal("10"),
         time_stop_bars=0,
     )
     # Steady downtrend: price slides from 200 down to ~90.  Price will always be
     # below the 200-SMA which will lag above.
     n = 210
-    prices = [200.0 - i * 0.5 for i in range(n)]     # 200 → ~95
+    prices = [200.0 - i * 0.5 for i in range(n)]  # 200 → ~95
     # Now send in a violent short dip to force RSI(2) < 10.
     prices = _make_dip(prices, depth=10.0, length=5)
     signals = _feed_prices(strat, prices)
 
     buys = [s for s in signals if s.side == OrderSide.BUY]
-    assert buys == [], (
-        f"Expected no BUYs when below SMA(200), but got {len(buys)}"
-    )
+    assert buys == [], f"Expected no BUYs when below SMA(200), but got {len(buys)}"
 
 
 # ---------------------------------------------------------------------------
 # SELL conditions
 # ---------------------------------------------------------------------------
 
+
 def test_sell_emitted_when_close_above_sma5():
     """After a BUY, a recovery above SMA(5) should emit SELL."""
     strat = RSI2MeanReversionStrategy(
-        "s", [SYM],
+        "s",
+        [SYM],
         entry_threshold=Decimal("10"),
         time_stop_bars=0,  # only SMA(5) exit
     )
@@ -234,7 +246,8 @@ def test_sell_emitted_when_close_above_sma5():
 def test_time_stop_exits_position():
     """If close doesn't rise above SMA(5), the time-stop fires after N bars."""
     strat = RSI2MeanReversionStrategy(
-        "s", [SYM],
+        "s",
+        [SYM],
         entry_threshold=Decimal("10"),
         sma_exit=5,
         time_stop_bars=3,
@@ -254,14 +267,16 @@ def test_time_stop_exits_position():
 # No duplicate BUYs while long
 # ---------------------------------------------------------------------------
 
+
 def test_no_duplicate_buys_while_long():
     """
     After entering long, another low-RSI bar should NOT trigger a second BUY
     until the position is closed.
     """
     strat = RSI2MeanReversionStrategy(
-        "s", [SYM],
-        entry_threshold=Decimal("15"),   # wider threshold to capture more bars
+        "s",
+        [SYM],
+        entry_threshold=Decimal("15"),  # wider threshold to capture more bars
         time_stop_bars=0,
     )
     prices = list(_make_uptrend(n=210, base=100.0, drift=0.05))
@@ -277,13 +292,13 @@ def test_no_duplicate_buys_while_long():
 # Ignores unknown symbol
 # ---------------------------------------------------------------------------
 
+
 def test_ignores_unknown_symbol():
     strat = RSI2MeanReversionStrategy("s", [SYM])
     other = Symbol("OTHER", AssetClass.EQUITY)
     t = datetime(2020, 1, 1, tzinfo=timezone.utc)
     p = Decimal("100")
-    bar = Bar(symbol=other, timestamp=t, open=p, high=p, low=p, close=p,
-              volume=Decimal("1"))
+    bar = Bar(symbol=other, timestamp=t, open=p, high=p, low=p, close=p, volume=Decimal("1"))
     assert strat.on_bar(bar) == []
 
 
@@ -291,10 +306,12 @@ def test_ignores_unknown_symbol():
 # Sell-only-when-long
 # ---------------------------------------------------------------------------
 
+
 def test_no_sell_without_prior_buy():
     """If we never entered long, no SELL should ever fire."""
     strat = RSI2MeanReversionStrategy(
-        "s", [SYM],
+        "s",
+        [SYM],
         entry_threshold=Decimal("10"),
         time_stop_bars=5,
     )
@@ -310,6 +327,7 @@ def test_no_sell_without_prior_buy():
 # Determinism
 # ---------------------------------------------------------------------------
 
+
 def test_deterministic():
     """Same inputs fed to two independent instances → identical signals."""
     prices = list(_make_uptrend(n=210, base=100.0, drift=0.05))
@@ -320,6 +338,4 @@ def test_deterministic():
     s2 = RSI2MeanReversionStrategy("s", [SYM], time_stop_bars=0)
     sig1 = _feed_prices(s1, prices)
     sig2 = _feed_prices(s2, prices)
-    assert [s.side for s in sig1] == [s.side for s in sig2], (
-        "Non-deterministic output detected"
-    )
+    assert [s.side for s in sig1] == [s.side for s in sig2], "Non-deterministic output detected"

@@ -25,6 +25,7 @@ Holdings read from the broker-reconciled context (cold-start correct, no pyramid
 
 Deterministic, no I/O, stdlib-only.
 """
+
 from __future__ import annotations
 
 import statistics
@@ -91,7 +92,7 @@ class ShortTermReversalStrategy(BaseStrategy):
     def _realized_vol(self, closes: list[float]) -> Optional[float]:
         if len(closes) < self.vol_window + 1:
             return None
-        w = closes[-(self.vol_window + 1):]
+        w = closes[-(self.vol_window + 1) :]
         rets = [(w[i] - w[i - 1]) / w[i - 1] for i in range(1, len(w)) if w[i - 1]]
         return statistics.pstdev(rets) if len(rets) >= 2 else None
 
@@ -116,7 +117,8 @@ class ShortTermReversalStrategy(BaseStrategy):
     def _is_oversold_leader(self, ticker: str) -> bool:
         """Among uptrend names, is `ticker` one of the bottom_k most-oversold?"""
         candidates = [
-            (t, self._rev[t]) for t in self._rev
+            (t, self._rev[t])
+            for t in self._rev
             if self._uptrend.get(t) and self._rev[t] is not None
         ]
         if not candidates:
@@ -155,17 +157,26 @@ class ShortTermReversalStrategy(BaseStrategy):
 
         if wanted and not held:
             strength = self._inverse_vol_strength(ticker)
-            signals.append(SignalEvent(
-                symbol=bar.symbol, side=OrderSide.BUY, strength=strength,
-                strategy_id=self.strategy_id,
-                suggested_stop_loss=bar.close * (Decimal("1") - self.stop_loss_pct),
-                timestamp=bar.timestamp,
-                reason=f"oversold dip (bottom-{self.bottom_k}) in an uptrend",
-            ))
+            signals.append(
+                SignalEvent(
+                    symbol=bar.symbol,
+                    side=OrderSide.BUY,
+                    strength=strength,
+                    strategy_id=self.strategy_id,
+                    suggested_stop_loss=bar.close * (Decimal("1") - self.stop_loss_pct),
+                    timestamp=bar.timestamp,
+                    reason=f"oversold dip (bottom-{self.bottom_k}) in an uptrend",
+                )
+            )
         elif held and not wanted:
-            signals.append(SignalEvent(
-                symbol=bar.symbol, side=OrderSide.SELL, strength=Decimal("1.0"),
-                strategy_id=self.strategy_id, timestamp=bar.timestamp,
-                reason="bounced out of oversold set or trend broke",
-            ))
+            signals.append(
+                SignalEvent(
+                    symbol=bar.symbol,
+                    side=OrderSide.SELL,
+                    strength=Decimal("1.0"),
+                    strategy_id=self.strategy_id,
+                    timestamp=bar.timestamp,
+                    reason="bounced out of oversold set or trend broke",
+                )
+            )
         return signals

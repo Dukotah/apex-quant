@@ -13,6 +13,7 @@ Two usage patterns, both supported:
 Single-threaded by default (backtest determinism). A threading.Lock guards state
 so a live feed thread can put() while the engine get()s without corruption.
 """
+
 from __future__ import annotations
 
 import threading

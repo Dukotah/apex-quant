@@ -7,6 +7,7 @@ The key behavioral guarantees we lock in:
   - Too few trades FAILS CLOSED (can't validate → don't approve).
   - Results are reproducible (seeded).
 """
+
 from __future__ import annotations
 
 import random
@@ -19,8 +20,8 @@ def _make_edge_trades(n: int, seed: int = 1) -> list[float]:
     rng = random.Random(seed)
     trades = []
     for _ in range(n):
-        if rng.random() < 0.60:           # 60% win rate
-            trades.append(rng.uniform(0.01, 0.03))   # wins +1% to +3%
+        if rng.random() < 0.60:  # 60% win rate
+            trades.append(rng.uniform(0.01, 0.03))  # wins +1% to +3%
         else:
             trades.append(rng.uniform(-0.02, -0.005))  # losses smaller
     return trades
@@ -48,10 +49,10 @@ def test_noise_fails():
 
 
 def test_too_few_trades_fails_closed():
-    trades = _make_edge_trades(10)     # below the 30-trade minimum
+    trades = _make_edge_trades(10)  # below the 30-trade minimum
     result = run_monte_carlo(trades, iterations=1000, seed=7)
     assert result.passed is False
-    assert result.iterations == 0      # signals "not enough data to test"
+    assert result.iterations == 0  # signals "not enough data to test"
 
 
 def test_reproducible():

@@ -20,6 +20,7 @@ whether the available strategies actually combine to >= 1.0.
 Usage:
     python -m scripts.portfolio data/real/dm_long.csv
 """
+
 from __future__ import annotations
 
 import sys
@@ -40,9 +41,12 @@ from apex.strategy.library.sma_crossover import SMACrossoverStrategy
 from apex.strategy.library.trend_bond import TrendBondStrategy
 
 SLEEVE_RISK = RiskConfig(
-    max_position_size_pct=Decimal("1.0"), max_total_exposure_pct=Decimal("1.0"),
-    max_leverage=Decimal("1.0"), max_drawdown_pct=Decimal("0.99"),
-    max_daily_loss_pct=Decimal("0.99"), require_stop_loss=True,
+    max_position_size_pct=Decimal("1.0"),
+    max_total_exposure_pct=Decimal("1.0"),
+    max_leverage=Decimal("1.0"),
+    max_drawdown_pct=Decimal("0.99"),
+    max_daily_loss_pct=Decimal("0.99"),
+    require_stop_loss=True,
 )
 TRADING_DAYS = 252.0
 
@@ -57,11 +61,17 @@ def _utf8():
 def _components(symbols):
     spy, agg = symbols[0], symbols[-1]
     return {
-        "spy_trend":   lambda: SMACrossoverStrategy("spy_trend", [spy], fast_period=20, slow_period=200),
-        "dual_mom":    lambda: DualMomentumStrategy("dual_mom", symbols, "SPY", "EFA", "AGG", lookback_window=252),
-        "trend_bond":  lambda: TrendBondStrategy("trend_bond", [spy, agg], slow_period=200),
-        "rsi2":        lambda: RSI2MeanReversionStrategy("rsi2", [spy], entry_threshold=Decimal("10")),
-        "rsi2_vol":    lambda: RSI2VolFilteredStrategy("rsi2_vol", [spy], entry_threshold=Decimal("10")),
+        "spy_trend": lambda: SMACrossoverStrategy(
+            "spy_trend", [spy], fast_period=20, slow_period=200
+        ),
+        "dual_mom": lambda: DualMomentumStrategy(
+            "dual_mom", symbols, "SPY", "EFA", "AGG", lookback_window=252
+        ),
+        "trend_bond": lambda: TrendBondStrategy("trend_bond", [spy, agg], slow_period=200),
+        "rsi2": lambda: RSI2MeanReversionStrategy("rsi2", [spy], entry_threshold=Decimal("10")),
+        "rsi2_vol": lambda: RSI2VolFilteredStrategy(
+            "rsi2_vol", [spy], entry_threshold=Decimal("10")
+        ),
     }
 
 
@@ -107,7 +117,7 @@ def main() -> None:
 
     # Align to the shortest curve (warmups differ slightly).
     n = min(len(r) for r in rets.values())
-    R = np.column_stack([rets[name][-n:] for name in names])   # (days, strategies)
+    R = np.column_stack([rets[name][-n:] for name in names])  # (days, strategies)
 
     print("Standalone Sharpe (full period):")
     for i, name in enumerate(names):
@@ -136,7 +146,9 @@ def main() -> None:
         if wt > 0:
             print(f"  {name:12s} {wt:.0%}")
     print(f"\n  In-sample Sharpe:     {is_sharpe:.2f}")
-    print(f"  Out-of-sample Sharpe: {oos_sharpe:.2f}   <- the honest number (weights fixed from IS)")
+    print(
+        f"  Out-of-sample Sharpe: {oos_sharpe:.2f}   <- the honest number (weights fixed from IS)"
+    )
     print(f"  Full-period Sharpe:   {full_sharpe:.2f}")
     print(f"\n  {'>= 1.0 CLEARED' if oos_sharpe >= 1.0 else 'below 1.0'} out-of-sample.")
 

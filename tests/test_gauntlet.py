@@ -4,6 +4,7 @@ Tests for apex.validation.gauntlet — the grading/orchestration logic.
 Locks in: hard-gate failures block approval; clean runs grade A; warnings drop
 the grade but can still approve; the quarantine floor is computed correctly.
 """
+
 from __future__ import annotations
 
 from apex.validation import gauntlet as G
@@ -24,20 +25,21 @@ def _warn(name):
 
 def _flat_equity(n: int) -> list[float]:
     """A gently rising equity curve (Sharpe>1, small DD) so only the trade-count gate can bite."""
-    return [100.0 * (1.003 ** i) for i in range(n)]
+    return [100.0 * (1.003**i) for i in range(n)]
 
 
 # ----------------------------------------------------- regime-aware min trades
 
+
 def test_regime_aware_daily_uses_full_bar():
     assert G.regime_aware_min_trades(1000, rebalance_period_bars=1) == G.MIN_TRADES
-    assert G.regime_aware_min_trades(1000) == G.MIN_TRADES        # default period
+    assert G.regime_aware_min_trades(1000) == G.MIN_TRADES  # default period
 
 
 def test_regime_aware_short_window_caps_at_opportunities():
     # 2 years of daily bars, monthly cadence → ~24 rebalance opportunities < 50.
     m = G.regime_aware_min_trades(504, rebalance_period_bars=21)
-    assert m == 504 // 21                                          # 24, the cap
+    assert m == 504 // 21  # 24, the cap
     assert G.MIN_TRADES_FLOOR <= m < G.MIN_TRADES
 
 
@@ -53,7 +55,7 @@ def test_regime_aware_long_window_keeps_full_bar():
 
 def test_gate1_relaxed_minimum_lets_low_freq_pass():
     eq = _flat_equity(300)
-    trades = [0.02, -0.01, 0.03, 0.015, -0.005] * 5    # 25 trades, all the gate needs
+    trades = [0.02, -0.01, 0.03, 0.015, -0.005] * 5  # 25 trades, all the gate needs
     # With the default 50-trade bar this FAILs purely on count...
     strict = G.evaluate_gate1_in_sample(eq, trades)
     assert strict.status == GateStatus.FAIL
@@ -66,7 +68,7 @@ def test_gate1_relaxed_minimum_lets_low_freq_pass():
 
 def test_gate1_relaxed_bar_still_enforces_other_checks():
     # Even with a low trade bar, a poor Sharpe must still FAIL the gate.
-    flat = [100.0] * 100                                # zero return → Sharpe ~0
+    flat = [100.0] * 100  # zero return → Sharpe ~0
     trades = [0.0] * 25
     res = G.evaluate_gate1_in_sample(flat, trades, min_trades=20)
     assert res.status == GateStatus.FAIL
@@ -75,7 +77,8 @@ def test_gate1_relaxed_bar_still_enforces_other_checks():
 
 def test_all_pass_grades_A():
     gates = [_pass(f"Gate {i}") for i in range(1, 6)] + [
-        _pass("Gate 6", hard=False), _pass("Gate 7", hard=False)
+        _pass("Gate 6", hard=False),
+        _pass("Gate 7", hard=False),
     ]
     report = G.grade_and_assemble("strat", gates, realistic_dd=0.2, validated_sharpe=1.2)
     assert report.grade == Grade.A
@@ -91,7 +94,8 @@ def test_hard_fail_blocks_approval():
 
 def test_warnings_drop_to_B_but_approve():
     gates = [_pass(f"Gate {i}") for i in range(1, 6)] + [
-        _warn("Gate 6"), _pass("Gate 7", hard=False)
+        _warn("Gate 6"),
+        _pass("Gate 7", hard=False),
     ]
     report = G.grade_and_assemble("strat", gates, realistic_dd=0.2, validated_sharpe=1.0)
     assert report.grade == Grade.B
@@ -109,7 +113,8 @@ def test_many_warnings_drop_to_C():
 
 def test_quarantine_floor():
     gates = [_pass(f"Gate {i}") for i in range(1, 6)] + [
-        _pass("Gate 6", hard=False), _pass("Gate 7", hard=False)
+        _pass("Gate 6", hard=False),
+        _pass("Gate 7", hard=False),
     ]
     report = G.grade_and_assemble("strat", gates, realistic_dd=0.3, validated_sharpe=1.0)
     assert abs(report.quarantine_sharpe_floor - 0.70) < 1e-9

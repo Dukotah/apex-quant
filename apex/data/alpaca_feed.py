@@ -23,6 +23,7 @@ Determinism: ``fetch_bars`` takes explicit ``start``/``end`` (no hidden
 ``now()`` in logic — the cron caller supplies the time from its injected clock),
 and the same fetched window always yields the same event sequence.
 """
+
 from __future__ import annotations
 
 import logging
@@ -111,8 +112,8 @@ class AlpacaDataFeed(BaseDataFeed):
         self._fetcher: Optional[BarFetcher] = bar_fetcher
         self._injected_fetcher = bar_fetcher is not None
 
-        self._bars: List[Bar] = []            # current fetched window, sorted
-        self._latest: dict[str, Bar] = {}     # ticker → most recent yielded bar
+        self._bars: List[Bar] = []  # current fetched window, sorted
+        self._latest: dict[str, Bar] = {}  # ticker → most recent yielded bar
         self.skipped_rows: int = 0
         self.gaps_detected: int = 0
 
@@ -180,8 +181,12 @@ class AlpacaDataFeed(BaseDataFeed):
         self._detect_gaps(self._bars, tf)
         logger.info(
             "AlpacaDataFeed fetched %d bars for %s over [%s, %s] (%d skipped, %d gaps).",
-            len(self._bars), tickers, start.date(), end.date(),
-            self.skipped_rows, self.gaps_detected,
+            len(self._bars),
+            tickers,
+            start.date(),
+            end.date(),
+            self.skipped_rows,
+            self.gaps_detected,
         )
         return self._bars
 
@@ -216,7 +221,11 @@ class AlpacaDataFeed(BaseDataFeed):
     # ----------------------------------------------------------------- internals
 
     def _fetch_with_retry(
-        self, tickers: List[str], start: datetime, end: datetime, tf: str,
+        self,
+        tickers: List[str],
+        start: datetime,
+        end: datetime,
+        tf: str,
     ) -> Mapping[str, Iterable[object]]:
         """Call the fetcher, retrying transient failures with exponential backoff."""
         last_exc: Optional[Exception] = None
@@ -227,10 +236,13 @@ class AlpacaDataFeed(BaseDataFeed):
                 last_exc = exc
                 if attempt == self.max_retries:
                     break
-                delay = self.backoff_base * (2 ** attempt)
+                delay = self.backoff_base * (2**attempt)
                 logger.warning(
                     "Alpaca fetch failed (attempt %d/%d): %s — retrying in %.1fs",
-                    attempt + 1, self.max_retries + 1, exc, delay,
+                    attempt + 1,
+                    self.max_retries + 1,
+                    exc,
+                    delay,
                 )
                 self._sleep(delay)
         raise ConnectionError(
@@ -238,7 +250,9 @@ class AlpacaDataFeed(BaseDataFeed):
         ) from last_exc
 
     def _normalize_and_sort(
-        self, raw_by_ticker: Mapping[str, Iterable[object]], tf: str,
+        self,
+        raw_by_ticker: Mapping[str, Iterable[object]],
+        tf: str,
     ) -> List[Bar]:
         """Normalize every raw bar to a validated Bar; sort chronologically."""
         parsed: List[tuple[datetime, str, int, Bar]] = []
@@ -282,7 +296,11 @@ class AlpacaDataFeed(BaseDataFeed):
             if prev is not None and (bar.timestamp - prev) > tolerance:
                 self.gaps_detected += 1
                 logger.warning(
-                    "Data gap for %s: %s → %s (> %s)", t, prev, bar.timestamp, tolerance,
+                    "Data gap for %s: %s → %s (> %s)",
+                    t,
+                    prev,
+                    bar.timestamp,
+                    tolerance,
                 )
             last_ts[t] = bar.timestamp
 

@@ -15,6 +15,7 @@ turns "guess some tickers" into a repeatable, principled screen.
 
 Run:  python -m scripts.sleeve_screen [K]
 """
+
 from __future__ import annotations
 
 import statistics
@@ -27,7 +28,7 @@ from apex.strategy import indicators as ind
 POOL = ["SPY", "EFA", "TLT", "GLD", "DBC", "UUP", "DBA", "FXY", "DBB", "DBO", "TIP", "BWX", "HYG"]
 PATH = "data/real/sleeve_pool.csv"
 SLOW = 200
-ANN = 252 ** 0.5
+ANN = 252**0.5
 
 
 def _load():
@@ -69,8 +70,10 @@ def main():
     tr = _trend_returns(px)
     common = sorted(set.intersection(*[set(tr[t]) for t in names]))
     vec = {t: [tr[t][d] for d in common] for t in names}
-    print(f"sleeve screen — {len(names)} candidates, {len(common)} common days "
-          f"({common[0].date()}..{common[-1].date()})\n")
+    print(
+        f"sleeve screen — {len(names)} candidates, {len(common)} common days "
+        f"({common[0].date()}..{common[-1].date()})\n"
+    )
 
     def corr(a, b):
         try:
@@ -78,7 +81,9 @@ def main():
         except Exception:  # noqa: BLE001
             return 0.0
 
-    sharpe = {t: (statistics.mean(vec[t]) / (statistics.pstdev(vec[t]) or 1e-9)) * ANN for t in names}
+    sharpe = {
+        t: (statistics.mean(vec[t]) / (statistics.pstdev(vec[t]) or 1e-9)) * ANN for t in names
+    }
 
     # Greedy: seed with the best standalone Sharpe, then repeatedly add the sleeve with
     # the lowest average |correlation| to those already chosen.
@@ -94,8 +99,10 @@ def main():
         print(f"  {mark} {t:<5} {sharpe[t]:+.2f}")
 
     print(f"\nGREEDY UNCORRELATED SET (K={len(chosen)}): {chosen}")
-    print("  avg |corr| within set: "
-          f"{statistics.mean(abs(corr(a, b)) for a in chosen for b in chosen if a != b):.3f}")
+    print(
+        "  avg |corr| within set: "
+        f"{statistics.mean(abs(corr(a, b)) for a in chosen for b in chosen if a != b):.3f}"
+    )
     print("\n  pairwise trend-sleeve correlations (selected set):")
     print("        " + "".join(f"{t:>6}" for t in chosen))
     for a in chosen:

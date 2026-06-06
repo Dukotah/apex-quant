@@ -19,6 +19,7 @@ history) so it is fully self-contained and unit-testable in isolation.
 It is intentionally simple — it's a pipeline test and a teaching example, NOT a
 strategy to deploy capital on. For real edges, see dual_momentum / rsi2.
 """
+
 from __future__ import annotations
 
 from decimal import Decimal

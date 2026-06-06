@@ -27,6 +27,7 @@ exactly like MultiAssetTrendStrategy.
 
 Deterministic, no I/O, stdlib-only math.
 """
+
 from __future__ import annotations
 
 import statistics
@@ -92,7 +93,7 @@ class CrossSectionalMomentumStrategy(BaseStrategy):
     def _realized_vol(self, closes: list[float]) -> Optional[float]:
         if len(closes) < self.vol_window + 1:
             return None
-        w = closes[-(self.vol_window + 1):]
+        w = closes[-(self.vol_window + 1) :]
         rets = [(w[i] - w[i - 1]) / w[i - 1] for i in range(1, len(w)) if w[i - 1]]
         return statistics.pstdev(rets) if len(rets) >= 2 else None
 
@@ -118,7 +119,7 @@ class CrossSectionalMomentumStrategy(BaseStrategy):
         """Is `ticker` among the top_k sleeves by current momentum?"""
         ranked = sorted(
             ((t, m) for t, m in self._mom.items() if m is not None),
-            key=lambda kv: (-kv[1], kv[0]),   # score desc, ticker asc — deterministic tie-break
+            key=lambda kv: (-kv[1], kv[0]),  # score desc, ticker asc — deterministic tie-break
         )
         leaders = {t for t, _ in ranked[: self.top_k]}
         return ticker in leaders
@@ -151,17 +152,26 @@ class CrossSectionalMomentumStrategy(BaseStrategy):
 
         if wanted and not held:
             strength = self._inverse_vol_strength(ticker)
-            signals.append(SignalEvent(
-                symbol=bar.symbol, side=OrderSide.BUY, strength=strength,
-                strategy_id=self.strategy_id,
-                suggested_stop_loss=bar.close * (Decimal("1") - self.stop_loss_pct),
-                timestamp=bar.timestamp,
-                reason=f"top-{self.top_k} momentum leader, above SMA{self.trend_period}",
-            ))
+            signals.append(
+                SignalEvent(
+                    symbol=bar.symbol,
+                    side=OrderSide.BUY,
+                    strength=strength,
+                    strategy_id=self.strategy_id,
+                    suggested_stop_loss=bar.close * (Decimal("1") - self.stop_loss_pct),
+                    timestamp=bar.timestamp,
+                    reason=f"top-{self.top_k} momentum leader, above SMA{self.trend_period}",
+                )
+            )
         elif held and not wanted:
-            signals.append(SignalEvent(
-                symbol=bar.symbol, side=OrderSide.SELL, strength=Decimal("1.0"),
-                strategy_id=self.strategy_id, timestamp=bar.timestamp,
-                reason=f"fell out of top-{self.top_k} or below SMA{self.trend_period}",
-            ))
+            signals.append(
+                SignalEvent(
+                    symbol=bar.symbol,
+                    side=OrderSide.SELL,
+                    strength=Decimal("1.0"),
+                    strategy_id=self.strategy_id,
+                    timestamp=bar.timestamp,
+                    reason=f"fell out of top-{self.top_k} or below SMA{self.trend_period}",
+                )
+            )
         return signals

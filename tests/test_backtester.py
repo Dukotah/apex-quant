@@ -6,6 +6,7 @@ Drives the already-built SMA crossover strategy (low warmup) through the engine
 and the full Gauntlet, asserting the machinery runs end-to-end and that the
 reduce-aware exit path lets positions actually close.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -39,9 +40,10 @@ def _full_risk():
 def _trending_series(n=600):
     # Alternating up/down regimes so the fast/slow MAs cross repeatedly.
     closes = generate_closes(
-        seed=11, n=n, start_price=100,
-        drift_schedule=[(0, 0.0010), (120, -0.0010), (240, 0.0012),
-                        (360, -0.0011), (480, 0.0010)],
+        seed=11,
+        n=n,
+        start_price=100,
+        drift_schedule=[(0, 0.0010), (120, -0.0010), (240, 0.0012), (360, -0.0011), (480, 0.0010)],
         vol=0.008,
     )
     return interleave(make_bars("SYN", closes))
@@ -67,7 +69,7 @@ def test_reduce_aware_exit_lets_positions_close():
     # If exits were rejected we'd see buys with (almost) no sells and 0 trades.
     assert sells > 0
     assert len(result.trade_returns) > 0
-    assert abs(buys - sells) <= 1   # roughly paired entries/exits
+    assert abs(buys - sells) <= 1  # roughly paired entries/exits
 
 
 def test_full_gauntlet_returns_graded_report():
@@ -78,7 +80,11 @@ def test_full_gauntlet_returns_graded_report():
         return SMACrossoverStrategy("sma_x", syms, fast_period=10, slow_period=30)
 
     report, inputs = run_full_gauntlet(
-        "sma_crossover_test", factory, events, _full_risk(), "SYN",
+        "sma_crossover_test",
+        factory,
+        events,
+        _full_risk(),
+        "SYN",
         param_variants=[("a", factory), ("b", factory)],
         mc_iterations=100,
     )
@@ -96,7 +102,9 @@ def test_full_gauntlet_returns_graded_report():
 def test_run_gauntlet_from_csv(tmp_path):
     """File → HistoricalDataFeed → full Gauntlet, the real-history entry path."""
     closes = generate_closes(
-        seed=5, n=600, start_price=100,
+        seed=5,
+        n=600,
+        start_price=100,
         drift_schedule=[(0, 0.0010), (150, -0.0010), (300, 0.0012), (450, -0.0009)],
         vol=0.008,
     )
@@ -119,8 +127,13 @@ def test_run_gauntlet_from_csv(tmp_path):
         return SMACrossoverStrategy("sma_csv", [sym], fast_period=10, slow_period=30)
 
     report, inputs = run_gauntlet_from_csv(
-        "sma_from_csv", factory, str(path), [sym], "SYN",
-        risk_config=_full_risk(), mc_iterations=80,
+        "sma_from_csv",
+        factory,
+        str(path),
+        [sym],
+        "SYN",
+        risk_config=_full_risk(),
+        mc_iterations=80,
     )
     assert len(report.gates) == 7
     assert isinstance(report.grade, Grade)

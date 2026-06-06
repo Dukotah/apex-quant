@@ -13,6 +13,7 @@ This separation is what lets Claude (or you) generate new strategies safely:
 a buggy or aggressive strategy literally cannot place a dangerous order,
 because it can't place orders at all. It can only suggest.
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -29,6 +30,7 @@ class StrategyContext:
     Strategies can SEE their positions, equity, and recent bars, but the
     context exposes no methods to mutate anything. Look, don't touch.
     """
+
     def __init__(self) -> None:
         self._positions: dict = {}
         self._equity = None

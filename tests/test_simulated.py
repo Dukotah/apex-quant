@@ -5,6 +5,7 @@ All assertions use exact hand-computed Decimal values — no floats, no
 approximations. The engine's determinism guarantee is verified by running
 the same sequence twice and checking that broker_order_ids match.
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -24,8 +25,8 @@ SYM = Symbol("AAPL", AssetClass.EQUITY)
 SYM_B = Symbol("MSFT", AssetClass.EQUITY)
 
 REF_PRICE = Decimal("100")
-SLIPPAGE_PCT = Decimal("0.001")      # 0.1 %
-COMMISSION = Decimal("0.005")        # $0.005 per share
+SLIPPAGE_PCT = Decimal("0.001")  # 0.1 %
+COMMISSION = Decimal("0.005")  # $0.005 per share
 QUANTITY = Decimal("10")
 
 
@@ -40,7 +41,7 @@ def _make_order(
         side=side,
         quantity=quantity,
         order_type=order_type,
-        stop_loss=Decimal("90"),   # mandatory stop (required by OrderEvent rules)
+        stop_loss=Decimal("90"),  # mandatory stop (required by OrderEvent rules)
     )
 
 
@@ -61,6 +62,7 @@ def _engine_with_price(
 # Lifecycle tests
 # ---------------------------------------------------------------------------
 
+
 class TestLifecycle:
     def test_initial_state(self):
         eng = SimulatedExecutionEngine()
@@ -79,7 +81,7 @@ class TestLifecycle:
 
     def test_disconnect_is_idempotent(self):
         eng = SimulatedExecutionEngine()
-        eng.disconnect()   # already disconnected — must not raise
+        eng.disconnect()  # already disconnected — must not raise
         assert not eng.is_connected
 
     def test_context_manager(self):
@@ -95,6 +97,7 @@ class TestLifecycle:
 # ---------------------------------------------------------------------------
 # Price registration
 # ---------------------------------------------------------------------------
+
 
 class TestUpdatePrice:
     def test_update_price_stores_value(self):
@@ -118,6 +121,7 @@ class TestUpdatePrice:
 # ---------------------------------------------------------------------------
 # BUY fill math
 # ---------------------------------------------------------------------------
+
 
 class TestBuyFill:
     def test_buy_fill_price_above_ref_by_slippage(self):
@@ -152,6 +156,7 @@ class TestBuyFill:
 # SELL fill math
 # ---------------------------------------------------------------------------
 
+
 class TestSellFill:
     def test_sell_fill_price_below_ref_by_slippage(self):
         """SELL fills at ref * (1 - slippage_pct) — seller receives less."""
@@ -184,6 +189,7 @@ class TestSellFill:
 # ---------------------------------------------------------------------------
 # Slippage amount
 # ---------------------------------------------------------------------------
+
 
 class TestSlippageAmount:
     def test_buy_slippage_amount(self):
@@ -224,6 +230,7 @@ class TestSlippageAmount:
 # Commission
 # ---------------------------------------------------------------------------
 
+
 class TestCommission:
     def test_commission_computed_correctly(self):
         """
@@ -257,6 +264,7 @@ class TestCommission:
 # ---------------------------------------------------------------------------
 # on_fill callback
 # ---------------------------------------------------------------------------
+
 
 class TestOnFillCallback:
     def test_callback_receives_fill_event(self):
@@ -292,7 +300,7 @@ class TestOnFillCallback:
         """Submitting with no on_fill bound is legal — just no delivery."""
         eng = SimulatedExecutionEngine()
         eng.update_price(SYM.ticker, REF_PRICE)
-        eng.submit_order(_make_order(OrderSide.BUY))   # must not raise
+        eng.submit_order(_make_order(OrderSide.BUY))  # must not raise
 
     def test_bind_fill_handler_post_init(self):
         """bind_fill_handler() wires a handler after construction."""
@@ -307,6 +315,7 @@ class TestOnFillCallback:
 # ---------------------------------------------------------------------------
 # Deterministic broker_order_id
 # ---------------------------------------------------------------------------
+
 
 class TestBrokerOrderId:
     def test_first_order_is_sim_1(self):
@@ -325,6 +334,7 @@ class TestBrokerOrderId:
 
     def test_ids_are_deterministic_across_instances(self):
         """Same submission sequence on two fresh engines → same ids."""
+
         def _run_sequence() -> List[str]:
             eng = _engine_with_price()
             return [
@@ -356,6 +366,7 @@ class TestBrokerOrderId:
 # Fail-closed: no price → ValueError
 # ---------------------------------------------------------------------------
 
+
 class TestFailClosed:
     def test_no_price_raises_value_error(self):
         eng = SimulatedExecutionEngine()
@@ -379,6 +390,7 @@ class TestFailClosed:
 # cancel_order / get_account_equity / reconcile_positions
 # ---------------------------------------------------------------------------
 
+
 class TestAncillaryMethods:
     def test_cancel_order_returns_true(self):
         eng = SimulatedExecutionEngine()
@@ -397,6 +409,7 @@ class TestAncillaryMethods:
 # ---------------------------------------------------------------------------
 # Full round-trip: connect → update_price → submit → fill
 # ---------------------------------------------------------------------------
+
 
 class TestRoundTrip:
     def test_full_buy_round_trip(self):

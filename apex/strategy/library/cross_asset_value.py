@@ -39,6 +39,7 @@ Holdings come from the broker-reconciled context (cold-start correct, no pyramid
 
 Deterministic, no I/O, stdlib-only math.
 """
+
 from __future__ import annotations
 
 import statistics
@@ -122,7 +123,7 @@ class CrossAssetValueStrategy(BaseStrategy):
     def _realized_vol(self, closes: list[float]) -> Optional[float]:
         if len(closes) < self.vol_window + 1:
             return None
-        w = closes[-(self.vol_window + 1):]
+        w = closes[-(self.vol_window + 1) :]
         rets = [(w[i] - w[i - 1]) / w[i - 1] for i in range(1, len(w)) if w[i - 1]]
         return statistics.pstdev(rets) if len(rets) >= 2 else None
 
@@ -148,7 +149,7 @@ class CrossAssetValueStrategy(BaseStrategy):
         """Is `ticker` among the top_k cheapest sleeves by current value score?"""
         ranked = sorted(
             ((t, v) for t, v in self._value.items() if v is not None),
-            key=lambda kv: (-kv[1], kv[0]),   # value desc, ticker asc — deterministic tie-break
+            key=lambda kv: (-kv[1], kv[0]),  # value desc, ticker asc — deterministic tie-break
         )
         leaders = {t for t, _ in ranked[: self.top_k]}
         return ticker in leaders
@@ -187,17 +188,26 @@ class CrossAssetValueStrategy(BaseStrategy):
             reason = f"top-{self.top_k} cheapest (value: {self.value_period}b reversal)"
             if self.use_trend_filter:
                 reason += f", above SMA{self.trend_period}"
-            signals.append(SignalEvent(
-                symbol=bar.symbol, side=OrderSide.BUY, strength=strength,
-                strategy_id=self.strategy_id,
-                suggested_stop_loss=bar.close * (Decimal("1") - self.stop_loss_pct),
-                timestamp=bar.timestamp,
-                reason=reason,
-            ))
+            signals.append(
+                SignalEvent(
+                    symbol=bar.symbol,
+                    side=OrderSide.BUY,
+                    strength=strength,
+                    strategy_id=self.strategy_id,
+                    suggested_stop_loss=bar.close * (Decimal("1") - self.stop_loss_pct),
+                    timestamp=bar.timestamp,
+                    reason=reason,
+                )
+            )
         elif held and not wanted:
-            signals.append(SignalEvent(
-                symbol=bar.symbol, side=OrderSide.SELL, strength=Decimal("1.0"),
-                strategy_id=self.strategy_id, timestamp=bar.timestamp,
-                reason=f"fell out of top-{self.top_k} cheapest",
-            ))
+            signals.append(
+                SignalEvent(
+                    symbol=bar.symbol,
+                    side=OrderSide.SELL,
+                    strength=Decimal("1.0"),
+                    strategy_id=self.strategy_id,
+                    timestamp=bar.timestamp,
+                    reason=f"fell out of top-{self.top_k} cheapest",
+                )
+            )
         return signals

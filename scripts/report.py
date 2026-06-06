@@ -10,6 +10,7 @@ Run:  python -m scripts.report            # default state DB, paper mode
       python -m scripts.report live       # a different mode
 Pure read-only; never touches the broker.
 """
+
 from __future__ import annotations
 
 import sys
@@ -18,8 +19,8 @@ from apex.validation import metrics
 from apex.validation.drift_monitor import DriftMonitor
 from scripts.run_once import DEPLOYED_VALIDATED_SHARPE, StateStore
 
-GATE_DAYS = 30          # Rule 17: 30+ days of paper before live capital
-GATE_MIN_SHARPE = 1.0   # the going-live bar
+GATE_DAYS = 30  # Rule 17: 30+ days of paper before live capital
+GATE_MIN_SHARPE = 1.0  # the going-live bar
 
 
 def _bar(frac: float, width: int = 24) -> str:
@@ -27,8 +28,9 @@ def _bar(frac: float, width: int = 24) -> str:
     return "█" * filled + "░" * (width - filled)
 
 
-def build_report(store: StateStore, mode: str = "paper",
-                 validated_sharpe: float = DEPLOYED_VALIDATED_SHARPE) -> str:
+def build_report(
+    store: StateStore, mode: str = "paper", validated_sharpe: float = DEPLOYED_VALIDATED_SHARPE
+) -> str:
     rows = store.history(mode)
     if not rows:
         return f"No '{mode}' runs recorded yet — the bot hasn't completed a cycle."
@@ -67,10 +69,12 @@ def build_report(store: StateStore, mode: str = "paper",
     ]
     if reading is not None:
         lines.append(f"  drift        {reading.summary()}")
-    verdict = ("✅ GATE PASSED — eligible for the live checklist"
-               if gate_met else
-               f"… running — need {GATE_DAYS}+ days and full Sharpe ≥ {GATE_MIN_SHARPE:.1f}"
-               + (" (quarantined!)" if reading and reading.is_quarantined else ""))
+    verdict = (
+        "✅ GATE PASSED — eligible for the live checklist"
+        if gate_met
+        else f"… running — need {GATE_DAYS}+ days and full Sharpe ≥ {GATE_MIN_SHARPE:.1f}"
+        + (" (quarantined!)" if reading and reading.is_quarantined else "")
+    )
     lines += ["-" * 56, f"  verdict      {verdict}"]
     return "\n".join(lines)
 

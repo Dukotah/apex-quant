@@ -9,6 +9,7 @@ Validates the GEM (Global Equities Momentum) logic end-to-end:
   - Stop-loss attached to every BUY
   - Determinism: same inputs → same outputs
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -32,6 +33,7 @@ SYMBOLS = [SPY, EFA, AGG]
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_bar(symbol: Symbol, dt: datetime, price: float) -> Bar:
     p = Decimal(str(price))
@@ -89,6 +91,7 @@ def _feed_three_streams(
 # ---------------------------------------------------------------------------
 # Price generators
 # ---------------------------------------------------------------------------
+
 
 def _trending_prices(start: float, daily_return: float, n: int) -> List[float]:
     """Compound daily_return for n days starting at `start`."""
@@ -180,8 +183,8 @@ class TestMonthBoundary:
         start = datetime(2024, 1, 2, tzinfo=timezone.utc)
         n = 70
         dates = _build_daily_dates(start, n)
-        spy = _trending_prices(400.0, 0.003, n)   # strongly up
-        efa = _trending_prices(50.0, 0.001, n)     # moderately up
+        spy = _trending_prices(400.0, 0.003, n)  # strongly up
+        efa = _trending_prices(50.0, 0.001, n)  # moderately up
         agg = _trending_prices(100.0, 0.0001, n)
 
         signals = _feed_three_streams(strat, dates, spy, efa, agg)
@@ -288,8 +291,7 @@ class TestGEMLogic:
         all_signals = _feed_three_streams(strat, all_dates, all_spy, all_efa, all_agg)
         # Signals that fell in the scenario window
         scenario_signals = [
-            s for s in all_signals
-            if s.timestamp is not None and s.timestamp >= s_start
+            s for s in all_signals if s.timestamp is not None and s.timestamp >= s_start
         ]
         return strat, all_signals, scenario_signals
 
@@ -302,8 +304,8 @@ class TestGEMLogic:
         start = datetime(2024, 1, 2, tzinfo=timezone.utc)
         n = 60
         dates = _build_daily_dates(start, n)
-        spy = _trending_prices(400.0, 0.004, n)   # ~11% over 20 days
-        efa = _trending_prices(50.0, 0.001, n)     # ~2% over 20 days
+        spy = _trending_prices(400.0, 0.004, n)  # ~11% over 20 days
+        efa = _trending_prices(50.0, 0.001, n)  # ~2% over 20 days
         agg = _trending_prices(100.0, 0.0001, n)
 
         signals = _feed_three_streams(strat, dates, spy, efa, agg)
@@ -311,9 +313,7 @@ class TestGEMLogic:
         assert len(buys) >= 1
         # First buy should be SPY (higher momentum, positive abs_mom)
         first_buy_ticker = buys[0].symbol.ticker
-        assert first_buy_ticker == "SPY", (
-            f"Expected first BUY to be SPY, got {first_buy_ticker}"
-        )
+        assert first_buy_ticker == "SPY", f"Expected first BUY to be SPY, got {first_buy_ticker}"
 
     def test_intl_higher_than_spy_both_positive_selects_intl(self):
         """
@@ -324,17 +324,15 @@ class TestGEMLogic:
         n = 60
         dates = _build_daily_dates(start, n)
         # EFA grows faster than SPY; both positive
-        spy = _trending_prices(400.0, 0.001, n)   # moderate
-        efa = _trending_prices(50.0, 0.005, n)     # stronger
+        spy = _trending_prices(400.0, 0.001, n)  # moderate
+        efa = _trending_prices(50.0, 0.005, n)  # stronger
         agg = _trending_prices(100.0, 0.0001, n)
 
         signals = _feed_three_streams(strat, dates, spy, efa, agg)
         buys = [s for s in signals if s.side == OrderSide.BUY]
         assert len(buys) >= 1
         first_buy_ticker = buys[0].symbol.ticker
-        assert first_buy_ticker == "EFA", (
-            f"Expected first BUY to be EFA, got {first_buy_ticker}"
-        )
+        assert first_buy_ticker == "EFA", f"Expected first BUY to be EFA, got {first_buy_ticker}"
 
     def test_spy_negative_selects_bonds(self):
         """
@@ -365,7 +363,7 @@ class TestGEMLogic:
         lookback = 20
         # Warmup: strong SPY uptrend
         # n_warmup must give us at least 2 full months so we get a BUY on SPY first.
-        n_warmup = 80   # ~2.5 months of daily bars; warmup completes at bar 21
+        n_warmup = 80  # ~2.5 months of daily bars; warmup completes at bar 21
 
         # Scenario: SPY crashes, intl flat, bonds up
         n_scenario = 50
@@ -374,7 +372,7 @@ class TestGEMLogic:
             lookback_window=lookback,
             n_warmup=n_warmup,
             n_scenario=n_scenario,
-            spy_warmup_ret=0.004,   # strong up during warmup
+            spy_warmup_ret=0.004,  # strong up during warmup
             efa_warmup_ret=0.001,
             spy_scenario_ret=-0.005,  # now falling
             efa_scenario_ret=-0.002,
@@ -383,8 +381,12 @@ class TestGEMLogic:
 
         # The key assertion is that scenario_signals include SELL SPY + BUY AGG
         # (we eventually held SPY during warmup, then rotated to AGG).
-        spy_sells = [s for s in scenario_signals if s.side == OrderSide.SELL and s.symbol.ticker == "SPY"]
-        agg_buys = [s for s in scenario_signals if s.side == OrderSide.BUY and s.symbol.ticker == "AGG"]
+        spy_sells = [
+            s for s in scenario_signals if s.side == OrderSide.SELL and s.symbol.ticker == "SPY"
+        ]
+        agg_buys = [
+            s for s in scenario_signals if s.side == OrderSide.BUY and s.symbol.ticker == "AGG"
+        ]
 
         assert len(agg_buys) >= 1, "Expected at least one BUY AGG signal in scenario"
         # If we had a position in SPY before the scenario, a SELL should accompany.
@@ -406,7 +408,7 @@ class TestGEMLogic:
         # Phase 1 (~40 days): SPY up, EFA up less → hold SPY
         # Phase 2 (~40 days): SPY down → rotate to AGG
         spy_prices = _trending_prices(400.0, 0.004, 40) + _trending_prices(
-            400.0 * (1.004 ** 39), -0.004, 40
+            400.0 * (1.004**39), -0.004, 40
         )
         efa_prices = _trending_prices(50.0, 0.001, 80)
         agg_prices = _trending_prices(100.0, 0.0001, 80)
@@ -416,6 +418,7 @@ class TestGEMLogic:
 
         # Group by timestamp: for any given rebalance date, SELL precedes BUY.
         from collections import defaultdict
+
         by_ts: dict = defaultdict(list)
         for s in all_signals:
             by_ts[s.timestamp].append(s)
@@ -426,9 +429,7 @@ class TestGEMLogic:
                 sell_idx = sides.index(OrderSide.SELL) if OrderSide.SELL in sides else -1
                 buy_idx = sides.index(OrderSide.BUY) if OrderSide.BUY in sides else -1
                 if sell_idx >= 0 and buy_idx >= 0:
-                    assert sell_idx < buy_idx, (
-                        f"At {ts}: SELL must come before BUY in signal list"
-                    )
+                    assert sell_idx < buy_idx, f"At {ts}: SELL must come before BUY in signal list"
 
     def test_no_duplicate_buy_when_holding_unchanged(self):
         """
@@ -447,9 +448,7 @@ class TestGEMLogic:
         signals = _feed_three_streams(strat, dates, spy, efa, agg)
         buys = [s for s in signals if s.side == OrderSide.BUY]
         # Should buy once (first eligible rebalance); subsequent months → hold.
-        assert len(buys) == 1, (
-            f"Expected exactly 1 BUY in a sustained uptrend, got {len(buys)}"
-        )
+        assert len(buys) == 1, f"Expected exactly 1 BUY in a sustained uptrend, got {len(buys)}"
 
     def test_buy_has_stop_loss(self):
         """Every BUY signal must carry a suggested_stop_loss."""
@@ -516,9 +515,7 @@ class TestGEMLogic:
                 for sig in evts:
                     if sig.side == OrderSide.BUY:
                         # Record the close at the moment of the BUY
-                        entry_prices[id(sig)] = strat._latest_close.get(
-                            sig.symbol.ticker
-                        )
+                        entry_prices[id(sig)] = strat._latest_close.get(sig.symbol.ticker)
                         buy_signals.append(sig)
 
         assert len(buy_signals) >= 1
@@ -563,9 +560,7 @@ class TestSignalProperties:
         n = 80
         dates = _build_daily_dates(start, n)
         # First equity positive → hold SPY; then equity negative → rotate
-        spy = _trending_prices(400.0, 0.004, 40) + _trending_prices(
-            400.0 * (1.004 ** 39), -0.005, 40
-        )
+        spy = _trending_prices(400.0, 0.004, 40) + _trending_prices(400.0 * (1.004**39), -0.005, 40)
         efa = _trending_prices(50.0, 0.001, 80)
         agg = _trending_prices(100.0, 0.0001, 80)
         signals = _feed_three_streams(strat, dates, spy, efa, agg)

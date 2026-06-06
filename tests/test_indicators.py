@@ -3,6 +3,7 @@ Tests for apex.strategy.indicators.
 Indicator math verified against hand-computed / reference values. A wrong
 indicator silently corrupts every strategy that uses it, so these are strict.
 """
+
 from __future__ import annotations
 
 from apex.strategy import indicators as ind
@@ -12,9 +13,9 @@ def test_sma_basic():
     data = [1, 2, 3, 4, 5]
     out = ind.sma(data, 3)
     assert out[0] is None and out[1] is None
-    assert out[2] == 2.0    # (1+2+3)/3
-    assert out[3] == 3.0    # (2+3+4)/3
-    assert out[4] == 4.0    # (3+4+5)/3
+    assert out[2] == 2.0  # (1+2+3)/3
+    assert out[3] == 3.0  # (2+3+4)/3
+    assert out[4] == 4.0  # (3+4+5)/3
 
 
 def test_sma_insufficient_data():
@@ -44,8 +45,26 @@ def test_rsi_all_losses_near_zero():
 
 
 def test_rsi_range_bounded():
-    data = [44, 44.34, 44.09, 44.15, 43.61, 44.33, 44.83, 45.10, 45.42,
-            45.84, 46.08, 45.89, 46.03, 45.61, 46.28, 46.28, 46.0, 46.03]
+    data = [
+        44,
+        44.34,
+        44.09,
+        44.15,
+        43.61,
+        44.33,
+        44.83,
+        45.10,
+        45.42,
+        45.84,
+        46.08,
+        45.89,
+        46.03,
+        45.61,
+        46.28,
+        46.28,
+        46.0,
+        46.03,
+    ]
     out = ind.rsi(data, 14)
     for v in out:
         if v is not None:

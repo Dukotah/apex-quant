@@ -25,6 +25,7 @@ years across several symbols), so the simplicity and the guarantee of correct
 chronological order — even when the source file is unsorted — are worth more
 than streaming a file we could never realistically be too large to hold.
 """
+
 from __future__ import annotations
 
 import csv
@@ -97,9 +98,9 @@ class HistoricalDataFeed(BaseDataFeed):
         # ticker -> Symbol, so each parsed row resolves to the configured instrument.
         self._by_ticker: dict[str, Symbol] = {s.ticker: s for s in self.symbols}
 
-        self._bars: List[Bar] = []                 # sorted, validated, ready to stream
-        self._latest: dict[str, Bar] = {}          # ticker -> most recent yielded bar
-        self.skipped_rows: int = 0                 # count of rows dropped as invalid
+        self._bars: List[Bar] = []  # sorted, validated, ready to stream
+        self._latest: dict[str, Bar] = {}  # ticker -> most recent yielded bar
+        self.skipped_rows: int = 0  # count of rows dropped as invalid
 
     # ----------------------------------------------------------------- lifecycle
 
@@ -126,7 +127,9 @@ class HistoricalDataFeed(BaseDataFeed):
         self._connected = True
         logger.info(
             "HistoricalDataFeed connected: %d bars from %s (%d rows skipped)",
-            len(self._bars), self.path, self.skipped_rows,
+            len(self._bars),
+            self.path,
+            self.skipped_rows,
         )
 
     def disconnect(self) -> None:
@@ -254,7 +257,7 @@ class HistoricalDataFeed(BaseDataFeed):
         else:
             text = str(raw).strip()
             if text.endswith("Z") or text.endswith("z"):
-                text = text[:-1] + "+00:00"   # 3.11-safe handling of Zulu suffix
+                text = text[:-1] + "+00:00"  # 3.11-safe handling of Zulu suffix
             dt = datetime.fromisoformat(text)
         # Naive → assume UTC; aware → convert to UTC. Bars are always UTC.
         if dt.tzinfo is None:

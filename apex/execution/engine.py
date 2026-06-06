@@ -30,6 +30,7 @@ Only the data source and the execution engine differ — selected by config.
 Determinism: given the same events and components, the engine reaches the same
 state every run. It uses no wall-clock time and no randomness of its own.
 """
+
 from __future__ import annotations
 
 import logging
@@ -55,18 +56,20 @@ class _Snapshot:
     against a portfolio projected free of pending exits. Exposes exactly the six
     attributes the RiskManager reads.
     """
+
     equity: Decimal
     peak_equity: Decimal
     day_start_equity: Decimal
     open_positions: Dict[str, object]
     exposure: Decimal
     last_price: Dict[str, Decimal]
-    realized_volatility: Optional[float] = None   # so vol-targeting works on rotation bars
+    realized_volatility: Optional[float] = None  # so vol-targeting works on rotation bars
 
 
 @dataclass
 class BacktestResult:
     """The observable outcome of an engine run."""
+
     equity_curve: List[float] = field(default_factory=list)
     equity_timestamps: List[datetime] = field(default_factory=list)
     trade_returns: List[float] = field(default_factory=list)
@@ -202,7 +205,8 @@ class TradingEngine:
         for order in self._pending:
             logger.warning(
                 "OrderEvent %s for %s never filled (no subsequent bar) — dropped.",
-                order.event_id, order.symbol.ticker,
+                order.event_id,
+                order.symbol.ticker,
             )
         self.result.final_equity = float(self.portfolio.equity)
         self.result.num_trades = len(self.result.trade_returns)
@@ -239,8 +243,12 @@ class TradingEngine:
             try:
                 all_signals.extend(strat.handle_market_event(event))
             except Exception as exc:  # noqa: BLE001 — quarantine, don't crash
-                logger.error("Strategy %s raised on bar; quarantining: %s",
-                             strat.strategy_id, exc, exc_info=True)
+                logger.error(
+                    "Strategy %s raised on bar; quarantining: %s",
+                    strat.strategy_id,
+                    exc,
+                    exc_info=True,
+                )
                 self._quarantined.add(strat.strategy_id)
         if not all_signals:
             return

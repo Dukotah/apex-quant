@@ -19,6 +19,7 @@ Test coverage:
   9.  Leverage cap respected.
   10. Fail-closed: malformed/None field raises internally → evaluate returns None.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -45,6 +46,7 @@ class FakePortfolio:
     RiskManager accesses: .equity, .peak_equity, .day_start_equity,
     .open_positions, .exposure, .last_price.
     """
+
     equity: Decimal = Decimal("100000")
     peak_equity: Decimal = Decimal("100000")
     day_start_equity: Decimal = Decimal("100000")
@@ -56,11 +58,11 @@ class FakePortfolio:
 def _default_config(**overrides) -> RiskConfig:
     """Build a RiskConfig with sane defaults that can be overridden."""
     defaults = dict(
-        max_position_size_pct=Decimal("0.05"),   # 5 %
+        max_position_size_pct=Decimal("0.05"),  # 5 %
         max_total_exposure_pct=Decimal("0.50"),  # 50 %
         max_leverage=Decimal("1.0"),
-        max_drawdown_pct=Decimal("0.10"),        # 10 %
-        max_daily_loss_pct=Decimal("0.02"),      # 2 %
+        max_drawdown_pct=Decimal("0.10"),  # 10 %
+        max_daily_loss_pct=Decimal("0.02"),  # 2 %
         max_open_positions=10,
         require_stop_loss=True,
         min_stop_distance_pct=Decimal("0.005"),  # 0.5 %
@@ -118,6 +120,7 @@ def _portfolio_with_price(
 # 1. Compliant BUY → correct sizing
 # ---------------------------------------------------------------------------
 
+
 class TestCompliantBuy:
     """
     Scenario:
@@ -129,7 +132,7 @@ class TestCompliantBuy:
     def test_returns_order_event_not_none(self):
         rm = RiskManager(_default_config())
         port = _portfolio_with_price("AAPL", Decimal("200"))
-        sig = _buy_signal(stop=Decimal("190"))   # 5 % below → valid
+        sig = _buy_signal(stop=Decimal("190"))  # 5 % below → valid
         order = rm.evaluate(sig, port)
         assert order is not None
 
@@ -176,8 +179,8 @@ class TestCompliantBuy:
 # 2. Missing stop-loss when require_stop_loss=True
 # ---------------------------------------------------------------------------
 
-class TestMissingStopLoss:
 
+class TestMissingStopLoss:
     def test_no_stop_is_rejected(self):
         rm = RiskManager(_default_config(require_stop_loss=True))
         port = _portfolio_with_price("AAPL", Decimal("200"))
@@ -198,8 +201,8 @@ class TestMissingStopLoss:
 # 3. Stop too close (< min_stop_distance_pct)
 # ---------------------------------------------------------------------------
 
-class TestStopTooClose:
 
+class TestStopTooClose:
     def test_stop_within_min_distance_rejected(self):
         """
         Price = $200, min_stop_distance = 0.5 %.
@@ -229,19 +232,19 @@ class TestStopTooClose:
 # 4. Stop on the wrong side (stop >= price for a BUY)
 # ---------------------------------------------------------------------------
 
-class TestStopWrongSide:
 
+class TestStopWrongSide:
     def test_buy_stop_above_price_rejected(self):
         """For a BUY, a stop at or above entry price is nonsensical → reject."""
         rm = RiskManager(_default_config())
         port = _portfolio_with_price("AAPL", Decimal("200"))
-        sig = _buy_signal(stop=Decimal("210"))   # stop ABOVE price
+        sig = _buy_signal(stop=Decimal("210"))  # stop ABOVE price
         assert rm.evaluate(sig, port) is None
 
     def test_buy_stop_equal_to_price_rejected(self):
         rm = RiskManager(_default_config())
         port = _portfolio_with_price("AAPL", Decimal("200"))
-        sig = _buy_signal(stop=Decimal("200"))   # stop AT price
+        sig = _buy_signal(stop=Decimal("200"))  # stop AT price
         assert rm.evaluate(sig, port) is None
 
     def test_sell_stop_below_price_rejected(self):
@@ -266,8 +269,8 @@ class TestStopWrongSide:
 # 5. Exposure already at cap → sizing yields 0 → rejected
 # ---------------------------------------------------------------------------
 
-class TestExposureCap:
 
+class TestExposureCap:
     def test_fully_exposed_rejects_new_signal(self):
         """
         exposure == max_total_exposure_pct * equity → remaining = 0 → qty = 0.
@@ -276,7 +279,7 @@ class TestExposureCap:
         """
         rm = RiskManager(_default_config())
         port = _portfolio_with_price("AAPL", Decimal("200"))
-        port.exposure = Decimal("50000")   # fully at the 50 % cap
+        port.exposure = Decimal("50000")  # fully at the 50 % cap
         sig = _buy_signal(stop=Decimal("190"))
         assert rm.evaluate(sig, port) is None
 
@@ -300,8 +303,8 @@ class TestExposureCap:
 # 6. Drawdown breach → halted; subsequent signal also rejected (sticky)
 # ---------------------------------------------------------------------------
 
-class TestDrawdownHalt:
 
+class TestDrawdownHalt:
     def _drawdown_portfolio(self, equity: Decimal, peak: Decimal) -> FakePortfolio:
         port = FakePortfolio(
             equity=equity,
@@ -356,11 +359,9 @@ class TestDrawdownHalt:
 # 7. Daily-loss breach → halted; reset_daily() clears it
 # ---------------------------------------------------------------------------
 
-class TestDailyLossHalt:
 
-    def _daily_loss_portfolio(
-        self, equity: Decimal, day_start: Decimal
-    ) -> FakePortfolio:
+class TestDailyLossHalt:
+    def _daily_loss_portfolio(self, equity: Decimal, day_start: Decimal) -> FakePortfolio:
         port = FakePortfolio(
             equity=equity,
             peak_equity=day_start,
@@ -409,7 +410,7 @@ class TestDailyLossHalt:
         port = FakePortfolio(
             equity=Decimal("89000"),
             peak_equity=Decimal("100000"),
-            day_start_equity=Decimal("97000"),   # daily loss < 2 % alone
+            day_start_equity=Decimal("97000"),  # daily loss < 2 % alone
         )
         port.last_price["AAPL"] = Decimal("200")
         rm.evaluate(_buy_signal(stop=Decimal("190")), port)
@@ -424,8 +425,8 @@ class TestDailyLossHalt:
 # 8. Whitelist enforcement
 # ---------------------------------------------------------------------------
 
-class TestWhitelist:
 
+class TestWhitelist:
     def test_symbol_not_in_whitelist_rejected(self):
         rm = RiskManager(_default_config(symbol_whitelist=frozenset({"SPY", "QQQ"})))
         port = _portfolio_with_price("AAPL", Decimal("200"))
@@ -452,8 +453,8 @@ class TestWhitelist:
 # 9. Leverage cap respected
 # ---------------------------------------------------------------------------
 
-class TestLeverageCap:
 
+class TestLeverageCap:
     def test_leverage_exceeded_rejected(self):
         """
         max_leverage = 1.0.
@@ -490,8 +491,8 @@ class TestLeverageCap:
 # 10. Fail-closed: malformed/None fields that cause an internal exception
 # ---------------------------------------------------------------------------
 
-class TestFailClosed:
 
+class TestFailClosed:
     def test_none_last_price_dict_returns_none(self):
         """
         If portfolio.last_price is None (malformed), the internal dict.get() call
@@ -499,7 +500,7 @@ class TestFailClosed:
         """
         rm = RiskManager(_default_config())
         port = FakePortfolio()
-        port.last_price = None   # type: ignore[assignment]  — intentionally bad
+        port.last_price = None  # type: ignore[assignment]  — intentionally bad
         sig = _buy_signal(stop=Decimal("190"))
         result = rm.evaluate(sig, port)
         assert result is None
@@ -511,7 +512,7 @@ class TestFailClosed:
         """
         rm = RiskManager(_default_config())
         port = FakePortfolio()
-        port.equity = None   # type: ignore[assignment]
+        port.equity = None  # type: ignore[assignment]
         sig = _buy_signal(stop=Decimal("190"))
         result = rm.evaluate(sig, port)
         assert result is None
@@ -523,7 +524,7 @@ class TestFailClosed:
         """
         rm = RiskManager(_default_config())
         port = FakePortfolio()
-        port.open_positions = None   # type: ignore[assignment]
+        port.open_positions = None  # type: ignore[assignment]
         port.last_price["AAPL"] = Decimal("200")
         sig = _buy_signal(stop=Decimal("190"))
         result = rm.evaluate(sig, port)
@@ -536,7 +537,7 @@ class TestFailClosed:
         rm = RiskManager(_default_config())
         port = FakePortfolio()
         port.last_price["AAPL"] = Decimal("200")
-        port.exposure = "bad_value"   # type: ignore[assignment]
+        port.exposure = "bad_value"  # type: ignore[assignment]
         sig = _buy_signal(stop=Decimal("190"))
         result = rm.evaluate(sig, port)
         assert result is None
@@ -548,7 +549,7 @@ class TestFailClosed:
         """
         rm = RiskManager(_default_config())
         port = FakePortfolio()
-        port.last_price = None   # type: ignore[assignment]
+        port.last_price = None  # type: ignore[assignment]
         sig = _buy_signal(stop=Decimal("190"))
         rm.evaluate(sig, port)
         assert rm.is_halted is False
@@ -558,8 +559,8 @@ class TestFailClosed:
 # Additional edge-case / integration tests
 # ---------------------------------------------------------------------------
 
-class TestEdgeCases:
 
+class TestEdgeCases:
     def test_fractionable_symbol_returns_decimal_quantity(self):
         """Crypto symbols are fractionable; quantity should be a Decimal, not int."""
         rm = RiskManager(_default_config(require_stop_loss=False))
@@ -621,7 +622,9 @@ class TestEdgeCases:
     def test_zero_equity_returns_none(self):
         """Sizing with zero equity must gracefully yield 0 → rejection, not crash."""
         rm = RiskManager(_default_config())
-        port = FakePortfolio(equity=Decimal("0"), peak_equity=Decimal("0"), day_start_equity=Decimal("0"))
+        port = FakePortfolio(
+            equity=Decimal("0"), peak_equity=Decimal("0"), day_start_equity=Decimal("0")
+        )
         port.last_price["AAPL"] = Decimal("200")
         sig = _buy_signal(stop=Decimal("190"))
         assert rm.evaluate(sig, port) is None
@@ -635,6 +638,7 @@ class TestEdgeCases:
 # Drawdown sizing throttle
 # ---------------------------------------------------------------------------
 
+
 class TestDrawdownThrottle:
     """De-risk new entries as the account draws down from its peak."""
 
@@ -642,7 +646,7 @@ class TestDrawdownThrottle:
         return _default_config(
             max_position_size_pct=Decimal("0.20"),
             max_total_exposure_pct=Decimal("1.0"),
-            max_drawdown_pct=Decimal("0.99"),         # don't let the halt mask the throttle
+            max_drawdown_pct=Decimal("0.99"),  # don't let the halt mask the throttle
             drawdown_throttle_start=Decimal("0.10"),
             drawdown_throttle_full=Decimal("0.30"),
             drawdown_throttle_floor=Decimal("0.40"),
@@ -650,8 +654,9 @@ class TestDrawdownThrottle:
         )
 
     def _port(self, peak: str, equity: str) -> FakePortfolio:
-        p = FakePortfolio(equity=Decimal(equity), peak_equity=Decimal(peak),
-                          day_start_equity=Decimal(equity))
+        p = FakePortfolio(
+            equity=Decimal(equity), peak_equity=Decimal(peak), day_start_equity=Decimal(equity)
+        )
         p.last_price["AAPL"] = Decimal("200")
         return p
 
@@ -678,8 +683,9 @@ class TestDrawdownThrottle:
 
     def test_no_peak_is_full_size(self):
         rm = RiskManager(self._throttle_cfg())
-        p = FakePortfolio(equity=Decimal("0"), peak_equity=Decimal("0"),
-                          day_start_equity=Decimal("0"))
+        p = FakePortfolio(
+            equity=Decimal("0"), peak_equity=Decimal("0"), day_start_equity=Decimal("0")
+        )
         assert rm._drawdown_throttle(p) == Decimal("1")
 
     def test_throttle_shrinks_actual_order(self):
@@ -698,20 +704,23 @@ class TestVolatilityTarget:
 
     def _cfg(self, **ov):
         return _default_config(
-            max_position_size_pct=Decimal("0.20"), max_total_exposure_pct=Decimal("1.0"),
-            target_volatility=Decimal("0.10"), vol_scale_min=Decimal("0.4"),
-            vol_scale_max=Decimal("1.0"), **ov,
+            max_position_size_pct=Decimal("0.20"),
+            max_total_exposure_pct=Decimal("1.0"),
+            target_volatility=Decimal("0.10"),
+            vol_scale_min=Decimal("0.4"),
+            vol_scale_max=Decimal("1.0"),
+            **ov,
         )
 
     def _port(self, rv):
         p = FakePortfolio()
         p.last_price["AAPL"] = Decimal("200")
         if rv is not None:
-            p.realized_volatility = rv          # attribute the RiskManager reads
+            p.realized_volatility = rv  # attribute the RiskManager reads
         return p
 
     def test_disabled_by_default(self):
-        rm = RiskManager(_default_config())     # target_volatility is None
+        rm = RiskManager(_default_config())  # target_volatility is None
         assert rm._vol_target_multiplier(self._port(0.30)) == Decimal("1")
 
     def test_high_vol_derisks(self):

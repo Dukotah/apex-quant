@@ -13,6 +13,7 @@ This single discipline is what guarantees:
     breaks live" surprises from time-dependent logic).
   - No look-ahead bias from accidentally reading the real clock during a replay.
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod

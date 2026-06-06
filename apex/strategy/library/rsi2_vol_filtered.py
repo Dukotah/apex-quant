@@ -17,6 +17,7 @@ in on_bar:
     if abs(atr[-1] - atr_mean) > atr_std_mult * atr_std:
         return []   # too volatile, skip entry (exits still fire)
 """
+
 from __future__ import annotations
 
 import logging
@@ -104,7 +105,7 @@ class RSI2VolFilteredStrategy(RSI2MeanReversionStrategy):
         if len(valid) < self.atr_lookback:
             return False
 
-        recent = valid[-self.atr_lookback:]
+        recent = valid[-self.atr_lookback :]
         current_atr: float = recent[-1]
 
         mean = sum(recent) / len(recent)
@@ -151,6 +152,7 @@ class RSI2VolFilteredStrategy(RSI2MeanReversionStrategy):
         filtered: List[SignalEvent] = []
         for sig in signals:
             from apex.core.models import OrderSide
+
             if sig.side == OrderSide.BUY:
                 if self._atr_filter_ok(ticker):
                     filtered.append(sig)

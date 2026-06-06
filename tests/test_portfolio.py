@@ -17,6 +17,7 @@ Coverage:
   - Adding to a long recomputes avg_entry_price correctly.
   - Partial sell leaves a residual position with correct state.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -73,6 +74,7 @@ def _bar(symbol: Symbol, close: str) -> MarketEvent:
 # Construction
 # ---------------------------------------------------------------------------
 
+
 def test_initial_state():
     p = Portfolio(Decimal("10000"))
     assert p.equity == Decimal("10000")
@@ -95,6 +97,7 @@ def test_negative_capital_rejected():
 # Buy fill
 # ---------------------------------------------------------------------------
 
+
 def test_buy_reduces_cash_and_opens_position():
     """
     Buy 10 AAPL @ 150, commission 1.
@@ -105,7 +108,7 @@ def test_buy_reduces_cash_and_opens_position():
     p.on_fill(_fill(SYM, OrderSide.BUY, "10", "150", "1"))
 
     assert p.cash == Decimal("8499")
-    assert Decimal("AAPL") if False else True   # just gate
+    assert Decimal("AAPL") if False else True  # just gate
     pos = p.open_positions["AAPL"]
     assert pos.quantity == Decimal("10")
     assert pos.avg_entry_price == Decimal("150")
@@ -117,6 +120,7 @@ def test_buy_reduces_cash_and_opens_position():
 # ---------------------------------------------------------------------------
 # Mark to market
 # ---------------------------------------------------------------------------
+
 
 def test_mark_to_market_updates_equity_and_unrealized():
     """
@@ -131,9 +135,9 @@ def test_mark_to_market_updates_equity_and_unrealized():
     p.on_market(_bar(SYM, "160"))
 
     assert p.last_price["AAPL"] == Decimal("160")
-    assert p.unrealized_pnl == Decimal("100")   # (160-150)*10
-    assert p.equity == Decimal("10099")         # 8499 + 1600
-    assert p.exposure == Decimal("1600")        # 10 * 160
+    assert p.unrealized_pnl == Decimal("100")  # (160-150)*10
+    assert p.equity == Decimal("10099")  # 8499 + 1600
+    assert p.exposure == Decimal("1600")  # 10 * 160
 
 
 def test_peak_equity_advances_on_mark_up():
@@ -142,7 +146,7 @@ def test_peak_equity_advances_on_mark_up():
     p.on_market(_bar(SYM, "160"))
     # equity = 10000 - 10*150 + 10*160 = 10000 + 100 = 10100
     assert p.peak_equity == Decimal("10100")
-    assert p.drawdown == Decimal("0")   # still at peak
+    assert p.drawdown == Decimal("0")  # still at peak
 
 
 def test_drawdown_after_price_falls():
@@ -165,6 +169,7 @@ def test_drawdown_after_price_falls():
 # ---------------------------------------------------------------------------
 # Sell fill / realized P&L
 # ---------------------------------------------------------------------------
+
 
 def test_sell_realizes_pnl_and_updates_cash():
     """
@@ -215,7 +220,7 @@ def test_partial_sell_leaves_residual_position():
     p.on_fill(_fill(SYM, OrderSide.SELL, "4", "110", "0"))
 
     assert p.realized_pnl == Decimal("40")
-    assert p.cash == Decimal("9440")   # 10000 - 1000 + 440
+    assert p.cash == Decimal("9440")  # 10000 - 1000 + 440
     pos = p.open_positions["AAPL"]
     assert pos.quantity == Decimal("6")
     assert pos.avg_entry_price == Decimal("100")
@@ -224,6 +229,7 @@ def test_partial_sell_leaves_residual_position():
 # ---------------------------------------------------------------------------
 # Closing a position removes it from open_positions
 # ---------------------------------------------------------------------------
+
 
 def test_closing_position_removes_from_open_positions():
     p = Portfolio(Decimal("10000"))
@@ -237,6 +243,7 @@ def test_closing_position_removes_from_open_positions():
 # ---------------------------------------------------------------------------
 # avg_entry_price on position adds
 # ---------------------------------------------------------------------------
+
 
 def test_add_to_long_updates_avg_entry():
     """
@@ -256,6 +263,7 @@ def test_add_to_long_updates_avg_entry():
 # peak_equity and drawdown across a rise-then-fall cycle
 # ---------------------------------------------------------------------------
 
+
 def test_peak_and_drawdown_rise_then_fall():
     """
     Start: 10000. Buy 10 @ 100 (no comm). Peak = 10000.
@@ -272,7 +280,7 @@ def test_peak_and_drawdown_rise_then_fall():
     p.on_market(_bar(SYM, "200"))
     assert p.peak_equity == Decimal("11000")
     p.on_market(_bar(SYM, "50"))
-    assert p.peak_equity == Decimal("11000")   # peak doesn't fall
+    assert p.peak_equity == Decimal("11000")  # peak doesn't fall
     assert p.equity == Decimal("9500")
     expected = Decimal("1500") / Decimal("11000")
     assert p.drawdown == expected
@@ -281,6 +289,7 @@ def test_peak_and_drawdown_rise_then_fall():
 # ---------------------------------------------------------------------------
 # exposure reflects current holdings
 # ---------------------------------------------------------------------------
+
 
 def test_exposure_with_multiple_positions():
     """
@@ -306,6 +315,7 @@ def test_exposure_zero_after_all_closed():
 # day_start_equity reset
 # ---------------------------------------------------------------------------
 
+
 def test_start_new_day_resets_day_start_equity():
     p = Portfolio(Decimal("10000"))
     p.on_fill(_fill(SYM, OrderSide.BUY, "10", "100", "0"))
@@ -319,6 +329,7 @@ def test_start_new_day_resets_day_start_equity():
 # ---------------------------------------------------------------------------
 # last_price tracking
 # ---------------------------------------------------------------------------
+
 
 def test_last_price_updated_by_fill():
     p = Portfolio(Decimal("10000"))
@@ -344,6 +355,7 @@ def test_last_price_for_symbol_without_position():
 # Risk manager attribute interface (smoke-test with all 6 required)
 # ---------------------------------------------------------------------------
 
+
 def test_all_risk_manager_snapshot_attributes_present():
     """
     Confirm all six attributes the RiskManager reads are accessible and
@@ -364,7 +376,7 @@ def test_all_risk_manager_snapshot_attributes_present():
     assert "AAPL" in p.open_positions
     # exposure
     assert isinstance(p.exposure, Decimal)
-    assert p.exposure == Decimal("550")   # 5 * 110
+    assert p.exposure == Decimal("550")  # 5 * 110
     # last_price
     assert isinstance(p.last_price, dict)
     assert p.last_price["AAPL"] == Decimal("110")
@@ -374,8 +386,10 @@ def test_all_risk_manager_snapshot_attributes_present():
 # Determinism
 # ---------------------------------------------------------------------------
 
+
 def test_deterministic_same_inputs_same_outputs():
     """Same sequence of events always yields the same portfolio state."""
+
     def _run():
         port = Portfolio(Decimal("10000"))
         port.on_fill(_fill(SYM, OrderSide.BUY, "10", "100", "0"))
@@ -391,23 +405,24 @@ def test_deterministic_same_inputs_same_outputs():
 
 # ----------------------------------------------------- realized-vol targeting
 
+
 def test_realized_volatility_none_until_min_observations():
     p = Portfolio(Decimal("100000"))
-    assert p.realized_volatility is None          # no data yet
-    p._daily_returns.extend([0.01, -0.01] * 5)    # 10 obs < 20 minimum
+    assert p.realized_volatility is None  # no data yet
+    p._daily_returns.extend([0.01, -0.01] * 5)  # 10 obs < 20 minimum
     assert p.realized_volatility is None
 
 
 def test_realized_volatility_annualizes_stdev():
     p = Portfolio(Decimal("100000"))
-    p._daily_returns.extend([0.01, -0.01] * 15)   # 30 obs, daily stdev 0.01
-    assert abs(p.realized_volatility - 0.01 * (252 ** 0.5)) < 1e-9
+    p._daily_returns.extend([0.01, -0.01] * 15)  # 30 obs, daily stdev 0.01
+    assert abs(p.realized_volatility - 0.01 * (252**0.5)) < 1e-9
 
 
 def test_start_new_day_banks_daily_return():
     p = Portfolio(Decimal("100000"))
     # No positions: equity == cash, so feed returns directly via the deque seam.
     p._daily_returns.clear()
-    p.start_new_day()                              # prev==cur -> 0.0 return banked
+    p.start_new_day()  # prev==cur -> 0.0 return banked
     assert len(p._daily_returns) == 1
     assert p._daily_returns[-1] == 0.0

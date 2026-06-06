@@ -34,6 +34,7 @@ behind a tiny ``BrokerClient`` seam injected via the constructor. Every safety
 property above is unit-tested with a fake broker; the real adapter is a thin,
 lazily-imported wrapper verified against paper keys, not in CI.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -49,7 +50,9 @@ from apex.execution.base_execution import BaseExecutionEngine
 logger = logging.getLogger(__name__)
 
 # Alpaca order statuses we treat as terminal (no point polling further).
-_TERMINAL_STATUSES = frozenset({"filled", "canceled", "cancelled", "rejected", "expired", "done_for_day"})
+_TERMINAL_STATUSES = frozenset(
+    {"filled", "canceled", "cancelled", "rejected", "expired", "done_for_day"}
+)
 
 
 def _status_str(status: object) -> str:
@@ -70,8 +73,9 @@ class BrokerClient(Protocol):
     """
 
     def find_order_by_client_id(self, client_order_id: str) -> Optional[object]: ...
-    def submit_market_order(self, symbol: str, qty: Decimal, side: str,
-                            client_order_id: str, time_in_force: str) -> object: ...
+    def submit_market_order(
+        self, symbol: str, qty: Decimal, side: str, client_order_id: str, time_in_force: str
+    ) -> object: ...
     def get_order(self, broker_order_id: str) -> object: ...
     def cancel_order(self, broker_order_id: str) -> bool: ...
     def cancel_open_orders(self) -> None: ...
@@ -178,7 +182,8 @@ class AlpacaExecutionEngine(BaseExecutionEngine):
             broker_id = str(getattr(existing, "id"))
             logger.warning(
                 "Order %s already exists at broker as %s — not resubmitting (idempotent).",
-                client_order_id, broker_id,
+                client_order_id,
+                broker_id,
             )
             broker_order = self._poll_for_fill(broker_id)
         else:
@@ -191,8 +196,13 @@ class AlpacaExecutionEngine(BaseExecutionEngine):
             )
             broker_id = str(getattr(submitted, "id"))
             self._submitted[order.event_id] = broker_id
-            logger.info("Submitted %s %s x%s → broker order %s",
-                        order.side.value, order.symbol.ticker, order.quantity, broker_id)
+            logger.info(
+                "Submitted %s %s x%s → broker order %s",
+                order.side.value,
+                order.symbol.ticker,
+                order.quantity,
+                broker_id,
+            )
             broker_order = self._poll_for_fill(broker_id)
 
         self._submitted[order.event_id] = broker_id
@@ -258,13 +268,15 @@ class AlpacaExecutionEngine(BaseExecutionEngine):
         if filled_qty <= 0:
             logger.warning(
                 "Order %s not filled yet (status=%s) — no fill booked; reconcile next run.",
-                broker_id, getattr(broker_order, "status", "?"),
+                broker_id,
+                getattr(broker_order, "status", "?"),
             )
             return
         avg_price = getattr(broker_order, "filled_avg_price", None)
         if avg_price in (None, ""):
-            logger.error("Order %s filled qty %s but no avg price — skipping fill.",
-                         broker_id, filled_qty)
+            logger.error(
+                "Order %s filled qty %s but no avg price — skipping fill.", broker_id, filled_qty
+            )
             return
 
         fill = FillEvent(
@@ -272,15 +284,21 @@ class AlpacaExecutionEngine(BaseExecutionEngine):
             side=order.side,
             quantity=filled_qty,
             fill_price=Decimal(str(avg_price)),
-            commission=Decimal("0"),     # Alpaca is commission-free
-            slippage=Decimal("0"),       # real fill already includes market impact
+            commission=Decimal("0"),  # Alpaca is commission-free
+            slippage=Decimal("0"),  # real fill already includes market impact
             order_id=order.event_id,
             broker_order_id=broker_id,
             timestamp=utc_now(),
             is_paper=self._paper,
         )
-        logger.info("Fill booked: %s %s x%s @ %s (broker %s)",
-                    order.side.value, order.symbol.ticker, filled_qty, fill.fill_price, broker_id)
+        logger.info(
+            "Fill booked: %s %s x%s @ %s (broker %s)",
+            order.side.value,
+            order.symbol.ticker,
+            filled_qty,
+            fill.fill_price,
+            broker_id,
+        )
         self._emit_fill(fill)
 
     def _build_sdk_client(self) -> BrokerClient:
@@ -289,8 +307,11 @@ class AlpacaExecutionEngine(BaseExecutionEngine):
         test suite load without the SDK. Verified against paper keys, not in CI.
         """
         import os
+
         key = self._api_key if self._api_key is not None else os.getenv("ALPACA_API_KEY")
-        secret = self._api_secret if self._api_secret is not None else os.getenv("ALPACA_SECRET_KEY")
+        secret = (
+            self._api_secret if self._api_secret is not None else os.getenv("ALPACA_SECRET_KEY")
+        )
         if not key or not secret:
             raise ConnectionError(
                 "Alpaca credentials missing. Set ALPACA_API_KEY / ALPACA_SECRET_KEY "
@@ -308,7 +329,9 @@ class AlpacaExecutionEngine(BaseExecutionEngine):
 
         return _AlpacaClientAdapter(  # pragma: no cover - live path
             TradingClient(key, secret, paper=self._paper),
-            MarketOrderRequest, AlSide, AlTIF,
+            MarketOrderRequest,
+            AlSide,
+            AlTIF,
         )
 
 
@@ -330,7 +353,7 @@ class _AlpacaClientAdapter:  # pragma: no cover - thin live wrapper, verified in
     def submit_market_order(self, symbol, qty, side, client_order_id, time_in_force):
         req = self._MarketOrderRequest(
             symbol=symbol,
-            qty=str(qty),   # string preserves the exact Decimal (no float rounding on fractionals)
+            qty=str(qty),  # string preserves the exact Decimal (no float rounding on fractionals)
             side=self._AlSide(side),
             time_in_force=self._AlTIF(time_in_force),
             client_order_id=client_order_id,

@@ -6,6 +6,7 @@ piece of feed logic is exercised offline: retry/backoff, normalization, bad-bar
 skipping, chronological sort + interleave, gap detection, lookback trimming, and
 the connect/stream lifecycle. No alpaca-py, no network, no real keys.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -24,8 +25,10 @@ UTC = timezone.utc
 
 def _bar(ts: str, o, h, lo, c, v):
     """A raw attribute-style bar (mimics alpaca.data.models.Bar)."""
+
     class _B:
         pass
+
     b = _B()
     b.timestamp = datetime.fromisoformat(ts).replace(tzinfo=UTC)
     b.open, b.high, b.low, b.close, b.volume = o, h, lo, c, v
@@ -39,6 +42,7 @@ def _feed(fetcher, **kw):
 
 
 # ----------------------------------------------------------------- lifecycle
+
 
 def test_connect_without_keys_raises(monkeypatch):
     monkeypatch.delenv("ALPACA_API_KEY", raising=False)
@@ -61,27 +65,34 @@ def test_fetch_before_connect_raises():
 
 # ----------------------------------------------------------------- normalization
 
+
 def test_fetch_normalizes_and_interleaves_by_timestamp():
     def fetcher(tickers, start, end, tf):
         return {
-            "NVDA": [_bar("2024-01-02", 10.5, 12, 10, 11.8, 110),
-                     _bar("2024-01-01", 10, 11, 9, 10.5, 100)],
-            "SPY": [_bar("2024-01-01", 400, 401, 399, 400.5, 200),
-                    _bar("2024-01-02", 401, 402, 400, 401.5, 210)],
+            "NVDA": [
+                _bar("2024-01-02", 10.5, 12, 10, 11.8, 110),
+                _bar("2024-01-01", 10, 11, 9, 10.5, 100),
+            ],
+            "SPY": [
+                _bar("2024-01-01", 400, 401, 399, 400.5, 200),
+                _bar("2024-01-02", 401, 402, 400, 401.5, 210),
+            ],
         }
+
     feed = _feed(fetcher)
     bars = feed.fetch_bars(datetime(2024, 1, 1, tzinfo=UTC), datetime(2024, 1, 3, tzinfo=UTC))
 
     order = [(b.timestamp, b.symbol.ticker) for b in bars]
-    assert order == sorted(order)                  # chronological, ticker tie-break
+    assert order == sorted(order)  # chronological, ticker tie-break
     assert all(isinstance(b.close, Decimal) for b in bars)
     day1 = [t for ts, t in order if ts == bars[0].timestamp]
-    assert day1 == ["NVDA", "SPY"]                 # interleaved, alphabetical
+    assert day1 == ["NVDA", "SPY"]  # interleaved, alphabetical
 
 
 def test_unsubscribed_ticker_ignored():
     def fetcher(tickers, start, end, tf):
         return {"TSLA": [_bar("2024-01-01", 10, 11, 9, 10, 100)]}  # not subscribed
+
     feed = _feed(fetcher)
     bars = feed.fetch_bars(datetime(2024, 1, 1, tzinfo=UTC), datetime(2024, 1, 2, tzinfo=UTC))
     assert bars == []
@@ -89,11 +100,14 @@ def test_unsubscribed_ticker_ignored():
 
 def test_bad_bar_skipped_and_counted():
     def fetcher(tickers, start, end, tf):
-        return {"NVDA": [
-            _bar("2024-01-01", 10, 11, 9, 10, 100),
-            _bar("2024-01-02", 10, 9, 11, 10, 100),   # high < low → invalid
-            _bar("2024-01-03", 12, 13, 11, 12, 100),
-        ]}
+        return {
+            "NVDA": [
+                _bar("2024-01-01", 10, 11, 9, 10, 100),
+                _bar("2024-01-02", 10, 9, 11, 10, 100),  # high < low → invalid
+                _bar("2024-01-03", 12, 13, 11, 12, 100),
+            ]
+        }
+
     feed = _feed(fetcher)
     bars = feed.fetch_bars(datetime(2024, 1, 1, tzinfo=UTC), datetime(2024, 1, 4, tzinfo=UTC))
     assert len(bars) == 2
@@ -103,6 +117,7 @@ def test_bad_bar_skipped_and_counted():
 def test_bad_bar_raises_when_skip_disabled():
     def fetcher(tickers, start, end, tf):
         return {"NVDA": [_bar("2024-01-02", 10, 9, 11, 10, 100)]}  # high < low
+
     feed = _feed(fetcher, skip_invalid=False)
     with pytest.raises(ValueError):
         feed.fetch_bars(datetime(2024, 1, 1, tzinfo=UTC), datetime(2024, 1, 3, tzinfo=UTC))
@@ -110,14 +125,26 @@ def test_bad_bar_raises_when_skip_disabled():
 
 def test_dict_shaped_bars_also_normalized():
     def fetcher(tickers, start, end, tf):
-        return {"NVDA": [{"timestamp": "2024-01-01", "open": 10, "high": 11,
-                          "low": 9, "close": 10.5, "volume": 100}]}
+        return {
+            "NVDA": [
+                {
+                    "timestamp": "2024-01-01",
+                    "open": 10,
+                    "high": 11,
+                    "low": 9,
+                    "close": 10.5,
+                    "volume": 100,
+                }
+            ]
+        }
+
     feed = _feed(fetcher)
     bars = feed.fetch_bars(datetime(2024, 1, 1, tzinfo=UTC), datetime(2024, 1, 2, tzinfo=UTC))
     assert bars[0].close == Decimal("10.5")
 
 
 # ------------------------------------------------------------------- retry
+
 
 def test_retry_then_success_invokes_backoff():
     calls = {"n": 0}
@@ -129,20 +156,23 @@ def test_retry_then_success_invokes_backoff():
             raise TimeoutError("transient")
         return {"NVDA": [_bar("2024-01-01", 10, 11, 9, 10, 100)]}
 
-    feed = AlpacaDataFeed([NVDA], bar_fetcher=flaky, max_retries=3,
-                          backoff_base=1.0, sleep=sleeps.append)
+    feed = AlpacaDataFeed(
+        [NVDA], bar_fetcher=flaky, max_retries=3, backoff_base=1.0, sleep=sleeps.append
+    )
     feed.connect()
     bars = feed.fetch_bars(datetime(2024, 1, 1, tzinfo=UTC), datetime(2024, 1, 2, tzinfo=UTC))
     assert len(bars) == 1
     assert calls["n"] == 3
-    assert sleeps == [1.0, 2.0]      # exponential backoff on the two failures
+    assert sleeps == [1.0, 2.0]  # exponential backoff on the two failures
 
 
 def test_retry_exhausted_raises_connection_error():
     def always_fails(tickers, start, end, tf):
         raise TimeoutError("down")
-    feed = AlpacaDataFeed([NVDA], bar_fetcher=always_fails, max_retries=2,
-                          backoff_base=0.5, sleep=lambda _s: None)
+
+    feed = AlpacaDataFeed(
+        [NVDA], bar_fetcher=always_fails, max_retries=2, backoff_base=0.5, sleep=lambda _s: None
+    )
     feed.connect()
     with pytest.raises(ConnectionError):
         feed.fetch_bars(datetime(2024, 1, 1, tzinfo=UTC), datetime(2024, 1, 2, tzinfo=UTC))
@@ -150,10 +180,16 @@ def test_retry_exhausted_raises_connection_error():
 
 # -------------------------------------------------------------------- stream
 
+
 def test_stream_replays_chronologically_and_tracks_latest():
     def fetcher(tickers, start, end, tf):
-        return {"NVDA": [_bar("2024-01-01", 10, 11, 9, 10.2, 100),
-                         _bar("2024-01-02", 11, 12, 10, 11.5, 110)]}
+        return {
+            "NVDA": [
+                _bar("2024-01-01", 10, 11, 9, 10.2, 100),
+                _bar("2024-01-02", 11, 12, 10, 11.5, 110),
+            ]
+        }
+
     feed = _feed(fetcher)
     feed.fetch_bars(datetime(2024, 1, 1, tzinfo=UTC), datetime(2024, 1, 3, tzinfo=UTC))
 
@@ -169,19 +205,23 @@ def test_validations_on_fetch_window():
     aware = datetime(2024, 1, 2, tzinfo=UTC)
     naive = datetime(2024, 1, 1)
     with pytest.raises(ValueError):
-        feed.fetch_bars(naive, aware)                 # naive start
+        feed.fetch_bars(naive, aware)  # naive start
     with pytest.raises(ValueError):
         feed.fetch_bars(aware, datetime(2024, 1, 1, tzinfo=UTC))  # end < start
 
 
 # ---------------------------------------------------------------- gap detection
 
+
 def test_gap_detection_counts_large_daily_gap():
     def fetcher(tickers, start, end, tf):
-        return {"NVDA": [
-            _bar("2024-01-01", 10, 11, 9, 10, 100),
-            _bar("2024-01-15", 10, 11, 9, 10, 100),   # 14-day hole > 4-day tolerance
-        ]}
+        return {
+            "NVDA": [
+                _bar("2024-01-01", 10, 11, 9, 10, 100),
+                _bar("2024-01-15", 10, 11, 9, 10, 100),  # 14-day hole > 4-day tolerance
+            ]
+        }
+
     feed = _feed(fetcher)
     feed.fetch_bars(datetime(2024, 1, 1, tzinfo=UTC), datetime(2024, 1, 16, tzinfo=UTC))
     assert feed.gaps_detected == 1
@@ -189,10 +229,13 @@ def test_gap_detection_counts_large_daily_gap():
 
 def test_normal_weekend_gap_not_flagged():
     def fetcher(tickers, start, end, tf):
-        return {"NVDA": [
-            _bar("2024-01-05", 10, 11, 9, 10, 100),   # Friday
-            _bar("2024-01-08", 10, 11, 9, 10, 100),   # Monday (3-day weekend gap)
-        ]}
+        return {
+            "NVDA": [
+                _bar("2024-01-05", 10, 11, 9, 10, 100),  # Friday
+                _bar("2024-01-08", 10, 11, 9, 10, 100),  # Monday (3-day weekend gap)
+            ]
+        }
+
     feed = _feed(fetcher)
     feed.fetch_bars(datetime(2024, 1, 5, tzinfo=UTC), datetime(2024, 1, 9, tzinfo=UTC))
     assert feed.gaps_detected == 0
@@ -200,10 +243,13 @@ def test_normal_weekend_gap_not_flagged():
 
 # --------------------------------------------------------------- get_latest_bars
 
+
 def test_get_latest_bars_trims_to_lookback_per_ticker():
     def fetcher(tickers, start, end, tf):
-        return {"NVDA": [_bar(f"2024-01-{d:02d}", 10, 11, 9, 10 + d, 100)
-                         for d in range(1, 11)]}   # 10 bars
+        return {
+            "NVDA": [_bar(f"2024-01-{d:02d}", 10, 11, 9, 10 + d, 100) for d in range(1, 11)]
+        }  # 10 bars
+
     feed = AlpacaDataFeed([NVDA], bar_fetcher=fetcher, sleep=lambda _s: None)
     feed.connect()
     bars = feed.get_latest_bars(lookback=3, end=datetime(2024, 1, 31, tzinfo=UTC))

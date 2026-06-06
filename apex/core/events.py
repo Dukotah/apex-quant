@@ -9,6 +9,7 @@ Event flow:  MarketEvent → SignalEvent → OrderEvent → FillEvent
 
 All events are frozen. An event, once created, is an immutable historical fact.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -33,12 +34,13 @@ class EventType(str, Enum):
     SIGNAL = "signal"
     ORDER = "order"
     FILL = "fill"
-    HALT = "halt"        # emitted by risk manager to stop the system
+    HALT = "halt"  # emitted by risk manager to stop the system
 
 
 @dataclass(frozen=True)
 class Event:
     """Base for all events. Carries a unique id and creation timestamp."""
+
     type: EventType = field(init=False)
     event_id: str = field(default_factory=lambda: str(uuid4()), init=False)
 
@@ -49,6 +51,7 @@ class MarketEvent(Event):
     New market data arrived. Emitted by a DataFeed, consumed by strategies
     and the portfolio (to mark positions to market).
     """
+
     bar: Optional[Bar] = None
     tick: Optional[Tick] = None
 
@@ -67,14 +70,15 @@ class SignalEvent(Event):
     Strategies express direction and conviction; they do NOT decide quantity.
     Position sizing is the risk manager's job, by design.
     """
+
     symbol: Symbol = None
     side: OrderSide = None
-    strength: Decimal = Decimal("1.0")      # 0..1 conviction, informs sizing
+    strength: Decimal = Decimal("1.0")  # 0..1 conviction, informs sizing
     strategy_id: str = ""
-    suggested_stop_loss: Optional[Decimal] = None    # strategy's idea; risk mgr may override
+    suggested_stop_loss: Optional[Decimal] = None  # strategy's idea; risk mgr may override
     suggested_take_profit: Optional[Decimal] = None
     timestamp: Optional[datetime] = None
-    reason: str = ""                         # human-readable why (for audit/AI)
+    reason: str = ""  # human-readable why (for audit/AI)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "type", EventType.SIGNAL)
@@ -89,17 +93,18 @@ class OrderEvent(Event):
     the execution engine. By the time an order exists, it has already passed
     every risk check — execution engines trust OrderEvents implicitly.
     """
+
     symbol: Symbol = None
     side: OrderSide = None
     quantity: Decimal = Decimal("0")
     order_type: OrderType = OrderType.MARKET
     limit_price: Optional[Decimal] = None
     stop_price: Optional[Decimal] = None
-    stop_loss: Optional[Decimal] = None      # attached protective stop (mandatory)
+    stop_loss: Optional[Decimal] = None  # attached protective stop (mandatory)
     take_profit: Optional[Decimal] = None
     time_in_force: TimeInForce = TimeInForce.DAY
     strategy_id: str = ""
-    signal_id: str = ""                      # links back to originating signal
+    signal_id: str = ""  # links back to originating signal
     timestamp: Optional[datetime] = None
 
     def __post_init__(self) -> None:
@@ -114,6 +119,7 @@ class FillEvent(Event):
     A confirmed execution. Emitted by the execution engine, consumed by the
     portfolio to update positions/cash. Carries actual fill price and costs.
     """
+
     symbol: Symbol = None
     side: OrderSide = None
     quantity: Decimal = Decimal("0")
@@ -135,8 +141,9 @@ class HaltEvent(Event):
     Emitted by the RiskManager when a hard limit (e.g. max drawdown) is
     breached. Consumed by the engine to stop all new order flow immediately.
     """
+
     reason: str = ""
-    triggered_by: str = ""    # which rule
+    triggered_by: str = ""  # which rule
     timestamp: Optional[datetime] = None
 
     def __post_init__(self) -> None:

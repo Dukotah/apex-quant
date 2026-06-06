@@ -2,6 +2,7 @@
 Tests for apex.strategy.library.sma_crossover.
 Validates the full strategy-hook pipeline: bars → indicator → signal emission.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -21,9 +22,15 @@ def _feed_prices(strat: SMACrossoverStrategy, prices: list[float]):
     t = datetime(2024, 1, 1, tzinfo=timezone.utc)
     for i, p in enumerate(prices):
         price = Decimal(str(p))
-        bar = Bar(symbol=SYM, timestamp=t + timedelta(days=i),
-                  open=price, high=price, low=price, close=price,
-                  volume=Decimal("1000"))
+        bar = Bar(
+            symbol=SYM,
+            timestamp=t + timedelta(days=i),
+            open=price,
+            high=price,
+            low=price,
+            close=price,
+            volume=Decimal("1000"),
+        )
         all_signals.extend(strat.on_bar(bar))
     return all_signals
 
@@ -70,15 +77,22 @@ def test_no_duplicate_buys_while_long():
     prices = [16, 15, 14, 13, 12, 13, 15, 18, 22, 26, 30, 34, 38, 42, 46]
     signals = _feed_prices(strat, prices)
     buys = [s for s in signals if s.side == OrderSide.BUY]
-    assert len(buys) == 1   # entered long once, no duplicates
+    assert len(buys) == 1  # entered long once, no duplicates
 
 
 def test_ignores_unknown_symbol():
     strat = SMACrossoverStrategy("s", [SYM], fast_period=3, slow_period=5)
     other = Symbol("OTHER", AssetClass.EQUITY)
     t = datetime(2024, 1, 1, tzinfo=timezone.utc)
-    bar = Bar(symbol=other, timestamp=t, open=Decimal("1"), high=Decimal("1"),
-              low=Decimal("1"), close=Decimal("1"), volume=Decimal("1"))
+    bar = Bar(
+        symbol=other,
+        timestamp=t,
+        open=Decimal("1"),
+        high=Decimal("1"),
+        low=Decimal("1"),
+        close=Decimal("1"),
+        volume=Decimal("1"),
+    )
     assert strat.on_bar(bar) == []
 
 

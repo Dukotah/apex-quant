@@ -15,6 +15,7 @@ factory, so flipping APEX_MODE from paper to live changes nothing downstream.
   mode=live,   broker=ibkr          → (IBKR engine — not built yet)
   mode=live,   broker=simulated     → refused upstream by AppConfig.from_env()
 """
+
 from __future__ import annotations
 
 import logging
@@ -56,6 +57,7 @@ def make_execution_engine(
             )
         if config.broker == Broker.ALPACA:
             from apex.execution.alpaca import AlpacaExecutionEngine
+
             logger.info("Execution: AlpacaExecutionEngine (paper mode — Alpaca paper account).")
             return AlpacaExecutionEngine(
                 api_key=config.alpaca_key,
@@ -70,6 +72,7 @@ def make_execution_engine(
     if config.mode == ExecutionMode.LIVE:
         if config.broker == Broker.ALPACA:
             from apex.execution.alpaca import AlpacaExecutionEngine
+
             logger.warning("Execution: AlpacaExecutionEngine (LIVE mode — REAL MONEY).")
             return AlpacaExecutionEngine(
                 api_key=config.alpaca_key,

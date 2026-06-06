@@ -10,6 +10,7 @@ Validates:
   - Ignores unknown symbols.
   - Inherits warmup guard from parent.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -24,6 +25,7 @@ SYM = Symbol("SPY", AssetClass.ETF)
 # ---------------------------------------------------------------------------
 # Bar / price-series helpers
 # ---------------------------------------------------------------------------
+
 
 def _bar(
     close: float,
@@ -112,6 +114,7 @@ def _recovery_bars(
 # Core scenario: normal vol → BUY, then SELL on recovery
 # ---------------------------------------------------------------------------
 
+
 def test_normal_vol_dip_produces_buy():
     """
     With stable ATR (spread matches bar-to-bar movement) the RSI(2) dip should
@@ -120,7 +123,8 @@ def test_normal_vol_dip_produces_buy():
     any current ATR == mean, deviation = 0, and the filter passes.
     """
     strat = RSI2VolFilteredStrategy(
-        "s", [SYM],
+        "s",
+        [SYM],
         atr_period=14,
         atr_lookback=100,
         atr_std_mult=1.0,
@@ -145,9 +149,7 @@ def test_normal_vol_dip_produces_buy():
     signals = _feed_bars(strat, all_bars)
 
     buys = [s for s in signals if s.side == OrderSide.BUY]
-    assert len(buys) >= 1, (
-        "Expected at least 1 BUY in a normal-vol uptrend dip scenario"
-    )
+    assert len(buys) >= 1, "Expected at least 1 BUY in a normal-vol uptrend dip scenario"
     buy = buys[0]
     assert buy.suggested_stop_loss is not None
     # The stop must be a positive price (strictly below the entry close, which
@@ -166,11 +168,12 @@ def test_high_vol_spike_suppresses_buy():
     RSI(2) and the trend filter would both allow entry.
     """
     strat = RSI2VolFilteredStrategy(
-        "s", [SYM],
+        "s",
+        [SYM],
         atr_period=14,
         atr_lookback=100,
         atr_std_mult=1.0,
-        entry_threshold=Decimal("15"),   # wider to confirm filter is the blocker
+        entry_threshold=Decimal("15"),  # wider to confirm filter is the blocker
         time_stop_bars=0,
     )
 
@@ -183,7 +186,7 @@ def test_high_vol_spike_suppresses_buy():
         start_price=last_price,
         depth=6.0,
         length=8,
-        spread=30.0,      # massive spike
+        spread=30.0,  # massive spike
         start=next_t,
     )
 
@@ -191,14 +194,13 @@ def test_high_vol_spike_suppresses_buy():
     signals = _feed_bars(strat, all_bars)
 
     buys = [s for s in signals if s.side == OrderSide.BUY]
-    assert buys == [], (
-        f"Expected BUY suppressed during ATR spike, but got {len(buys)} BUY(s)"
-    )
+    assert buys == [], f"Expected BUY suppressed during ATR spike, but got {len(buys)} BUY(s)"
 
 
 # ---------------------------------------------------------------------------
 # SELL is never blocked by the ATR filter
 # ---------------------------------------------------------------------------
+
 
 def test_sell_fires_even_during_vol_spike():
     """
@@ -207,7 +209,8 @@ def test_sell_fires_even_during_vol_spike():
     only gates BUY entries, never exits.
     """
     strat = RSI2VolFilteredStrategy(
-        "s", [SYM],
+        "s",
+        [SYM],
         atr_period=14,
         atr_lookback=100,
         atr_std_mult=1.0,
@@ -234,25 +237,24 @@ def test_sell_fires_even_during_vol_spike():
 
     # Now spike ATR massively during recovery — SELL must still come through.
     dip_close = float(dip_bars[-1].close)
-    recovery_target = last_price + 1.0   # back above the pre-dip area
+    recovery_target = last_price + 1.0  # back above the pre-dip area
     rec_bars, _ = _recovery_bars(
         start_price=dip_close,
         target=recovery_target,
         length=10,
-        spread=30.0,    # huge spread during recovery — ATR spike
+        spread=30.0,  # huge spread during recovery — ATR spike
         start=next_t,
     )
 
     post_signals = _feed_bars(strat, rec_bars)
     sells = [s for s in post_signals if s.side == OrderSide.SELL]
-    assert len(sells) >= 1, (
-        "SELL (exit) must fire even when ATR is spiking"
-    )
+    assert len(sells) >= 1, "SELL (exit) must fire even when ATR is spiking"
 
 
 # ---------------------------------------------------------------------------
 # Warmup guard inherited from parent
 # ---------------------------------------------------------------------------
+
 
 def test_no_signal_during_warmup():
     """Fewer than 201 bars → no signals (inherited from RSI2MeanReversionStrategy)."""
@@ -264,7 +266,10 @@ def test_no_signal_during_warmup():
         bar = Bar(
             symbol=SYM,
             timestamp=t + timedelta(days=i),
-            open=close, high=close, low=close, close=close,
+            open=close,
+            high=close,
+            low=close,
+            close=close,
             volume=Decimal("1000000"),
         )
         signals.extend(strat.on_bar(bar))
@@ -275,9 +280,11 @@ def test_no_signal_during_warmup():
 # No duplicate BUYs while long
 # ---------------------------------------------------------------------------
 
+
 def test_no_duplicate_buys_while_long():
     strat = RSI2VolFilteredStrategy(
-        "s", [SYM],
+        "s",
+        [SYM],
         atr_period=14,
         atr_lookback=100,
         atr_std_mult=1.0,
@@ -304,19 +311,20 @@ def test_no_duplicate_buys_while_long():
 # Ignores unknown symbol
 # ---------------------------------------------------------------------------
 
+
 def test_ignores_unknown_symbol():
     strat = RSI2VolFilteredStrategy("s", [SYM])
     other = Symbol("XYZ", AssetClass.EQUITY)
     t = datetime(2020, 1, 1, tzinfo=timezone.utc)
     p = Decimal("100")
-    bar = Bar(symbol=other, timestamp=t, open=p, high=p, low=p, close=p,
-              volume=Decimal("1"))
+    bar = Bar(symbol=other, timestamp=t, open=p, high=p, low=p, close=p, volume=Decimal("1"))
     assert strat.on_bar(bar) == []
 
 
 # ---------------------------------------------------------------------------
 # Determinism
 # ---------------------------------------------------------------------------
+
 
 def test_deterministic():
     """Two instances fed the same bars produce identical signals."""

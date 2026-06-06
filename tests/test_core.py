@@ -2,6 +2,7 @@
 Tests for apex.core.event_bus and apex.core.clock.
 The plumbing everything else runs on — must be rock solid.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -17,11 +18,19 @@ from apex.core.models import AssetClass, Bar, Symbol
 
 def _bar(ts: datetime) -> Bar:
     s = Symbol("TEST", AssetClass.EQUITY)
-    return Bar(symbol=s, timestamp=ts, open=Decimal("1"), high=Decimal("2"),
-               low=Decimal("1"), close=Decimal("1.5"), volume=Decimal("100"))
+    return Bar(
+        symbol=s,
+        timestamp=ts,
+        open=Decimal("1"),
+        high=Decimal("2"),
+        low=Decimal("1"),
+        close=Decimal("1.5"),
+        volume=Decimal("100"),
+    )
 
 
 # ---- EventBus ----
+
 
 def test_fifo_order():
     bus = EventBus()
@@ -30,9 +39,9 @@ def test_fifo_order():
     e2 = MarketEvent(bar=_bar(t + timedelta(days=1)))
     bus.put(e1)
     bus.put(e2)
-    assert bus.get() is e1      # first in, first out
+    assert bus.get() is e1  # first in, first out
     assert bus.get() is e2
-    assert bus.get() is None    # empty
+    assert bus.get() is None  # empty
 
 
 def test_is_empty_and_len():
@@ -97,6 +106,7 @@ def test_drain_to_subscribers():
 
 
 # ---- Clock ----
+
 
 def test_real_clock_is_utc():
     c = RealClock()

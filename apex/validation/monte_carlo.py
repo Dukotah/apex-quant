@@ -17,6 +17,7 @@ Two techniques:
 Uses a SEEDED RNG so results are reproducible (determinism is sacred here).
 Pure stdlib (random + the metrics module) — runs on the free CI runner.
 """
+
 from __future__ import annotations
 
 import random
@@ -28,14 +29,15 @@ from apex.validation import metrics
 @dataclass(frozen=True)
 class MonteCarloResult:
     """Outcome of the Monte Carlo gate."""
+
     real_sharpe: float
-    p_value: float                  # P(result this good | no real edge)
-    sharpe_percentile: float        # where the real Sharpe sits in the null dist
-    realistic_max_drawdown: float   # 95th-percentile DD — plan sizing around THIS
+    p_value: float  # P(result this good | no real edge)
+    sharpe_percentile: float  # where the real Sharpe sits in the null dist
+    realistic_max_drawdown: float  # 95th-percentile DD — plan sizing around THIS
     median_total_return: float
     worst_5pct_total_return: float
     iterations: int
-    passed: bool                    # p_value < 0.05
+    passed: bool  # p_value < 0.05
 
     def summary(self) -> str:
         verdict = "PASS" if self.passed else "FAIL"
@@ -114,9 +116,7 @@ def run_monte_carlo(
     # to build a luck distribution that tests whether the MAGNITUDE of the edge is real. ---
     sign_null_sharpes: list[float] = []
     for _ in range(iterations):
-        randomized = [
-            r if rng.random() > 0.5 else -r for r in trade_returns
-        ]
+        randomized = [r if rng.random() > 0.5 else -r for r in trade_returns]
         eq = _equity_from_trade_returns(randomized)
         sign_null_sharpes.append(metrics.sharpe_ratio(metrics.returns_from_equity(eq)))
 

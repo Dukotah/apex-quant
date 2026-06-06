@@ -15,6 +15,7 @@ CONTRACT for every function:
 
 All functions tested in tests/test_indicators.py against hand-computed values.
 """
+
 from __future__ import annotations
 
 from typing import Optional, Sequence
@@ -154,18 +155,16 @@ def bollinger_bands(
     upper: list[Optional[float]] = [None] * n
     lower: list[Optional[float]] = [None] * n
     for i in range(period - 1, n):
-        window = values[i - period + 1: i + 1]
+        window = values[i - period + 1 : i + 1]
         mean = middle[i]
         variance = sum((x - mean) ** 2 for x in window) / period
-        sd = variance ** 0.5
+        sd = variance**0.5
         upper[i] = mean + num_std * sd
         lower[i] = mean - num_std * sd
     return upper, middle, lower
 
 
-def atr(
-    high: Sequence, low: Sequence, close: Sequence, period: int = 14
-) -> list[Optional[float]]:
+def atr(high: Sequence, low: Sequence, close: Sequence, period: int = 14) -> list[Optional[float]]:
     """
     Average True Range (Wilder). Measures volatility. Used by the vol-filtered
     RSI(2) strategy and for volatility-scaled position sizing.
@@ -189,7 +188,7 @@ def atr(
         true_ranges[i] = tr
 
     # First ATR = simple average of the first `period` true ranges (indices 1..period).
-    first_atr = sum(true_ranges[1: period + 1]) / period
+    first_atr = sum(true_ranges[1 : period + 1]) / period
     out[period] = first_atr
     prev = first_atr
     for i in range(period + 1, n):
@@ -214,7 +213,9 @@ def rolling_return(data: Sequence, period: int) -> list[Optional[float]]:
     return out
 
 
-def crosses_above(series_a: Sequence[Optional[float]], series_b: Sequence[Optional[float]]) -> list[bool]:
+def crosses_above(
+    series_a: Sequence[Optional[float]], series_b: Sequence[Optional[float]]
+) -> list[bool]:
     """
     True at each index where series_a crosses ABOVE series_b (was <=, now >).
     series_b may be a list or a constant-equivalent list. None values → no cross.
@@ -231,7 +232,9 @@ def crosses_above(series_a: Sequence[Optional[float]], series_b: Sequence[Option
     return out
 
 
-def crosses_below(series_a: Sequence[Optional[float]], series_b: Sequence[Optional[float]]) -> list[bool]:
+def crosses_below(
+    series_a: Sequence[Optional[float]], series_b: Sequence[Optional[float]]
+) -> list[bool]:
     """True where series_a crosses BELOW series_b (was >=, now <)."""
     n = min(len(series_a), len(series_b))
     out = [False] * n

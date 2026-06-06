@@ -43,6 +43,7 @@ PERFORMANCE PRIOR (be skeptical):
   - Antonacci 39-yr: 17.43%/yr, 22.7% max DD. Independent ETF replication:
     ~6.75%/yr, ~30% max DD. Plan for the lower end.
 """
+
 from __future__ import annotations
 
 import logging
@@ -190,7 +191,7 @@ class DualMomentumStrategy(BaseStrategy):
             return None
 
         # Use the most recent lookback_window+1 values.
-        window = buf[-(self.lookback_window + 1):]
+        window = buf[-(self.lookback_window + 1) :]
         ret_series = ind.rolling_return(window, self.lookback_window)
         # rolling_return returns None for positions without enough history;
         # the last element is always valid here because we validated length.
@@ -206,8 +207,7 @@ class DualMomentumStrategy(BaseStrategy):
         # Fail closed: if either return is unavailable, do not trade.
         if spy_ret is None or intl_ret is None:
             logger.warning(
-                "%s: rebalance skipped — trailing return unavailable "
-                "(spy=%s, intl=%s)",
+                "%s: rebalance skipped — trailing return unavailable (spy=%s, intl=%s)",
                 self.strategy_id,
                 spy_ret,
                 intl_ret,
@@ -232,9 +232,7 @@ class DualMomentumStrategy(BaseStrategy):
                 )
         else:
             target_ticker = self.bond_ticker
-            reason = (
-                f"GEM: abs_mom negative (SPY {spy_ret:.2%}); rotating to bonds"
-            )
+            reason = f"GEM: abs_mom negative (SPY {spy_ret:.2%}); rotating to bonds"
 
         logger.info(
             "%s: rebalance — current=%s, target=%s",

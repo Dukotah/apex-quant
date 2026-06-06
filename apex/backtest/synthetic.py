@@ -11,6 +11,7 @@ so runs are fully reproducible (the determinism rule applies to test data too).
 For real backtests, feed the engine a HistoricalDataFeed pointed at actual
 OHLCV files — these helpers are only for synthetic, reproducible scenarios.
 """
+
 from __future__ import annotations
 
 import math
@@ -72,8 +73,18 @@ def make_bars(
         hi = max(open_, close) * Decimal("1.005")
         lo = min(open_, close) * Decimal("0.995")
         ts = start_date + timedelta(days=i)
-        bars.append(Bar(symbol=sym, timestamp=ts, open=open_, high=hi, low=lo,
-                        close=close, volume=Decimal("1000000"), timeframe=timeframe))
+        bars.append(
+            Bar(
+                symbol=sym,
+                timestamp=ts,
+                open=open_,
+                high=hi,
+                low=lo,
+                close=close,
+                volume=Decimal("1000000"),
+                timeframe=timeframe,
+            )
+        )
         prev_close = c
     return bars
 

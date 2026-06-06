@@ -23,6 +23,7 @@ IMPLEMENTATION NOTES:
 PERFORMANCE PRIOR: ~9%/yr on SPY, invested only ~28% of the time, but ~34% max DD
 in volatile periods. The vol-filtered variant (rsi2_vol_filtered.py) tames that.
 """
+
 from __future__ import annotations
 
 import logging
@@ -139,9 +140,7 @@ class RSI2MeanReversionStrategy(BaseStrategy):
                 sma5_val = sma5[-1]
                 if sma5_val is not None and float(bar.close) > sma5_val:
                     exit_triggered = True
-                    exit_reason = (
-                        f"close {bar.close} > SMA{self.sma_exit} {sma5_val:.4f}"
-                    )
+                    exit_reason = f"close {bar.close} > SMA{self.sma_exit} {sma5_val:.4f}"
 
             # Time-stop.
             if (
@@ -150,9 +149,7 @@ class RSI2MeanReversionStrategy(BaseStrategy):
                 and self._bars_held[ticker] >= self.time_stop_bars
             ):
                 exit_triggered = True
-                exit_reason = (
-                    f"time-stop: {self._bars_held[ticker]} bars held"
-                )
+                exit_reason = f"time-stop: {self._bars_held[ticker]} bars held"
 
             if exit_triggered:
                 signals.append(

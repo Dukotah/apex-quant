@@ -13,6 +13,7 @@ unaware of which engine is active — they only ever deal with events.
 
 Switching is a one-line config change. No strategy is ever modified.
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod

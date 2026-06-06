@@ -8,6 +8,7 @@ poll (paper), the rest of the system only ever sees normalized MarketEvents
 on the bus. Concrete feeds translate their source's format into Bar/Tick
 models and emit MarketEvents.
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod

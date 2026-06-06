@@ -17,6 +17,7 @@ Design invariants:
     portfolio will always reach the same state.
   - No I/O beyond logging.
 """
+
 from __future__ import annotations
 
 import logging
@@ -31,7 +32,7 @@ from apex.core.models import OrderSide, Position, Symbol
 # Rolling daily-return window for realized-volatility targeting (annualized).
 _VOL_WINDOW = 30
 _VOL_MIN_OBS = 20
-_ANN = Decimal(252).sqrt()   # exact, no float intermediary
+_ANN = Decimal(252).sqrt()  # exact, no float intermediary
 
 logger = logging.getLogger("apex.risk.portfolio")
 
@@ -91,7 +92,7 @@ class Portfolio:
         and closes.
         """
         ticker: str = fill.symbol.ticker
-        qty: Decimal = fill.quantity        # always positive per FillEvent
+        qty: Decimal = fill.quantity  # always positive per FillEvent
         price: Decimal = fill.fill_price
         commission: Decimal = fill.commission
 
@@ -113,7 +114,7 @@ class Portfolio:
                 )
             new_pos = self._apply_buy(existing, fill.symbol, qty, price)
             if new_pos.quantity == _ZERO:
-                self._positions.pop(ticker, None)   # exact cover — don't leave a zero-qty zombie
+                self._positions.pop(ticker, None)  # exact cover — don't leave a zero-qty zombie
             else:
                 self._positions[ticker] = new_pos
 
@@ -130,8 +131,12 @@ class Portfolio:
 
         logger.debug(
             "on_fill: %s %s qty=%s @%s  cash=%s realized_pnl=%s",
-            fill.side.value, ticker, qty, price,
-            self._cash, self._realized_pnl,
+            fill.side.value,
+            ticker,
+            qty,
+            price,
+            self._cash,
+            self._realized_pnl,
         )
 
     def on_market(self, event: MarketEvent) -> None:
@@ -166,7 +171,10 @@ class Portfolio:
 
         logger.debug(
             "on_market: %s close=%s  equity=%s drawdown=%.4f",
-            ticker, close, self.equity, float(self.drawdown),
+            ticker,
+            close,
+            self.equity,
+            float(self.drawdown),
         )
 
     # ------------------------------------------------------------------
@@ -315,7 +323,7 @@ class Portfolio:
             )
 
         # Covering a short position.
-        new_qty = old_qty + qty   # moves toward zero (or flips long)
+        new_qty = old_qty + qty  # moves toward zero (or flips long)
         if new_qty == _ZERO:
             # Fully closed — caller will remove from dict.
             return Position(
@@ -383,7 +391,7 @@ class Portfolio:
                         current_price=price,
                     )
                 else:
-                    new_pos = None   # exactly closed
+                    new_pos = None  # exactly closed
                 return (pnl, new_pos)
             # Partial reduction.
             new_pos = Position(

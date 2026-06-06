@@ -6,6 +6,7 @@ UTC/Decimal normalization, bad-row skipping, latest-bar tracking, determinism,
 and the connect/stream/disconnect lifecycle. Uses small inline CSV fixtures
 written to tmp_path — stdlib only, no pandas needed for the CSV path.
 """
+
 from __future__ import annotations
 
 from datetime import timezone
@@ -47,6 +48,7 @@ timestamp,symbol,open,high,low,close,volume
 
 # ------------------------------------------------------------------------ tests
 
+
 def test_single_symbol_replays_in_chronological_order(tmp_path):
     path = _write(tmp_path / "nvda.csv", SINGLE_SYMBOL_CSV)
     feed = HistoricalDataFeed([NVDA], path)
@@ -68,7 +70,7 @@ def test_stream_stops_after_last_bar(tmp_path):
     gen = feed.stream()
     assert sum(1 for _ in gen) == 3
     with pytest.raises(StopIteration):
-        next(gen)   # exhausted generator → backtest is over
+        next(gen)  # exhausted generator → backtest is over
 
 
 def test_multi_symbol_interleaved_by_timestamp(tmp_path):
@@ -139,7 +141,7 @@ timestamp,open,high,low,close,volume
 
 def test_unsubscribed_symbols_are_skipped(tmp_path):
     path = _write(tmp_path / "multi.csv", MULTI_SYMBOL_CSV)
-    feed = HistoricalDataFeed([NVDA], path)   # only subscribed to NVDA
+    feed = HistoricalDataFeed([NVDA], path)  # only subscribed to NVDA
     feed.connect()
     tickers = {e.bar.symbol.ticker for e in feed.stream()}
     assert tickers == {"NVDA"}
@@ -149,7 +151,7 @@ def test_get_latest_bar_tracks_stream_progress(tmp_path):
     path = _write(tmp_path / "nvda.csv", SINGLE_SYMBOL_CSV)
     feed = HistoricalDataFeed([NVDA], path)
     feed.connect()
-    assert feed.get_latest_bar(NVDA) is None   # nothing streamed yet
+    assert feed.get_latest_bar(NVDA) is None  # nothing streamed yet
     gen = feed.stream()
     first = next(gen)
     assert feed.get_latest_bar(NVDA) == first.bar
@@ -187,7 +189,7 @@ def test_context_manager_lifecycle(tmp_path):
     with HistoricalDataFeed([NVDA], path) as feed:
         assert feed.is_connected
         assert len(list(feed.stream())) == 3
-    assert not feed.is_connected   # __exit__ called disconnect()
+    assert not feed.is_connected  # __exit__ called disconnect()
 
 
 def test_deterministic_across_runs(tmp_path):

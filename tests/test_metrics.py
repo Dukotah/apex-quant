@@ -2,6 +2,7 @@
 Tests for apex.validation.metrics — verified against hand-computed values.
 A metric you can't trust is worse than no metric. These lock in correctness.
 """
+
 from __future__ import annotations
 
 import math
@@ -12,7 +13,7 @@ from apex.validation import metrics
 def test_total_return():
     assert abs(metrics.total_return([100, 110]) - 0.10) < 1e-9
     assert abs(metrics.total_return([100, 50]) - (-0.50)) < 1e-9
-    assert metrics.total_return([100]) == 0.0          # too short
+    assert metrics.total_return([100]) == 0.0  # too short
     assert metrics.total_return([]) == 0.0
 
 
@@ -83,4 +84,4 @@ def test_annualized_return():
     # Doubling over exactly one year (252 daily bars) → ~100% annualized.
     curve = [1.0] + [1.0 * (2 ** (i / 252)) for i in range(1, 253)]
     ann = metrics.annualized_return(curve)
-    assert abs(ann - 1.0) < 0.05    # ~100%
+    assert abs(ann - 1.0) < 0.05  # ~100%

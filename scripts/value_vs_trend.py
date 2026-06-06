@@ -17,6 +17,7 @@ blend search validated out-of-sample (30%).
 
 Run:  python -m scripts.value_vs_trend [data/real/multiasset_smart7.csv]
 """
+
 from __future__ import annotations
 
 import sys
@@ -37,14 +38,20 @@ DEFAULT_DATA = "data/real/multiasset_smart7.csv"
 TRADING_DAYS = 252.0
 
 TREND_RISK = RiskConfig(
-    max_position_size_pct=Decimal("0.16"), max_total_exposure_pct=Decimal("1.0"),
-    max_leverage=Decimal("1.0"), max_drawdown_pct=Decimal("0.99"),
-    max_daily_loss_pct=Decimal("0.99"), require_stop_loss=True,
+    max_position_size_pct=Decimal("0.16"),
+    max_total_exposure_pct=Decimal("1.0"),
+    max_leverage=Decimal("1.0"),
+    max_drawdown_pct=Decimal("0.99"),
+    max_daily_loss_pct=Decimal("0.99"),
+    require_stop_loss=True,
 )
 VALUE_RISK = RiskConfig(
-    max_position_size_pct=Decimal("0.34"), max_total_exposure_pct=Decimal("1.0"),
-    max_leverage=Decimal("1.0"), max_drawdown_pct=Decimal("0.99"),
-    max_daily_loss_pct=Decimal("0.99"), require_stop_loss=True,
+    max_position_size_pct=Decimal("0.34"),
+    max_total_exposure_pct=Decimal("1.0"),
+    max_leverage=Decimal("1.0"),
+    max_drawdown_pct=Decimal("0.99"),
+    max_daily_loss_pct=Decimal("0.99"),
+    require_stop_loss=True,
 )
 
 
@@ -78,11 +85,17 @@ def main() -> None:
     print(f"Backtesting trend vs value on {data} ({len(events)} events)...\n")
 
     trend = run_backtest(
-        events, MultiAssetTrendStrategy("trend", syms, fast_period=20, slow_period=200),
-        TREND_RISK, initial_capital=Decimal("100000"))
+        events,
+        MultiAssetTrendStrategy("trend", syms, fast_period=20, slow_period=200),
+        TREND_RISK,
+        initial_capital=Decimal("100000"),
+    )
     value = run_backtest(
-        events, CrossAssetValueStrategy("value", syms, value_period=1260, skip_recent=252, top_k=3),
-        VALUE_RISK, initial_capital=Decimal("100000"))
+        events,
+        CrossAssetValueStrategy("value", syms, value_period=1260, skip_recent=252, top_k=3),
+        VALUE_RISK,
+        initial_capital=Decimal("100000"),
+    )
 
     rets: Dict[str, np.ndarray] = {
         "trend": _daily_returns(trend.equity_curve),
@@ -96,8 +109,10 @@ def main() -> None:
     print(f"  value  {_sharpe(R[:, 1]):.2f}")
 
     rho = float(np.corrcoef(R, rowvar=False)[0, 1])
-    print(f"\nCorrelation(trend, value): {rho:+.2f}   "
-          f"{'<- UNCORRELATED, a real diversifier' if abs(rho) < 0.3 else '<- too correlated to help' if rho > 0.5 else '<- mildly correlated'}")
+    print(
+        f"\nCorrelation(trend, value): {rho:+.2f}   "
+        f"{'<- UNCORRELATED, a real diversifier' if abs(rho) < 0.3 else '<- too correlated to help' if rho > 0.5 else '<- mildly correlated'}"
+    )
 
     # In-sample (70%) long-only blend search, out-of-sample (30%) validation.
     split = int(0.70 * n)
@@ -115,10 +130,14 @@ def main() -> None:
 
     print(f"\nBest in-sample blend:  trend {w_trend:.0%} / value {1 - w_trend:.0%}")
     print(f"  In-sample Sharpe:     {is_sharpe:.2f}")
-    print(f"  Out-of-sample Sharpe: {oos_sharpe:.2f}   <- the honest number (weights fixed from IS)")
+    print(
+        f"  Out-of-sample Sharpe: {oos_sharpe:.2f}   <- the honest number (weights fixed from IS)"
+    )
     print(f"  Full-period Sharpe:   {full_sharpe:.2f}")
-    print(f"\n  trend-alone full Sharpe {_sharpe(R[:, 0]):.2f}  ->  best blend {full_sharpe:.2f}  "
-          f"({'blend HELPS' if full_sharpe > _sharpe(R[:, 0]) + 0.02 else 'no improvement'})")
+    print(
+        f"\n  trend-alone full Sharpe {_sharpe(R[:, 0]):.2f}  ->  best blend {full_sharpe:.2f}  "
+        f"({'blend HELPS' if full_sharpe > _sharpe(R[:, 0]) + 0.02 else 'no improvement'})"
+    )
 
 
 if __name__ == "__main__":

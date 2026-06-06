@@ -27,6 +27,7 @@ Bad input fails loud here (``ValueError``) so the *caller* decides whether to
 skip-and-count or abort — matching how ``HistoricalDataFeed`` already treats a
 bad row. The normalizer never silently invents a value.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -54,6 +55,7 @@ _EPOCH_MS_THRESHOLD = 1e11
 
 
 # --------------------------------------------------------------------- scalars
+
 
 def to_utc(value: object) -> datetime:
     """
@@ -84,15 +86,15 @@ def to_utc(value: object) -> datetime:
         if not text:
             raise ValueError("timestamp is missing/empty")
         if text[-1] in ("Z", "z"):
-            text = text[:-1] + "+00:00"   # 3.11-safe Zulu handling
+            text = text[:-1] + "+00:00"  # 3.11-safe Zulu handling
         try:
             dt = datetime.fromisoformat(text)
         except ValueError as exc:
             raise ValueError(f"unparseable timestamp {value!r}: {exc}") from exc
 
     if dt.tzinfo is None:
-        return dt.replace(tzinfo=timezone.utc)   # naive → assume UTC
-    return dt.astimezone(timezone.utc)            # aware → convert to UTC
+        return dt.replace(tzinfo=timezone.utc)  # naive → assume UTC
+    return dt.astimezone(timezone.utc)  # aware → convert to UTC
 
 
 def to_decimal(value: object, *, field: str = "value") -> Decimal:
@@ -109,6 +111,7 @@ def to_decimal(value: object, *, field: str = "value") -> Decimal:
 
 
 # ------------------------------------------------------------------- builders
+
 
 def make_bar(
     symbol: Symbol,
@@ -197,6 +200,7 @@ def bar_from_obj(obj: object, symbol: Symbol, timeframe: str = "1Day") -> Bar:
     and ``open/high/low/close/volume`` (with single-letter ``o/h/l/c/v``
     fallbacks). Raises ``ValueError`` if a required attribute is absent.
     """
+
     def attr(*names: str) -> object:
         for n in names:
             if hasattr(obj, n):

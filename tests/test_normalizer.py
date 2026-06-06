@@ -6,6 +6,7 @@ down every dialect it must accept (datetime/ISO/Zulu/epoch timestamps; float/
 str/Decimal prices; dict rows; SDK-style attribute objects) and confirm it fails
 loud — never silently — on bad input. Pure/offline: no I/O, no clock, no network.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -21,6 +22,7 @@ NVDA = Symbol("NVDA", AssetClass.EQUITY)
 
 # ------------------------------------------------------------------- to_utc
 
+
 def test_naive_datetime_assumed_utc():
     dt = norm.to_utc(datetime(2024, 1, 1, 12, 0, 0))
     assert dt.tzinfo == timezone.utc
@@ -29,6 +31,7 @@ def test_naive_datetime_assumed_utc():
 
 def test_aware_datetime_converted_to_utc():
     from datetime import timedelta
+
     aware = datetime(2024, 1, 1, 5, 0, 0, tzinfo=timezone(timedelta(hours=-5)))
     dt = norm.to_utc(aware)
     assert dt == datetime(2024, 1, 1, 10, 0, 0, tzinfo=timezone.utc)
@@ -42,8 +45,8 @@ def test_iso_string_and_zulu_resolve_to_same_instant():
 
 
 def test_epoch_seconds_and_millis():
-    secs = norm.to_utc(1704067200)          # 2024-01-01T00:00:00Z
-    millis = norm.to_utc(1704067200000)     # same instant in ms
+    secs = norm.to_utc(1704067200)  # 2024-01-01T00:00:00Z
+    millis = norm.to_utc(1704067200000)  # same instant in ms
     assert secs == datetime(2024, 1, 1, tzinfo=timezone.utc)
     assert secs == millis
 
@@ -55,6 +58,7 @@ def test_bad_timestamp_raises(bad):
 
 
 # ---------------------------------------------------------------- to_decimal
+
 
 def test_to_decimal_from_float_str_decimal():
     assert norm.to_decimal(10.5) == Decimal("10.5")
@@ -75,6 +79,7 @@ def test_to_decimal_bad_raises_with_field_name(bad):
 
 
 # ------------------------------------------------------------------ make_bar
+
 
 def test_make_bar_normalizes_types():
     bar = norm.make_bar(NVDA, "2024-01-01", 10.0, 11.0, 9.0, 10.5, 1000)
@@ -97,9 +102,16 @@ def test_make_bar_rejects_negative_price():
 
 # -------------------------------------------------------------- bar_from_mapping
 
+
 def test_bar_from_mapping_canonical_headers():
-    row = {"timestamp": "2024-01-01", "open": 10, "high": 11,
-           "low": 9, "close": 10.5, "volume": 100}
+    row = {
+        "timestamp": "2024-01-01",
+        "open": 10,
+        "high": 11,
+        "low": 9,
+        "close": 10.5,
+        "volume": 100,
+    }
     bar = norm.bar_from_mapping(row, NVDA)
     assert bar.close == Decimal("10.5")
 
@@ -127,8 +139,10 @@ def test_bar_from_mapping_missing_timestamp_raises():
 
 # ----------------------------------------------------------------- bar_from_obj
 
+
 class _FakeAlpacaBar:
     """Mimics alpaca.data.models.Bar — attributes, not dict keys."""
+
     def __init__(self, timestamp, open, high, low, close, volume):
         self.timestamp = timestamp
         self.open = open
@@ -141,7 +155,11 @@ class _FakeAlpacaBar:
 def test_bar_from_obj_attribute_access():
     raw = _FakeAlpacaBar(
         timestamp=datetime(2024, 1, 1, tzinfo=timezone.utc),
-        open=10.0, high=11.0, low=9.0, close=10.5, volume=1000,
+        open=10.0,
+        high=11.0,
+        low=9.0,
+        close=10.5,
+        volume=1000,
     )
     bar = norm.bar_from_obj(raw, NVDA)
     assert bar.close == Decimal("10.5")
@@ -156,11 +174,13 @@ def test_bar_from_obj_missing_attribute_raises():
         low = 9
         close = 10
         # volume missing
+
     with pytest.raises(ValueError):
         norm.bar_from_obj(Partial(), NVDA)
 
 
 # -------------------------------------------------------------------- make_tick
+
 
 def test_make_tick_with_and_without_quote():
     t1 = norm.make_tick(NVDA, "2024-01-01T00:00:00Z", 10.5, 100)

@@ -28,6 +28,7 @@ THE RULES (daily bars):
 CONVENTION: symbols[0] is the risk asset, symbols[-1] is the bond sleeve.
 Determinism: pure function of bar history; no I/O, no datetime.now().
 """
+
 from __future__ import annotations
 
 import logging
@@ -74,7 +75,7 @@ class TrendBondStrategy(BaseStrategy):
 
         self._risk_closes: List[float] = []
         self._last_close: Dict[str, float] = {}
-        self._holding: Optional[str] = None   # ticker currently held, or None
+        self._holding: Optional[str] = None  # ticker currently held, or None
 
     def on_bar(self, bar: Bar) -> List[SignalEvent]:
         ticker = bar.symbol.ticker
@@ -107,11 +108,16 @@ class TrendBondStrategy(BaseStrategy):
         # Exit the current holding first (frees capital for the rotation).
         if self._holding is not None:
             held_sym = self.risk if self._holding == self.risk.ticker else self.bond
-            signals.append(SignalEvent(
-                symbol=held_sym, side=OrderSide.SELL, strength=Decimal("1.0"),
-                strategy_id=self.strategy_id, timestamp=bar.timestamp,
-                reason=f"trend flip: exit {self._holding}",
-            ))
+            signals.append(
+                SignalEvent(
+                    symbol=held_sym,
+                    side=OrderSide.SELL,
+                    strength=Decimal("1.0"),
+                    strategy_id=self.strategy_id,
+                    timestamp=bar.timestamp,
+                    reason=f"trend flip: exit {self._holding}",
+                )
+            )
 
         # Enter the target (need a known price to attach a stop).
         target_sym = self.risk if target == self.risk.ticker else self.bond
@@ -119,19 +125,35 @@ class TrendBondStrategy(BaseStrategy):
         if tprice is None:
             # Target's price not seen yet (e.g. bond bar hasn't arrived) — emit only
             # the exit this bar; the entry follows once we have a price. Rare.
-            logger.debug("%s: no price yet for target %s; deferring entry",
-                         self.strategy_id, target)
+            logger.debug(
+                "%s: no price yet for target %s; deferring entry", self.strategy_id, target
+            )
             return signals
 
         stop = Decimal(str(tprice)) * (Decimal("1") - self.stop_loss_pct)
-        reason = ("trend up: hold risk asset" if target == self.risk.ticker
-                  else "trend down: risk-off to bonds")
-        signals.append(SignalEvent(
-            symbol=target_sym, side=OrderSide.BUY, strength=Decimal("1.0"),
-            strategy_id=self.strategy_id, suggested_stop_loss=stop,
-            timestamp=bar.timestamp, reason=reason,
-        ))
+        reason = (
+            "trend up: hold risk asset"
+            if target == self.risk.ticker
+            else "trend down: risk-off to bonds"
+        )
+        signals.append(
+            SignalEvent(
+                symbol=target_sym,
+                side=OrderSide.BUY,
+                strength=Decimal("1.0"),
+                strategy_id=self.strategy_id,
+                suggested_stop_loss=stop,
+                timestamp=bar.timestamp,
+                reason=reason,
+            )
+        )
         self._holding = target
-        logger.info("%s: rotate -> %s (price %.2f vs SMA%d %.2f)",
-                    self.strategy_id, target, price, self.slow_period, sma)
+        logger.info(
+            "%s: rotate -> %s (price %.2f vs SMA%d %.2f)",
+            self.strategy_id,
+            target,
+            price,
+            self.slow_period,
+            sma,
+        )
         return signals

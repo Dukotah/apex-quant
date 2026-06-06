@@ -19,6 +19,7 @@ Pure stdlib (deque + the metrics module). Deterministic: same return stream →
 same decisions. Quarantine is STICKY — clearing it requires a human reviewing
 why the edge decayed and calling reset().
 """
+
 from __future__ import annotations
 
 from collections import deque
@@ -28,24 +29,25 @@ from typing import Deque, Optional
 
 from apex.validation import metrics
 
-DEFAULT_FLOOR_RATIO = 0.70           # matches the Gauntlet's quarantine floor
-DEFAULT_WINDOW = 30                  # "30-day" rolling Sharpe
+DEFAULT_FLOOR_RATIO = 0.70  # matches the Gauntlet's quarantine floor
+DEFAULT_WINDOW = 30  # "30-day" rolling Sharpe
 
 
 class DriftState(str, Enum):
-    WARMING_UP = "warming_up"        # not enough live data to judge yet
-    ACTIVE = "active"                # tracking; within tolerance of the backtest
-    QUARANTINED = "quarantined"      # decayed below the floor — stop allocating
+    WARMING_UP = "warming_up"  # not enough live data to judge yet
+    ACTIVE = "active"  # tracking; within tolerance of the backtest
+    QUARANTINED = "quarantined"  # decayed below the floor — stop allocating
 
 
 @dataclass(frozen=True)
 class DriftReading:
     """A point-in-time assessment of live-vs-backtest drift."""
+
     state: DriftState
     rolling_sharpe: float
     validated_sharpe: float
     floor: float
-    drift_ratio: float               # rolling / validated (1.0 = on track)
+    drift_ratio: float  # rolling / validated (1.0 = on track)
     observations: int
     reason: str
 
@@ -133,9 +135,7 @@ class DriftMonitor:
     def check(self) -> DriftReading:
         """Assess current drift state without recording new data."""
         n = len(self._returns)
-        rolling = metrics.sharpe_ratio(
-            list(self._returns), periods_per_year=self.periods_per_year
-        )
+        rolling = metrics.sharpe_ratio(list(self._returns), periods_per_year=self.periods_per_year)
         ratio = (rolling / self.validated_sharpe) if self.validated_sharpe else 0.0
 
         # Quarantine is sticky once tripped — only reset() clears it.

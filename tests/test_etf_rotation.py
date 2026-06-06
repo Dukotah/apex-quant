@@ -14,6 +14,7 @@ Validates the full weekly-rotation pipeline:
 
 Style matches test_sma_crossover.py exactly.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -29,6 +30,7 @@ from apex.strategy.library.etf_rotation import ETFRotationStrategy
 # Fixtures — symbols
 # ---------------------------------------------------------------------------
 
+
 def _sym(ticker: str) -> Symbol:
     return Symbol(ticker, AssetClass.ETF)
 
@@ -37,7 +39,7 @@ XLK = _sym("XLK")
 XLE = _sym("XLE")
 XLF = _sym("XLF")
 XLV = _sym("XLV")
-AGG = _sym("AGG")   # bond / risk-off sleeve (always last)
+AGG = _sym("AGG")  # bond / risk-off sleeve (always last)
 
 ALL_SYMS = [XLK, XLE, XLF, XLV, AGG]
 SECTOR_SYMS = [XLK, XLE, XLF, XLV]
@@ -112,7 +114,10 @@ def _trending_prices(n: int, start: float, daily_drift: float) -> List[float]:
 # Helper to build a standard 90-day warmup + extra scenario
 # ---------------------------------------------------------------------------
 
-def _build_strat(top_k: int = 1, momentum_period: int = 63, vol_period: int = 21) -> ETFRotationStrategy:
+
+def _build_strat(
+    top_k: int = 1, momentum_period: int = 63, vol_period: int = 21
+) -> ETFRotationStrategy:
     return ETFRotationStrategy(
         strategy_id="test-etf-rotation",
         symbols=ALL_SYMS,
@@ -125,6 +130,7 @@ def _build_strat(top_k: int = 1, momentum_period: int = 63, vol_period: int = 21
 # ---------------------------------------------------------------------------
 # Construction validation
 # ---------------------------------------------------------------------------
+
 
 def test_requires_at_least_two_symbols():
     with pytest.raises(ValueError, match="at least 2"):
@@ -150,6 +156,7 @@ def test_invalid_top_k():
 # Warmup guard
 # ---------------------------------------------------------------------------
 
+
 def test_no_signal_during_warmup():
     """
     With momentum_period=63, we need ≥64 bars per symbol before the first
@@ -165,6 +172,7 @@ def test_no_signal_during_warmup():
 # ---------------------------------------------------------------------------
 # Week-boundary detection
 # ---------------------------------------------------------------------------
+
 
 def test_no_signal_within_same_week():
     """
@@ -194,14 +202,13 @@ def test_no_signal_within_same_week():
     all_signals = _feed_interleaved(strat, prices)
     # We just check we don't get runaway signal spam — at most 2 rebalances
     # in 30 days (≈4 weeks) is sane.
-    assert len(all_signals) <= 2 * len(ALL_SYMS), (
-        f"Too many signals in 30 days: {len(all_signals)}"
-    )
+    assert len(all_signals) <= 2 * len(ALL_SYMS), f"Too many signals in 30 days: {len(all_signals)}"
 
 
 # ---------------------------------------------------------------------------
 # Momentum ranking — top-1 selection
 # ---------------------------------------------------------------------------
+
 
 def test_top_performer_selected_top1():
     """
@@ -210,10 +217,10 @@ def test_top_performer_selected_top1():
     """
     momentum_period = 30
     vol_period = 10
-    n = momentum_period + 30   # plenty of bars
+    n = momentum_period + 30  # plenty of bars
 
     prices = {
-        "XLK": _trending_prices(n, 100.0, 0.5),   # strong uptrend
+        "XLK": _trending_prices(n, 100.0, 0.5),  # strong uptrend
         "XLE": _flat_prices(n, 100.0),
         "XLF": _flat_prices(n, 100.0),
         "XLV": _flat_prices(n, 100.0),
@@ -243,8 +250,8 @@ def test_top_performer_selected_top2():
     n = momentum_period + 30
 
     prices = {
-        "XLK": _trending_prices(n, 100.0, 0.8),   # best
-        "XLE": _trending_prices(n, 100.0, 0.4),   # second
+        "XLK": _trending_prices(n, 100.0, 0.8),  # best
+        "XLE": _trending_prices(n, 100.0, 0.4),  # second
         "XLF": _flat_prices(n, 100.0),
         "XLV": _flat_prices(n, 100.0),
         "AGG": _flat_prices(n, 100.0),
@@ -262,6 +269,7 @@ def test_top_performer_selected_top2():
 # ---------------------------------------------------------------------------
 # Rotation: XLK leadership → XLE leadership
 # ---------------------------------------------------------------------------
+
 
 def test_rotation_xlk_to_xle():
     """
@@ -283,13 +291,12 @@ def test_rotation_xlk_to_xle():
 
     # XLK: rises in phase1, falls back in phase2.
     xlk_prices = (
-        _trending_prices(phase1, 100.0, 0.5)           # climbs to ~145
-        + _trending_prices(phase2, 145.0, -0.5)         # falls back
+        _trending_prices(phase1, 100.0, 0.5)  # climbs to ~145
+        + _trending_prices(phase2, 145.0, -0.5)  # falls back
     )
     # XLE: flat in phase1, then climbs in phase2.
     xle_prices = (
-        _flat_prices(phase1, 100.0)
-        + _trending_prices(phase2, 100.0, 0.6)          # climbs to ~154
+        _flat_prices(phase1, 100.0) + _trending_prices(phase2, 100.0, 0.6)  # climbs to ~154
     )
 
     prices = {
@@ -313,12 +320,10 @@ def test_rotation_xlk_to_xle():
 
     # Sell-XLK must appear before or at the same rebalance as buy-XLE.
     sell_xlk_idx = next(
-        i for i, s in enumerate(signals)
-        if s.side == OrderSide.SELL and s.symbol.ticker == "XLK"
+        i for i, s in enumerate(signals) if s.side == OrderSide.SELL and s.symbol.ticker == "XLK"
     )
     buy_xle_idx = next(
-        i for i, s in enumerate(signals)
-        if s.side == OrderSide.BUY and s.symbol.ticker == "XLE"
+        i for i, s in enumerate(signals) if s.side == OrderSide.BUY and s.symbol.ticker == "XLE"
     )
     assert sell_xlk_idx <= buy_xle_idx + len(ALL_SYMS), (
         "SELL XLK should accompany BUY XLE in the same rebalance"
@@ -328,6 +333,7 @@ def test_rotation_xlk_to_xle():
 # ---------------------------------------------------------------------------
 # Absolute-momentum risk-off overlay
 # ---------------------------------------------------------------------------
+
 
 def test_risk_off_when_all_momentum_negative():
     """
@@ -344,7 +350,7 @@ def test_risk_off_when_all_momentum_negative():
         "XLE": _trending_prices(n, 100.0, -0.2),
         "XLF": _trending_prices(n, 100.0, -0.1),
         "XLV": _trending_prices(n, 100.0, -0.15),
-        "AGG": _flat_prices(n, 100.0),             # bonds: flat
+        "AGG": _flat_prices(n, 100.0),  # bonds: flat
     }
     strat = ETFRotationStrategy(
         "s", ALL_SYMS, momentum_period=momentum_period, vol_period=vol_period, top_k=1
@@ -374,8 +380,8 @@ def test_risk_off_sells_sector_and_buys_bonds():
     n = phase1 + phase2
 
     xlk_prices = (
-        _trending_prices(phase1, 100.0, 0.4)    # positive in phase1
-        + _trending_prices(phase2, 120.0, -0.5) # negative in phase2
+        _trending_prices(phase1, 100.0, 0.4)  # positive in phase1
+        + _trending_prices(phase2, 120.0, -0.5)  # negative in phase2
     )
     prices = {
         "XLK": xlk_prices,
@@ -401,6 +407,7 @@ def test_risk_off_sells_sector_and_buys_bonds():
 # Inverse-vol sizing
 # ---------------------------------------------------------------------------
 
+
 def test_lower_vol_gets_higher_strength():
     """
     XLK has much lower realized vol than XLE.
@@ -418,8 +425,8 @@ def test_lower_vol_gets_higher_strength():
     xlk_val = base
     xle_val = base
     for i in range(n):
-        xlk_val += 0.3         # smooth uptrend
-        xle_val += 0.3 + (0.5 if i % 2 == 0 else -0.5)   # same drift but noisy
+        xlk_val += 0.3  # smooth uptrend
+        xle_val += 0.3 + (0.5 if i % 2 == 0 else -0.5)  # same drift but noisy
         xlk_prices.append(xlk_val)
         xle_prices.append(max(xle_val, 1.0))
 
@@ -476,6 +483,7 @@ def test_strength_is_decimal_in_zero_one():
 # Stop-loss attached to BUY signals
 # ---------------------------------------------------------------------------
 
+
 def test_buy_signals_have_stop_loss():
     """Every BUY signal must carry a suggested_stop_loss below entry price."""
     momentum_period = 20
@@ -507,6 +515,7 @@ def test_buy_signals_have_stop_loss():
 # ---------------------------------------------------------------------------
 # No redundant signals when selection is unchanged
 # ---------------------------------------------------------------------------
+
 
 def test_no_redundant_signals_when_selection_unchanged():
     """
@@ -547,11 +556,10 @@ def test_no_redundant_signals_when_selection_unchanged():
 # Ignores unknown symbol
 # ---------------------------------------------------------------------------
 
+
 def test_ignores_unknown_symbol():
     """Bars for symbols not in the universe are silently ignored."""
-    strat = ETFRotationStrategy(
-        "s", ALL_SYMS, momentum_period=20, vol_period=10, top_k=1
-    )
+    strat = ETFRotationStrategy("s", ALL_SYMS, momentum_period=20, vol_period=10, top_k=1)
     unknown = Symbol("UNKNOWN", AssetClass.EQUITY)
     bar = _bar(unknown, 50.0, 0)
     result = strat.on_bar(bar)
@@ -561,6 +569,7 @@ def test_ignores_unknown_symbol():
 # ---------------------------------------------------------------------------
 # Determinism
 # ---------------------------------------------------------------------------
+
 
 def test_deterministic():
     """Same input bars always produce the same signal sequence."""
@@ -574,8 +583,12 @@ def test_deterministic():
         "XLV": _flat_prices(n, 100.0),
         "AGG": _flat_prices(n, 100.0),
     }
-    strat1 = ETFRotationStrategy("s", ALL_SYMS, momentum_period=momentum_period, vol_period=vol_period, top_k=1)
-    strat2 = ETFRotationStrategy("s", ALL_SYMS, momentum_period=momentum_period, vol_period=vol_period, top_k=1)
+    strat1 = ETFRotationStrategy(
+        "s", ALL_SYMS, momentum_period=momentum_period, vol_period=vol_period, top_k=1
+    )
+    strat2 = ETFRotationStrategy(
+        "s", ALL_SYMS, momentum_period=momentum_period, vol_period=vol_period, top_k=1
+    )
 
     sig1 = _feed_interleaved(strat1, prices)
     sig2 = _feed_interleaved(strat2, prices)

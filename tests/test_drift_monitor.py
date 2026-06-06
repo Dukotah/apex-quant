@@ -5,6 +5,7 @@ The live-vs-backtest alpha-decay kill switch: warms up, stays ACTIVE while live
 performance tracks the validated edge, AUTO-QUARANTINES (stickily) when the
 rolling Sharpe decays below the floor, and only a manual reset() lifts it.
 """
+
 from __future__ import annotations
 
 from apex.validation.drift_monitor import DriftMonitor, DriftState
@@ -35,7 +36,7 @@ def test_requires_positive_validated_sharpe():
 def test_warming_up_before_min_observations():
     mon = DriftMonitor("s", validated_sharpe=1.5, window=30)
     reading = None
-    for r in _healthy(10):            # fewer than the 30-obs minimum
+    for r in _healthy(10):  # fewer than the 30-obs minimum
         reading = mon.record_return(r)
     assert reading.state == DriftState.WARMING_UP
     assert not reading.is_quarantined
@@ -71,9 +72,9 @@ def test_quarantine_is_sticky():
         mon.record_return(r)
     assert mon.is_quarantined
     last = None
-    for r in _healthy(30):           # would otherwise look great
+    for r in _healthy(30):  # would otherwise look great
         last = mon.record_return(r)
-    assert last.state == DriftState.QUARANTINED   # still quarantined
+    assert last.state == DriftState.QUARANTINED  # still quarantined
 
 
 def test_reset_lifts_quarantine():
@@ -101,7 +102,7 @@ def test_record_equity_derives_returns():
     reading = None
     equity = 100_000.0
     for r in _healthy(8):
-        equity *= (1.0 + r)
+        equity *= 1.0 + r
         reading = mon.record_equity(equity)
     assert reading.observations >= 4
     assert reading.state in (DriftState.ACTIVE, DriftState.QUARANTINED)
@@ -123,7 +124,8 @@ def test_deterministic():
 def test_from_gauntlet_report_recovers_validated_sharpe():
     class FakeReport:
         strategy_name = "demo"
-        quarantine_sharpe_floor = 0.70 * 1.6   # floor = 0.70 * validated(1.6)
+        quarantine_sharpe_floor = 0.70 * 1.6  # floor = 0.70 * validated(1.6)
+
     mon = DriftMonitor.from_gauntlet_report(FakeReport())
     assert abs(mon.validated_sharpe - 1.6) < 1e-9
     assert mon.strategy_id == "demo"

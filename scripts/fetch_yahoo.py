@@ -19,6 +19,7 @@ Notes:
   - Adjusted close is used when present (splits/dividends) so momentum/return
     math reflects total return, not raw price.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -33,8 +34,9 @@ from typing import List
 _RANGE_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{sym}?range={rng}&interval=1d"
 # period1/period2 (epoch seconds) force DAILY granularity over any span — unlike
 # range=max, which Yahoo silently downsamples to monthly bars.
-_PERIOD_URL = ("https://query1.finance.yahoo.com/v8/finance/chart/{sym}"
-               "?period1={p1}&period2={p2}&interval=1d")
+_PERIOD_URL = (
+    "https://query1.finance.yahoo.com/v8/finance/chart/{sym}?period1={p1}&period2={p2}&interval=1d"
+)
 _HEADERS = {"User-Agent": "Mozilla/5.0 (apex-quant data fetch)"}
 
 
@@ -64,8 +66,13 @@ def fetch_symbol(symbol: str, rng: str = "15y", start: str | None = None) -> Lis
 
     rows: List[dict] = []
     for i, ts in enumerate(stamps):
-        o, h, lo, c, v = (quote["open"][i], quote["high"][i], quote["low"][i],
-                          quote["close"][i], quote["volume"][i])
+        o, h, lo, c, v = (
+            quote["open"][i],
+            quote["high"][i],
+            quote["low"][i],
+            quote["close"][i],
+            quote["volume"][i],
+        )
         if None in (o, h, lo, c):
             continue  # holiday / halted bar — skip, don't fabricate
         # CRITICAL: O/H/L and close must share ONE adjustment basis. Yahoo gives
@@ -77,11 +84,17 @@ def fetch_symbol(symbol: str, rng: str = "15y", start: str | None = None) -> Lis
         ratio = (adj_c / c) if c else 1.0
         o, h, lo, close = o * ratio, h * ratio, lo * ratio, adj_c
         date = datetime.fromtimestamp(ts, tz=timezone.utc).date().isoformat()
-        rows.append({
-            "timestamp": date, "symbol": symbol,
-            "open": f"{o:.6f}", "high": f"{h:.6f}", "low": f"{lo:.6f}",
-            "close": f"{close:.6f}", "volume": int(v or 0),
-        })
+        rows.append(
+            {
+                "timestamp": date,
+                "symbol": symbol,
+                "open": f"{o:.6f}",
+                "high": f"{h:.6f}",
+                "low": f"{lo:.6f}",
+                "close": f"{close:.6f}",
+                "volume": int(v or 0),
+            }
+        )
     return rows
 
 
@@ -90,14 +103,19 @@ def fetch_combined(symbols: List[str], rng: str, out_path: Path, start: str | No
     all_rows: List[dict] = []
     for sym in symbols:
         rows = fetch_symbol(sym, rng, start=start)
-        print(f"  {sym}: {len(rows)} bars "
-              f"({rows[0]['timestamp']} -> {rows[-1]['timestamp']})" if rows else f"  {sym}: 0 bars")
+        print(
+            f"  {sym}: {len(rows)} bars ({rows[0]['timestamp']} -> {rows[-1]['timestamp']})"
+            if rows
+            else f"  {sym}: 0 bars"
+        )
         all_rows.extend(rows)
 
     all_rows.sort(key=lambda r: (r["timestamp"], r["symbol"]))
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with out_path.open("w", newline="", encoding="utf-8") as fh:
-        writer = csv.DictWriter(fh, fieldnames=["timestamp", "symbol", "open", "high", "low", "close", "volume"])
+        writer = csv.DictWriter(
+            fh, fieldnames=["timestamp", "symbol", "open", "high", "low", "close", "volume"]
+        )
         writer.writeheader()
         writer.writerows(all_rows)
     print(f"Wrote {len(all_rows)} rows for {len(symbols)} symbols -> {out_path}")
@@ -108,7 +126,11 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Download free daily OHLCV from Yahoo Finance.")
     ap.add_argument("symbols", nargs="+", help="tickers, e.g. SPY EFA AGG")
     ap.add_argument("--range", default="15y", help="Yahoo range (e.g. 5y, 10y, 15y)")
-    ap.add_argument("--start", default=None, help="start date YYYY-MM-DD for DAILY long history (overrides --range)")
+    ap.add_argument(
+        "--start",
+        default=None,
+        help="start date YYYY-MM-DD for DAILY long history (overrides --range)",
+    )
     ap.add_argument("--out", default="data/real/ohlcv.csv", help="output CSV path")
     args = ap.parse_args()
     try:

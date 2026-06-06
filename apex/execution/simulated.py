@@ -18,6 +18,7 @@ Determinism guarantee: broker_order_id is "SIM-N" where N is the
 monotonically incrementing submit counter (1-based). Same sequence of
 submit_order calls → same ids, always.
 """
+
 from __future__ import annotations
 
 import logging

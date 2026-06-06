@@ -40,6 +40,7 @@ THE RULES (long/flat trend per sleeve):
 
 Deterministic, no I/O, stdlib-only math — safe on the free CI runner.
 """
+
 from __future__ import annotations
 
 import statistics
@@ -101,7 +102,7 @@ class MultiAssetTrendStrategy(BaseStrategy):
         """Stdev of the last `vol_window` close-to-close simple returns."""
         if len(closes) < self.vol_window + 1:
             return None
-        window = closes[-(self.vol_window + 1):]
+        window = closes[-(self.vol_window + 1) :]
         rets = [
             (window[i] - window[i - 1]) / window[i - 1]
             for i in range(1, len(window))
@@ -124,7 +125,7 @@ class MultiAssetTrendStrategy(BaseStrategy):
         live = [v for v in self._vol.values() if v is not None and v > 0]
         if not live:
             return Decimal("1.0")
-        ratio = min(live) / own            # <= 1 by construction (own >= min)
+        ratio = min(live) / own  # <= 1 by construction (own >= min)
         strength = Decimal(str(ratio))
         if strength > Decimal("1"):
             strength = Decimal("1")

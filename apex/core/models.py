@@ -8,6 +8,7 @@ format — only these.
 All models are immutable (frozen) to guarantee that data cannot be mutated
 as it passes between modules. An event-driven system depends on this.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -19,6 +20,7 @@ from typing import Optional
 
 class AssetClass(str, Enum):
     """Supported asset classes. The core treats them uniformly."""
+
     EQUITY = "equity"
     ETF = "etf"
     CRYPTO = "crypto"
@@ -41,9 +43,9 @@ class OrderType(str, Enum):
 
 class TimeInForce(str, Enum):
     DAY = "day"
-    GTC = "gtc"   # good till cancelled
-    IOC = "ioc"   # immediate or cancel
-    FOK = "fok"   # fill or kill
+    GTC = "gtc"  # good till cancelled
+    IOC = "ioc"  # immediate or cancel
+    FOK = "fok"  # fill or kill
 
 
 @dataclass(frozen=True)
@@ -56,12 +58,13 @@ class Symbol:
     contract multipliers, crypto fractional sizing) without strategies
     needing to know the difference.
     """
+
     ticker: str
     asset_class: AssetClass
     exchange: Optional[str] = None
-    contract_multiplier: Decimal = Decimal("1")   # futures/options
+    contract_multiplier: Decimal = Decimal("1")  # futures/options
     tick_size: Decimal = Decimal("0.01")
-    fractionable: bool = False                      # crypto / fractional shares
+    fractionable: bool = False  # crypto / fractional shares
 
     def __str__(self) -> str:
         return f"{self.ticker}"
@@ -75,8 +78,9 @@ class Bar:
     `timeframe` is a string like '1Min', '5Min', '1Hour', '1Day' so the
     same model serves any granularity. All timestamps are UTC, always.
     """
+
     symbol: Symbol
-    timestamp: datetime           # bar close time, UTC
+    timestamp: datetime  # bar close time, UTC
     open: Decimal
     high: Decimal
     low: Decimal
@@ -99,6 +103,7 @@ class Bar:
 @dataclass(frozen=True)
 class Tick:
     """A single trade or quote tick, for higher-frequency strategies."""
+
     symbol: Symbol
     timestamp: datetime
     price: Decimal
@@ -116,8 +121,9 @@ class Tick:
 @dataclass(frozen=True)
 class Position:
     """A current holding. Owned and produced by the Portfolio, read-only elsewhere."""
+
     symbol: Symbol
-    quantity: Decimal              # negative = short
+    quantity: Decimal  # negative = short
     avg_entry_price: Decimal
     current_price: Decimal
     stop_loss: Optional[Decimal] = None
@@ -129,7 +135,11 @@ class Position:
 
     @property
     def unrealized_pnl(self) -> Decimal:
-        return (self.current_price - self.avg_entry_price) * self.quantity * self.symbol.contract_multiplier
+        return (
+            (self.current_price - self.avg_entry_price)
+            * self.quantity
+            * self.symbol.contract_multiplier
+        )
 
     @property
     def is_long(self) -> bool:

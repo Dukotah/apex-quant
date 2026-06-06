@@ -17,6 +17,7 @@ Key properties:
     outcome of any uncertainty is "no trade", never "trade".
   - A max-drawdown breach emits a HaltEvent that stops ALL new orders.
 """
+
 from __future__ import annotations
 
 import logging
@@ -37,15 +38,16 @@ class RiskConfig:
     Immutable risk parameters. Frozen so nothing can mutate limits at runtime.
     Loaded once at startup. These are HARD limits, not suggestions.
     """
-    max_position_size_pct: Decimal = Decimal("0.05")   # 5% of equity per position
+
+    max_position_size_pct: Decimal = Decimal("0.05")  # 5% of equity per position
     max_total_exposure_pct: Decimal = Decimal("0.50")  # 50% of equity deployed at once
-    max_leverage: Decimal = Decimal("1.0")             # 1.0 = no leverage
-    max_drawdown_pct: Decimal = Decimal("0.10")        # 10% from peak halts trading
-    max_daily_loss_pct: Decimal = Decimal("0.02")      # 2% daily loss halts for the day
+    max_leverage: Decimal = Decimal("1.0")  # 1.0 = no leverage
+    max_drawdown_pct: Decimal = Decimal("0.10")  # 10% from peak halts trading
+    max_daily_loss_pct: Decimal = Decimal("0.02")  # 2% daily loss halts for the day
     max_open_positions: int = 10
-    require_stop_loss: bool = True                      # every order needs a protective stop
+    require_stop_loss: bool = True  # every order needs a protective stop
     min_stop_distance_pct: Decimal = Decimal("0.005")  # stop must be >= 0.5% away
-    symbol_whitelist: Optional[frozenset] = None       # None = all allowed
+    symbol_whitelist: Optional[frozenset] = None  # None = all allowed
 
     # --- Drawdown sizing throttle (de-risk as the equity bleeds) ---
     # As drawdown-from-peak grows past `start`, NEW entries are sized down linearly
@@ -57,7 +59,7 @@ class RiskConfig:
     # so existing configs are unchanged).
     drawdown_throttle_start: Optional[Decimal] = None  # DD where down-sizing begins
     drawdown_throttle_full: Decimal = Decimal("0.30")  # DD where `floor`x is reached
-    drawdown_throttle_floor: Decimal = Decimal("0.30") # smallest size multiplier (>0)
+    drawdown_throttle_floor: Decimal = Decimal("0.30")  # smallest size multiplier (>0)
 
     # --- Volatility targeting (scale exposure toward a target realized vol) ---
     # When set, new entries are sized by target_volatility / portfolio_realized_vol,
@@ -65,9 +67,9 @@ class RiskConfig:
     # runs hot and re-risks when it cools — the standard managed-futures overlay. With
     # max_scale 1.0 (and no leverage) it acts purely as a turbulence de-risker.
     # None disables it (default, so existing configs are unchanged).
-    target_volatility: Optional[Decimal] = None        # annualized, e.g. 0.10 = 10%
-    vol_scale_min: Decimal = Decimal("0.4")            # floor on the exposure multiplier
-    vol_scale_max: Decimal = Decimal("1.0")            # cap (1.0 = never lever past full)
+    target_volatility: Optional[Decimal] = None  # annualized, e.g. 0.10 = 10%
+    vol_scale_min: Decimal = Decimal("0.4")  # floor on the exposure multiplier
+    vol_scale_max: Decimal = Decimal("1.0")  # cap (1.0 = never lever past full)
 
 
 class TradingHaltError(Exception):
@@ -86,10 +88,10 @@ class RiskManager:
     """
 
     def __init__(self, config: RiskConfig) -> None:
-        self._config = config           # private + frozen = tamper-resistant
+        self._config = config  # private + frozen = tamper-resistant
         self._halted: bool = False
         self._halt_reason: str = ""
-        self._halt_triggered_by: str = ""   # structured cause, not the human-readable reason
+        self._halt_triggered_by: str = ""  # structured cause, not the human-readable reason
 
     # ---- public API -------------------------------------------------------
 
@@ -169,7 +171,11 @@ class RiskManager:
             )
             logger.info(
                 "APPROVED %s %s qty=%s stop=%s (strategy=%s)",
-                signal.side.value, signal.symbol, quantity, stop, signal.strategy_id,
+                signal.side.value,
+                signal.symbol,
+                quantity,
+                stop,
+                signal.strategy_id,
             )
             return order
 
@@ -191,9 +197,8 @@ class RiskManager:
         if held is None:
             return False
         qty = held.quantity
-        return (
-            (qty > 0 and signal.side == OrderSide.SELL)
-            or (qty < 0 and signal.side == OrderSide.BUY)
+        return (qty > 0 and signal.side == OrderSide.SELL) or (
+            qty < 0 and signal.side == OrderSide.BUY
         )
 
     def _evaluate_reduce(self, signal: SignalEvent, portfolio) -> Optional[OrderEvent]:
@@ -222,7 +227,7 @@ class RiskManager:
             side=signal.side,
             quantity=qty,
             order_type=OrderType.MARKET,
-            stop_loss=signal.suggested_stop_loss,        # optional on an exit
+            stop_loss=signal.suggested_stop_loss,  # optional on an exit
             take_profit=signal.suggested_take_profit,
             strategy_id=signal.strategy_id,
             signal_id=signal.event_id,
@@ -230,7 +235,10 @@ class RiskManager:
         )
         logger.info(
             "APPROVED (reduce) %s %s qty=%s (strategy=%s)",
-            signal.side.value, signal.symbol, qty, signal.strategy_id,
+            signal.side.value,
+            signal.symbol,
+            qty,
+            signal.strategy_id,
         )
         return order
 
@@ -240,7 +248,7 @@ class RiskManager:
         self, portfolio, when: Optional[datetime] = None
     ) -> Optional[HaltEvent]:
         """Max drawdown and max daily loss. These halt the WHOLE system."""
-        ts = when or utc_now()   # bar-time when available → deterministic audit trail
+        ts = when or utc_now()  # bar-time when available → deterministic audit trail
         equity = Decimal(str(portfolio.equity))
         peak = Decimal(str(portfolio.peak_equity))
         day_start = Decimal(str(portfolio.day_start_equity))
@@ -250,7 +258,7 @@ class RiskManager:
             if drawdown >= self._config.max_drawdown_pct:
                 return HaltEvent(
                     reason=f"max drawdown breached: {drawdown:.2%} >= "
-                           f"{self._config.max_drawdown_pct:.2%}",
+                    f"{self._config.max_drawdown_pct:.2%}",
                     triggered_by="max_drawdown",
                     timestamp=ts,
                 )
@@ -260,7 +268,7 @@ class RiskManager:
             if daily_loss >= self._config.max_daily_loss_pct:
                 return HaltEvent(
                     reason=f"max daily loss breached: {daily_loss:.2%} >= "
-                           f"{self._config.max_daily_loss_pct:.2%}",
+                    f"{self._config.max_daily_loss_pct:.2%}",
                     triggered_by="max_daily_loss",
                     timestamp=ts,
                 )
@@ -317,7 +325,9 @@ class RiskManager:
         strength = max(Decimal("0"), min(Decimal("1"), Decimal(str(signal.strength))))
         throttle = self._drawdown_throttle(portfolio)
         vol_mult = self._vol_target_multiplier(portfolio)
-        target_dollars = equity * self._config.max_position_size_pct * strength * throttle * vol_mult
+        target_dollars = (
+            equity * self._config.max_position_size_pct * strength * throttle * vol_mult
+        )
 
         # Respect remaining room under total exposure cap.
         max_exposure = equity * self._config.max_total_exposure_pct
@@ -357,7 +367,7 @@ class RiskManager:
         full = self._config.drawdown_throttle_full
         if drawdown >= full or full <= start:
             return floor
-        frac = (drawdown - start) / (full - start)          # 0..1 across the ramp
+        frac = (drawdown - start) / (full - start)  # 0..1 across the ramp
         return Decimal("1") - frac * (Decimal("1") - floor)
 
     def _vol_target_multiplier(self, portfolio) -> Decimal:
@@ -404,7 +414,9 @@ class RiskManager:
         logger.warning(
             "REJECTED %s %s (strategy=%s): %s",
             signal.side.value if signal.side else "?",
-            signal.symbol, signal.strategy_id, reason,
+            signal.symbol,
+            signal.strategy_id,
+            reason,
         )
 
     def reset_daily(self) -> None:

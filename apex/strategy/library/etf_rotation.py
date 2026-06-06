@@ -35,6 +35,7 @@ IMPLEMENTATION NOTES:
 
 WHY IT FITS: weekly turnover, sector diversification, built-in risk-off overlay.
 """
+
 from __future__ import annotations
 
 import logging
@@ -104,9 +105,7 @@ class ETFRotationStrategy(BaseStrategy):
 
         # Per-symbol rolling close buffer. We only keep what we need.
         self._max_buf: int = momentum_period + vol_period + 5
-        self._closes: Dict[str, List[float]] = {
-            s.ticker: [] for s in symbols
-        }
+        self._closes: Dict[str, List[float]] = {s.ticker: [] for s in symbols}
 
         # Internal holdings tracking (tickers currently held).
         self._holdings: Set[str] = set()
@@ -168,8 +167,7 @@ class ETFRotationStrategy(BaseStrategy):
         ranked: List[Tuple[str, float]] = [
             (t, m)
             for t, m in momentum_by_ticker.items()
-            if t in {s.ticker for s in self._sector_symbols}
-            and m is not None
+            if t in {s.ticker for s in self._sector_symbols} and m is not None
         ]
         # Sort descending by momentum.
         ranked.sort(key=lambda x: x[1], reverse=True)
@@ -245,13 +243,8 @@ class ETFRotationStrategy(BaseStrategy):
             stop = last_price * (Decimal("1") - self.stop_loss_pct)
             strength = strengths.get(ticker, Decimal("1.0"))
             mom_val = momentum_by_ticker.get(ticker)
-            reason = (
-                f"ETF rotation: {ticker} selected"
-                + (
-                    f" (3-mo return {mom_val:.1%})"
-                    if mom_val is not None
-                    else " (risk-off sleeve)"
-                )
+            reason = f"ETF rotation: {ticker} selected" + (
+                f" (3-mo return {mom_val:.1%})" if mom_val is not None else " (risk-off sleeve)"
             )
             signals.append(
                 SignalEvent(
@@ -317,7 +310,7 @@ class ETFRotationStrategy(BaseStrategy):
             if len(buf) < self.vol_period + 1:
                 result[sym.ticker] = _VOL_FLOOR
                 continue
-            recent = buf[-(self.vol_period + 1):]
+            recent = buf[-(self.vol_period + 1) :]
             log_rets: List[float] = []
             for i in range(1, len(recent)):
                 if recent[i - 1] > 0.0 and recent[i] > 0.0:

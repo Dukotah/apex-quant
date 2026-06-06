@@ -7,6 +7,7 @@ The MODE flag here is THE switch the spec calls for: change this one value
 and the execution factory routes orders to paper or live, with zero changes
 to any strategy, risk, or data code.
 """
+
 from __future__ import annotations
 
 import os
@@ -19,9 +20,9 @@ from apex.risk.risk_manager import RiskConfig
 
 
 class ExecutionMode(str, Enum):
-    BACKTEST = "backtest"   # historical replay + simulated fills
-    PAPER = "paper"         # live data + simulated fills (no real money)
-    LIVE = "live"           # live data + real broker (REAL MONEY)
+    BACKTEST = "backtest"  # historical replay + simulated fills
+    PAPER = "paper"  # live data + simulated fills (no real money)
+    LIVE = "live"  # live data + real broker (REAL MONEY)
 
 
 class Broker(str, Enum):
@@ -38,14 +39,15 @@ class AppConfig:
     THE SWITCH: `mode` + `broker` together decide which execution engine runs.
     Everything downstream is mode-agnostic.
     """
+
     mode: ExecutionMode = ExecutionMode.BACKTEST
     broker: Broker = Broker.SIMULATED
 
     initial_capital: Decimal = Decimal("100000")
 
     # Simulated-fill assumptions (used in backtest + paper).
-    slippage_pct: Decimal = Decimal("0.001")        # 0.1%
-    commission_per_share: Decimal = Decimal("0")    # Alpaca is commission-free
+    slippage_pct: Decimal = Decimal("0.001")  # 0.1%
+    commission_per_share: Decimal = Decimal("0")  # Alpaca is commission-free
 
     # Risk config is nested here so it's loaded immutably at startup.
     risk: RiskConfig = field(default_factory=RiskConfig)

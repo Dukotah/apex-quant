@@ -41,6 +41,7 @@ RULES (long/flat, position-aware — mirrors CrossAssetValueStrategy / CrossSect
 
 Deterministic, no I/O, stdlib-only math.
 """
+
 from __future__ import annotations
 
 import statistics
@@ -140,7 +141,7 @@ class ValueMomentumStrategy(BaseStrategy):
     def _realized_vol(self, closes: list[float]) -> Optional[float]:
         if len(closes) < self.vol_window + 1:
             return None
-        w = closes[-(self.vol_window + 1):]
+        w = closes[-(self.vol_window + 1) :]
         rets = [(w[i] - w[i - 1]) / w[i - 1] for i in range(1, len(w)) if w[i - 1]]
         return statistics.pstdev(rets) if len(rets) >= 2 else None
 
@@ -172,8 +173,11 @@ class ValueMomentumStrategy(BaseStrategy):
 
     def _wanted_set(self) -> set[str]:
         """The top_k sleeves by combined value+momentum rank (lower = better on both)."""
-        eligible = [t for t in self._closes
-                    if self._value.get(t) is not None and self._mom.get(t) is not None]
+        eligible = [
+            t
+            for t in self._closes
+            if self._value.get(t) is not None and self._mom.get(t) is not None
+        ]
         if not eligible:
             return set()
         v_rank = self._ranks(eligible, self._value)
@@ -195,8 +199,7 @@ class ValueMomentumStrategy(BaseStrategy):
             return []
         closes = self._closes[ticker]
         closes.append(float(bar.close))
-        max_len = max(self.value_period, self.mom_period, self.trend_period,
-                      self.vol_window) + 5
+        max_len = max(self.value_period, self.mom_period, self.trend_period, self.vol_window) + 5
         if len(closes) > max_len:
             del closes[:-max_len]
 
@@ -223,17 +226,26 @@ class ValueMomentumStrategy(BaseStrategy):
             reason = f"top-{self.top_k} combined value+momentum (vw={self.value_weight:.2f})"
             if self.use_trend_filter:
                 reason += f", above SMA{self.trend_period}"
-            signals.append(SignalEvent(
-                symbol=bar.symbol, side=OrderSide.BUY, strength=strength,
-                strategy_id=self.strategy_id,
-                suggested_stop_loss=bar.close * (Decimal("1") - self.stop_loss_pct),
-                timestamp=bar.timestamp,
-                reason=reason,
-            ))
+            signals.append(
+                SignalEvent(
+                    symbol=bar.symbol,
+                    side=OrderSide.BUY,
+                    strength=strength,
+                    strategy_id=self.strategy_id,
+                    suggested_stop_loss=bar.close * (Decimal("1") - self.stop_loss_pct),
+                    timestamp=bar.timestamp,
+                    reason=reason,
+                )
+            )
         elif held and not wanted:
-            signals.append(SignalEvent(
-                symbol=bar.symbol, side=OrderSide.SELL, strength=Decimal("1.0"),
-                strategy_id=self.strategy_id, timestamp=bar.timestamp,
-                reason=f"fell out of top-{self.top_k} combined value+momentum",
-            ))
+            signals.append(
+                SignalEvent(
+                    symbol=bar.symbol,
+                    side=OrderSide.SELL,
+                    strength=Decimal("1.0"),
+                    strategy_id=self.strategy_id,
+                    timestamp=bar.timestamp,
+                    reason=f"fell out of top-{self.top_k} combined value+momentum",
+                )
+            )
         return signals
