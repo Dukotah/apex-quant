@@ -2,6 +2,19 @@
 
 Running log so the owner can glance in anytime. Newest first.
 
+## 2026-06-07 (cont. 2) — Phases 2-4: crypto + long/short + options (parallel fleet)
+
+- 6-agent fleet (long/short core on Opus in an isolated worktree, diff-reviewed before merge).
+  **Full suite 1021 green**, ruff clean, 92% cov. All capabilities GATED OFF / unwired from live.
+- **Crypto** (Phase 2, wired, long-only): 24/7 feed + execution + `Broker.ALPACA_CRYPTO` routing.
+- **Long/short** (Phase 3, OFF by default): `allow_short` + gross/net caps; closed a prior
+  no-short-gate hole; market-neutral long/short strategy. Live-shorting TODOs in docs.
+- **Options** (Phase 4, draft, UNWIRED): contract/greeks models + chains feed + multi-leg
+  execution + defined-risk strategies. Must route through RiskManager before any live use.
+- **NEXT (the proving phase):** Gauntlet-validate all new + candidate sleeves on REAL data
+  (+ correlation to trend); wire options through risk; live-shorting plumbing; allocator
+  calibration + run_once wiring. Build done; validation/funding is the next gate.
+
 ## 2026-06-07 (cont.) — research buildout: trend craft, MCPT, 3 candidate sleeves
 
 - Parallel agent fleet → integrated serially. **Full suite 820 green**, ruff clean, 90% cov.

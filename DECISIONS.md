@@ -6,6 +6,42 @@
 
 ---
 
+## Session 31 (cont. 2) — Phases 2-4 built in parallel: crypto + long/short + options (suite 1021 green)
+
+Operator mandate: build out the whole capability surface ("utilize Alpaca for all it's got") via a
+parallel agent fleet (6 agents; the safety-critical long/short core ran Opus in an isolated git
+worktree, reviewed as a diff before merge). Branch `feat/research-buildout`, full `make check`
+green (**1021 tests, 92%**). GUIDING RULE held: capabilities are built, tested, and GATED OFF /
+unwired from the live bot — none touch real capital until they clear the Gauntlet + a paper gate.
+
+- **Phase 2 — CRYPTO (wired, long-only).** `AlpacaCryptoDataFeed` (24/7 bars) + `AlpacaCryptoExecutionEngine`
+  (fractional, no PDT, idempotent) + `Broker.ALPACA_CRYPTO` routed in the factory (paper+live).
+  Drops into the existing engine; activated only by broker config. +57 tests.
+- **Phase 3 — LONG/SHORT (core gated OFF).** `RiskConfig.allow_short` (default **False**),
+  `max_gross/net_exposure_pct`; the RiskManager now BLOCKS a SELL-from-flat unless shorting is on
+  — this CLOSED A REAL HOLE (previously a flat SELL with an above-entry stop already produced a
+  short OrderEvent). Portfolio gained gross/net exposure. `LongShortMomentumStrategy` (market-neutral)
+  emits BUY + SELL-to-open. +37 tests. Deployed bot unaffected (`PRODUCTION_RISK` leaves allow_short
+  False; the trend strategy only SELLs-to-close, the reduce path, which runs before the short gate).
+  Live-shorting TODOs (margin account, Alpaca short routing, borrow/locate, borrow-fee modeling,
+  Gauntlet on a margin-aware backtest) in `docs/LONG_SHORT_DESIGN.md`.
+- **Phase 4 — OPTIONS (draft subsystem, UNWIRED).** New `apex/core/option.py` (OptionContract w/ OCC
+  round-trip, greeks, multi-leg OptionOrder), `AlpacaOptionsFeed` (chains), `AlpacaOptionsExecutionEngine`
+  (single + vertical, fail-closed, idempotent), and DEFINED-RISK strategies (covered call, cash-secured
+  put, bull-put spread — all finite max_loss). +93 tests. By design it does NOT subclass the bar/linear
+  ABCs (options aren't linear); it reuses FillEvent. **Critical TODO before live:** options orders
+  currently bypass the RiskManager — the golden rule "strategies can't place orders" requires an
+  options path through risk (an OptionOrderEvent + risk approval) before anything is wired. Also needs
+  Alpaca options approval levels (L3 for multi-leg).
+
+**NET:** the engine can now technically run multi-strategy + crypto + (gated) shorts + (draft) options.
+**NOT YET DONE / the real gating work:** (a) validate every new sleeve + the candidate sleeves on REAL
+data through the Gauntlet (incl. correlation to trend) — still the decisive step; (b) wire options
+through risk; (c) live-shorting plumbing; (d) allocator calibration (inverse-vol + tolerance bands) +
+run_once wiring. Capability is built; PROVING it (and only then funding it) is the next phase.
+
+---
+
 ## Session 31 (cont.) — Research buildout: trend craft + MCPT + 3 candidate sleeves (all drafts, suite 820 green)
 
 Put the sweep to work with a parallel agent fleet (each on distinct new files, offline tests),
