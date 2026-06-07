@@ -1,4 +1,5 @@
 """Tests for apex.validation.hurst_exponent (rescaled-range Hurst estimation)."""
+
 from __future__ import annotations
 
 import math
@@ -109,7 +110,7 @@ def test_linear_fit_too_few_points_is_none():
 # --------------------------------------------------------------------------- #
 def test_classify_hurst_regimes():
     assert classify_hurst(0.5) == "random-walk"
-    assert classify_hurst(0.52) == "random-walk"   # within tolerance
+    assert classify_hurst(0.52) == "random-walk"  # within tolerance
     assert classify_hurst(0.8) == "trending"
     assert classify_hurst(0.2) == "mean-reverting"
 
@@ -188,7 +189,7 @@ def test_hurst_mean_reverting_below_half():
     series = []
     acc = 0.0
     for i in range(1024):
-        acc += (1.0 if i % 2 == 0 else -1.0)
+        acc += 1.0 if i % 2 == 0 else -1.0
         series.append(acc)
     res = hurst_exponent(series)
     assert res is not None

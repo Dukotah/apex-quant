@@ -4,6 +4,7 @@ Tests for apex.strategy.ind_choppiness_index.
 CHOP is verified against hand-computed values plus the structural edge cases
 (warmup, flat window, length mismatch, period validation, Decimal inputs).
 """
+
 from __future__ import annotations
 
 import math

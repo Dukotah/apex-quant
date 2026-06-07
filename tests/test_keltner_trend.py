@@ -19,6 +19,7 @@ Covered:
   - ATR-based stop when ATR exists, percentage-fallback stop during ATR warmup,
   - unknown symbol ignored, and determinism.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -62,9 +63,9 @@ class _Harness:
         self.i = 0
 
     def _refresh(self) -> None:
-        self.ctx.sync_state(positions={
-            k: SimpleNamespace(quantity=q) for k, q in self.held.items() if q > 0
-        })
+        self.ctx.sync_state(
+            positions={k: SimpleNamespace(quantity=q) for k, q in self.held.items() if q > 0}
+        )
 
     def step(self, sym: Symbol, high: float, low: float, close: float):
         self._refresh()
@@ -93,10 +94,10 @@ _HLC = [
     (10.2, 10.0, 10.1),
     (10.0, 9.8, 9.9),
     (10.1, 9.9, 10.0),
-    (11.1, 10.9, 11.0),   # bar 7: breakout
-    (11.3, 11.1, 11.2),   # bar 8: above band, held
-    (11.5, 11.3, 11.4),   # bar 9: above band, held
-    (10.6, 10.4, 10.5),   # bar 10: below middle -> exit
+    (11.1, 10.9, 11.0),  # bar 7: breakout
+    (11.3, 11.1, 11.2),  # bar 8: above band, held
+    (11.5, 11.3, 11.4),  # bar 9: above band, held
+    (10.6, 10.4, 10.5),  # bar 10: below middle -> exit
     (9.6, 9.4, 9.5),
 ]
 
@@ -109,22 +110,27 @@ def _strat(symbols=None, **kw):
 
 # ---- constructor validation ----------------------------------------------
 
-@pytest.mark.parametrize("bad", [
-    dict(ema_period=0),
-    dict(atr_period=0),
-    dict(atr_mult=0.0),
-    dict(atr_stop_mult=0.0),
-    dict(stop_loss_pct=Decimal("0")),
-    dict(stop_loss_pct=Decimal("1")),
-    dict(strength=Decimal("0")),
-    dict(strength=Decimal("1.5")),
-])
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        dict(ema_period=0),
+        dict(atr_period=0),
+        dict(atr_mult=0.0),
+        dict(atr_stop_mult=0.0),
+        dict(stop_loss_pct=Decimal("0")),
+        dict(stop_loss_pct=Decimal("1")),
+        dict(strength=Decimal("0")),
+        dict(strength=Decimal("1.5")),
+    ],
+)
 def test_constructor_rejects_bad_params(bad):
     with pytest.raises(ValueError):
         _strat(**bad)
 
 
 # ---- warmup ---------------------------------------------------------------
+
 
 def test_no_signal_during_warmup():
     h = _Harness(_strat())
@@ -133,6 +139,7 @@ def test_no_signal_during_warmup():
 
 
 # ---- entry ----------------------------------------------------------------
+
 
 def test_breakout_emits_single_buy_with_stop():
     h = _Harness(_strat())
@@ -158,12 +165,13 @@ def test_buy_happens_on_the_breakout_bar():
 
 # ---- exit -----------------------------------------------------------------
 
+
 def test_exit_below_middle_ema():
     h = _Harness(_strat())
     sides = [s.side for s in h.feed(SYM, _HLC)]
     assert OrderSide.BUY in sides and OrderSide.SELL in sides
     assert sides.index(OrderSide.BUY) < sides.index(OrderSide.SELL)
-    assert h.held["TEST"] == 0   # exit leaves us flat
+    assert h.held["TEST"] == 0  # exit leaves us flat
 
 
 def test_sell_is_full_conviction():
@@ -176,6 +184,7 @@ def test_sell_is_full_conviction():
 
 # ---- hysteresis -----------------------------------------------------------
 
+
 def test_hysteresis_holds_between_middle_and_upper():
     """
     Once long, a bar that sits BELOW the upper band but ABOVE the middle EMA must
@@ -183,10 +192,10 @@ def test_hysteresis_holds_between_middle_and_upper():
     key property is that the strategy never re-buys and never exits while close>=mid.
     """
     h = _Harness(_strat())
-    sigs = h.feed(SYM, _HLC[:10])   # through bar 9 (still in trend, above middle)
+    sigs = h.feed(SYM, _HLC[:10])  # through bar 9 (still in trend, above middle)
     assert len([s for s in sigs if s.side == OrderSide.BUY]) == 1
     assert [s for s in sigs if s.side == OrderSide.SELL] == []
-    assert h.held["TEST"] > 0       # still long, no churn
+    assert h.held["TEST"] > 0  # still long, no churn
 
 
 def test_no_pyramiding_in_strong_trend():
@@ -199,6 +208,7 @@ def test_no_pyramiding_in_strong_trend():
 
 # ---- cold start (the position-aware property) ------------------------------
 
+
 def test_cold_start_enters_established_breakout():
     """
     Warm the strategy while it is FLAT but price is already parked above the upper
@@ -209,9 +219,14 @@ def test_cold_start_enters_established_breakout():
     h = _Harness(_strat())
     # Calm base to build a tight channel, then sit clearly above it for several bars.
     bars = [
-        (10.1, 9.9, 10.0), (10.2, 10.0, 10.1), (10.0, 9.8, 9.9),
-        (10.1, 9.9, 10.0), (10.2, 10.0, 10.1),
-        (12.1, 11.9, 12.0), (12.1, 11.9, 12.0), (12.1, 11.9, 12.0),
+        (10.1, 9.9, 10.0),
+        (10.2, 10.0, 10.1),
+        (10.0, 9.8, 9.9),
+        (10.1, 9.9, 10.0),
+        (10.2, 10.0, 10.1),
+        (12.1, 11.9, 12.0),
+        (12.1, 11.9, 12.0),
+        (12.1, 11.9, 12.0),
     ]
     sigs = h.feed(SYM, bars)
     buys = [s for s in sigs if s.side == OrderSide.BUY]
@@ -221,13 +236,14 @@ def test_cold_start_enters_established_breakout():
 
 # ---- stops ----------------------------------------------------------------
 
+
 def test_atr_based_stop_when_atr_available():
     """On the breakout bar ATR exists, so the stop is the ATR stop, not the % stop."""
     h = _Harness(_strat(atr_stop_mult=2.0, stop_loss_pct=Decimal("0.05")))
     buys = [s for s in h.feed(SYM, _HLC) if s.side == OrderSide.BUY]
     b = buys[0]
-    entry = Decimal("11.0")          # close of the breakout bar
-    pct_stop = entry * (Decimal("1") - Decimal("0.05"))   # 10.45
+    entry = Decimal("11.0")  # close of the breakout bar
+    pct_stop = entry * (Decimal("1") - Decimal("0.05"))  # 10.45
     # ATR on the breakout bar (hand-traced) is 0.664 -> atr_stop = 11.0 - 2*0.664.
     assert b.suggested_stop_loss != pct_stop, "should use the ATR stop, not the % fallback"
     assert Decimal("0") < b.suggested_stop_loss < entry
@@ -254,6 +270,7 @@ def test_stop_floored_when_atr_stop_would_be_nonpositive():
 
 # ---- misc -----------------------------------------------------------------
 
+
 def test_ignores_unknown_symbol():
     h = _Harness(_strat())
     other = Symbol("NOPE", AssetClass.ETF)
@@ -263,8 +280,14 @@ def test_ignores_unknown_symbol():
 def test_long_only_never_emits_sell_while_flat():
     h = _Harness(_strat())
     # Monotonic decline from a flat start: never long, so never a SELL (or any signal).
-    bars = [(10.0, 9.8, 9.9), (9.8, 9.6, 9.7), (9.6, 9.4, 9.5),
-            (9.4, 9.2, 9.3), (9.2, 9.0, 9.1), (9.0, 8.8, 8.9)]
+    bars = [
+        (10.0, 9.8, 9.9),
+        (9.8, 9.6, 9.7),
+        (9.6, 9.4, 9.5),
+        (9.4, 9.2, 9.3),
+        (9.2, 9.0, 9.1),
+        (9.0, 8.8, 8.9),
+    ]
     assert h.feed(SYM, bars) == []
 
 
@@ -273,5 +296,6 @@ def test_deterministic():
     h2 = _Harness(_strat())
     s1 = h1.feed(SYM, _HLC)
     s2 = h2.feed(SYM, _HLC)
-    assert [(s.side, s.strength, s.suggested_stop_loss) for s in s1] == \
-           [(s.side, s.strength, s.suggested_stop_loss) for s in s2]
+    assert [(s.side, s.strength, s.suggested_stop_loss) for s in s1] == [
+        (s.side, s.strength, s.suggested_stop_loss) for s in s2
+    ]

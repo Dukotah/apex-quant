@@ -24,6 +24,7 @@ functions RAISE ValueError rather than guess how to align them. Align upstream.
 
 Tested in tests/test_benchmark.py against hand-computed values.
 """
+
 from __future__ import annotations
 
 import math

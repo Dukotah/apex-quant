@@ -38,6 +38,7 @@ DETERMINISM & PURITY:
   Indicator math reuses apex.strategy.indicators (macd, atr). Money/price math
   stays Decimal; indicator inputs are floats per the indicators-layer contract.
 """
+
 from __future__ import annotations
 
 from decimal import Decimal

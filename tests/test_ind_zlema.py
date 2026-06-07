@@ -3,6 +3,7 @@
 Hand-computed known values plus edge cases. ZLEMA de-lags price by feeding an
 EMA the series `2*price[i] - price[i-lag]` with lag = (period-1)//2.
 """
+
 from __future__ import annotations
 
 from decimal import Decimal

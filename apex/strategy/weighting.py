@@ -32,6 +32,7 @@ Money/weights use ``Decimal`` (Golden Rule 14). Realized-vol inputs are plain
 floats (the statistical layer's convention, matching ``apex/validation/metrics.py``
 and the ``_vol`` map in ``multi_asset_trend``).
 """
+
 from __future__ import annotations
 
 import math

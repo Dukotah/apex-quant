@@ -1,5 +1,6 @@
 """Tests for apex.risk.trade_risk_reward — hand-computed R-multiple,
 risk/reward ratio and expectancy values, plus degenerate-geometry edges."""
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -22,6 +23,7 @@ D = Decimal
 # --------------------------------------------------------------------------
 # risk_per_unit / reward_per_unit
 # --------------------------------------------------------------------------
+
 
 def test_risk_per_unit_long():
     # entry 100, stop 90 -> risk 10
@@ -71,6 +73,7 @@ def test_accepts_float_and_str_inputs():
 # risk_reward_ratio
 # --------------------------------------------------------------------------
 
+
 def test_rrr_long_2to1():
     # entry 100, stop 90 (risk 10), target 120 (reward 20) -> 2.0
     assert risk_reward_ratio(D("100"), D("90"), D("120"), BUY) == D("2")
@@ -94,6 +97,7 @@ def test_rrr_invalid_reward_is_none():
 # --------------------------------------------------------------------------
 # r_multiple
 # --------------------------------------------------------------------------
+
 
 def test_r_multiple_long_win():
     # entry 100, stop 90 (R=10), exit 120 -> +2R
@@ -127,6 +131,7 @@ def test_r_multiple_invalid_risk_is_none():
 # --------------------------------------------------------------------------
 # expectancy
 # --------------------------------------------------------------------------
+
 
 def test_expectancy_basic():
     # Rs: +2, -1, +2, -1  -> total 2, mean 0.5
@@ -178,6 +183,7 @@ def test_expectancy_breakeven_trade_not_counted_as_win_or_loss():
 # --------------------------------------------------------------------------
 # Cross-check: r_multiple at target equals the planned RRR
 # --------------------------------------------------------------------------
+
 
 def test_r_multiple_at_target_equals_rrr():
     entry, stop, target = D("100"), D("90"), D("125")

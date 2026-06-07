@@ -30,6 +30,7 @@ Design invariants (mirrors apex.risk.portfolio / apex.risk.risk_manager):
     garbage level. A None stop is something the caller can detect and reject;
     a wrong number is something it would silently trade on.
 """
+
 from __future__ import annotations
 
 from decimal import Decimal

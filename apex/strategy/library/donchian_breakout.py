@@ -41,6 +41,7 @@ the current bar; the current close is then compared against those prior extremes
 Deterministic, no I/O, stdlib + existing apex.strategy.indicators only — safe on
 the free CI runner.
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -118,14 +119,14 @@ class DonchianBreakoutStrategy(BaseStrategy):
         # Exclude the current (last) bar -> prior window is highs[-(period+1):-1].
         if len(highs) < period + 1:
             return None
-        return max(highs[-(period + 1):-1])
+        return max(highs[-(period + 1) : -1])
 
     @staticmethod
     def _prior_low(lows: list[float], period: int) -> Optional[float]:
         """Lowest low of the `period` bars STRICTLY BEFORE the latest bar."""
         if len(lows) < period + 1:
             return None
-        return min(lows[-(period + 1):-1])
+        return min(lows[-(period + 1) : -1])
 
     # ---- target state ----------------------------------------------------
 
@@ -147,16 +148,16 @@ class DonchianBreakoutStrategy(BaseStrategy):
         if n < self.entry_period + 1:
             return None
 
-        last_entry_idx = -1   # most recent index of an N-high breakout
-        last_exit_idx = -1    # most recent index of an M-low breakdown
+        last_entry_idx = -1  # most recent index of an N-high breakout
+        last_exit_idx = -1  # most recent index of an M-low breakdown
         for i in range(self.entry_period, n):
             # Prior windows END at i-1 (strictly before bar i): no look-ahead.
-            entry_high = max(highs[i - self.entry_period: i])
+            entry_high = max(highs[i - self.entry_period : i])
             if closes[i] > entry_high:
                 last_entry_idx = i
             # Exit channel only meaningful once exit_period prior bars exist.
             if i >= self.exit_period:
-                exit_low = min(lows[i - self.exit_period: i])
+                exit_low = min(lows[i - self.exit_period : i])
                 if closes[i] < exit_low:
                     last_exit_idx = i
 
@@ -240,10 +241,7 @@ class DonchianBreakoutStrategy(BaseStrategy):
                     strategy_id=self.strategy_id,
                     suggested_stop_loss=stop,
                     timestamp=bar.timestamp,
-                    reason=(
-                        f"Donchian {self.entry_period}-day high breakout; "
-                        f"stop {stop}"
-                    ),
+                    reason=(f"Donchian {self.entry_period}-day high breakout; stop {stop}"),
                 )
             )
         elif held and not target:

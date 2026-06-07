@@ -25,6 +25,7 @@ This module follows the same CONTRACT as apex.strategy.indicators:
 
 Tested in tests/test_ind_coppock_curve.py against hand-computed values.
 """
+
 from __future__ import annotations
 
 from typing import Optional, Sequence
@@ -70,7 +71,7 @@ def wma(data: Sequence[Optional[float]], period: int) -> list[Optional[float]]:
     out: list[Optional[float]] = [None] * n
     weight_sum = period * (period + 1) / 2.0
     for i in range(period - 1, n):
-        window = data[i - period + 1: i + 1]
+        window = data[i - period + 1 : i + 1]
         if any(v is None for v in window):
             continue
         weighted = 0.0

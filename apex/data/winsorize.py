@@ -31,6 +31,7 @@ a percentile ``p`` in ``[0, 1]``, the lower bound is the value at sorted index
 ``ceil(p * (n - 1))``. Because the bound is always an actual element, the output
 contains only values that already existed in the input.
 """
+
 from __future__ import annotations
 
 import math

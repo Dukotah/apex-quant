@@ -9,6 +9,7 @@ field is a Decimal serialized to ``str`` (no float drift), positions and
 per_strategy are lists of the right keys, and the snapshot is deterministic
 (generated_at is an injected parameter).
 """
+
 from __future__ import annotations
 
 import json
@@ -32,27 +33,48 @@ POSITION_FIELDS = ("ticker", "qty", "avg_entry", "current", "unrealized_pnl")
 def _mark(symbol: Symbol, price: str) -> MarketEvent:
     """A MarketEvent that marks ``symbol`` to ``price`` (timezone-aware bar)."""
     p = Decimal(price)
-    bar = Bar(symbol=symbol, timestamp=datetime(2024, 6, 3, tzinfo=UTC),
-              open=p, high=p, low=p, close=p, volume=Decimal("0"))
+    bar = Bar(
+        symbol=symbol,
+        timestamp=datetime(2024, 6, 3, tzinfo=UTC),
+        open=p,
+        high=p,
+        low=p,
+        close=p,
+        volume=Decimal("0"),
+    )
     return MarketEvent(bar=bar)
 
 
 def _portfolio() -> Portfolio:
     """A synthetic portfolio: $100k start, long 10 SPY @ 400 marked to 410."""
     pf = Portfolio(Decimal("100000"))
-    pf.on_fill(FillEvent(symbol=SPY, side=OrderSide.BUY, quantity=Decimal("10"),
-                         fill_price=Decimal("400"), order_id="t1", broker_order_id="b1"))
+    pf.on_fill(
+        FillEvent(
+            symbol=SPY,
+            side=OrderSide.BUY,
+            quantity=Decimal("10"),
+            fill_price=Decimal("400"),
+            order_id="t1",
+            broker_order_id="b1",
+        )
+    )
     pf.on_market(_mark(SPY, "410"))
     return pf
 
 
 def test_build_status_shape_and_keys():
-    status = build_status(_portfolio(), mode="paper", halted=False,
-                          generated_at=GENERATED_AT)
+    status = build_status(_portfolio(), mode="paper", halted=False, generated_at=GENERATED_AT)
 
     assert set(status) == {
-        "mode", "halted", "equity", "cash", "drawdown", "peak_equity",
-        "positions", "per_strategy", "generated_at",
+        "mode",
+        "halted",
+        "equity",
+        "cash",
+        "drawdown",
+        "peak_equity",
+        "positions",
+        "per_strategy",
+        "generated_at",
     }
     assert status["mode"] == "paper"
     assert status["halted"] is False
@@ -62,8 +84,7 @@ def test_build_status_shape_and_keys():
 
 
 def test_money_fields_are_decimal_strings():
-    status = build_status(_portfolio(), mode="paper", halted=False,
-                          generated_at=GENERATED_AT)
+    status = build_status(_portfolio(), mode="paper", halted=False, generated_at=GENERATED_AT)
     for field in MONEY_FIELDS:
         assert isinstance(status[field], str), field
         # Must round-trip to a Decimal without raising (no float artifacts).
@@ -84,8 +105,7 @@ def test_money_values_match_portfolio_exactly():
 
 
 def test_position_rows_shape_and_types():
-    status = build_status(_portfolio(), mode="paper", halted=False,
-                          generated_at=GENERATED_AT)
+    status = build_status(_portfolio(), mode="paper", halted=False, generated_at=GENERATED_AT)
     assert len(status["positions"]) == 1
     row = status["positions"][0]
     assert set(row) == set(POSITION_FIELDS)
@@ -97,12 +117,15 @@ def test_position_rows_shape_and_types():
     assert row["qty"] == "10"
     assert row["avg_entry"] == "400"
     assert row["current"] == "410"
-    assert row["unrealized_pnl"] == "100"   # (410-400)*10
+    assert row["unrealized_pnl"] == "100"  # (410-400)*10
 
 
 def test_per_strategy_serialized_as_decimal_strings():
     status = build_status(
-        _portfolio(), mode="paper", halted=False, generated_at=GENERATED_AT,
+        _portfolio(),
+        mode="paper",
+        halted=False,
+        generated_at=GENERATED_AT,
         per_strategy={"multi_asset_trend": Decimal("123.45"), "rsi2": Decimal("-7.5")},
     )
     rows = status["per_strategy"]
@@ -117,8 +140,7 @@ def test_per_strategy_serialized_as_decimal_strings():
 
 
 def test_per_strategy_defaults_to_empty_list():
-    status = build_status(_portfolio(), mode="paper", halted=False,
-                          generated_at=GENERATED_AT)
+    status = build_status(_portfolio(), mode="paper", halted=False, generated_at=GENERATED_AT)
     assert status["per_strategy"] == []
 
 
@@ -139,16 +161,14 @@ def test_deterministic_same_inputs_same_document():
 
 
 def test_status_is_json_serializable_and_roundtrips(tmp_path):
-    status = build_status(_portfolio(), mode="paper", halted=False,
-                          generated_at=GENERATED_AT)
+    status = build_status(_portfolio(), mode="paper", halted=False, generated_at=GENERATED_AT)
     # Must serialize with the stdlib json encoder (i.e. no raw Decimal objects).
     text = json.dumps(status)
     assert json.loads(text) == status
 
 
 def test_write_status_creates_file_and_valid_json(tmp_path):
-    status = build_status(_portfolio(), mode="paper", halted=False,
-                          generated_at=GENERATED_AT)
+    status = build_status(_portfolio(), mode="paper", halted=False, generated_at=GENERATED_AT)
     out = tmp_path / "nested" / "status.json"
     path = write_status(status, out)
 
@@ -160,9 +180,17 @@ def test_write_status_creates_file_and_valid_json(tmp_path):
 
 def test_short_position_unrealized_pnl_serialized():
     pf = Portfolio(Decimal("100000"))
-    pf.on_fill(FillEvent(symbol=GLD, side=OrderSide.SELL, quantity=Decimal("5"),
-                         fill_price=Decimal("200"), order_id="s1", broker_order_id="b2"))
-    pf.on_market(_mark(GLD, "190"))   # short profits when price falls
+    pf.on_fill(
+        FillEvent(
+            symbol=GLD,
+            side=OrderSide.SELL,
+            quantity=Decimal("5"),
+            fill_price=Decimal("200"),
+            order_id="s1",
+            broker_order_id="b2",
+        )
+    )
+    pf.on_market(_mark(GLD, "190"))  # short profits when price falls
     status = build_status(pf, mode="paper", halted=False, generated_at=GENERATED_AT)
 
     row = status["positions"][0]

@@ -1,4 +1,5 @@
 """Tests for apex.strategy.ind_fisher_transform — hand-computed values + edges."""
+
 from __future__ import annotations
 
 import math

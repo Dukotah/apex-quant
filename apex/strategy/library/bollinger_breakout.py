@@ -43,6 +43,7 @@ Determinism: no wall-clock time (bar timestamps are used/echoed), no randomness,
 pure float indicator math (money/stops stay Decimal per the layer convention).
 No I/O. Stdlib + existing apex modules only.
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -216,10 +217,7 @@ class BollingerBreakoutStrategy(BaseStrategy):
                     strength=Decimal("1.0"),
                     strategy_id=self.strategy_id,
                     timestamp=bar.timestamp,
-                    reason=(
-                        f"close {close_f:.4f} reverted to/below middle BB "
-                        f"{mid:.4f}"
-                    ),
+                    reason=(f"close {close_f:.4f} reverted to/below middle BB {mid:.4f}"),
                 )
             )
 

@@ -18,6 +18,7 @@ counts as neither a win nor a loss (it breaks streaks of both).
 
 Tested in tests/test_hit_rate_stats.py against hand-computed values.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -27,21 +28,22 @@ from typing import Sequence
 @dataclass(frozen=True)
 class HitRateStats:
     """Per-trade hit-rate diagnostics for one strategy's realized trades."""
-    trades: int               # total trades considered
-    wins: int                 # trades with return > 0
-    losses: int               # trades with return < 0
-    scratches: int            # trades with return == 0 (neither win nor loss)
-    win_rate: float           # wins / trades (0.0-1.0); 0.0 if no trades
-    loss_rate: float          # losses / trades (0.0-1.0); 0.0 if no trades
-    avg_win: float            # mean return of winning trades (>= 0); 0.0 if none
-    avg_loss: float           # mean return of losing trades, as a POSITIVE
-                              # magnitude (0.0 if none)
-    payoff_ratio: float       # avg_win / avg_loss; inf if there are wins but no
-                              # losses; 0.0 if no wins
-    expectancy: float         # mean return PER TRADE across all trades; the
-                              # single number that predicts long-run edge
-    max_win_streak: int       # longest run of consecutive winning trades
-    max_loss_streak: int      # longest run of consecutive losing trades
+
+    trades: int  # total trades considered
+    wins: int  # trades with return > 0
+    losses: int  # trades with return < 0
+    scratches: int  # trades with return == 0 (neither win nor loss)
+    win_rate: float  # wins / trades (0.0-1.0); 0.0 if no trades
+    loss_rate: float  # losses / trades (0.0-1.0); 0.0 if no trades
+    avg_win: float  # mean return of winning trades (>= 0); 0.0 if none
+    avg_loss: float  # mean return of losing trades, as a POSITIVE
+    # magnitude (0.0 if none)
+    payoff_ratio: float  # avg_win / avg_loss; inf if there are wins but no
+    # losses; 0.0 if no wins
+    expectancy: float  # mean return PER TRADE across all trades; the
+    # single number that predicts long-run edge
+    max_win_streak: int  # longest run of consecutive winning trades
+    max_loss_streak: int  # longest run of consecutive losing trades
 
     def summary(self) -> str:
         return (

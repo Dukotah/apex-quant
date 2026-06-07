@@ -29,6 +29,7 @@ CONTRACT (mirrors apex.strategy.indicators):
 
 Tested in tests/test_ind_vortex.py against hand-computed values.
 """
+
 from __future__ import annotations
 
 from typing import Optional, Sequence
@@ -76,9 +77,9 @@ def vortex(
         )
 
     # First window covers indices 1..period (inclusive); output lands at index `period`.
-    sum_vm_plus = sum(vm_plus[1: period + 1])
-    sum_vm_minus = sum(vm_minus[1: period + 1])
-    sum_tr = sum(true_ranges[1: period + 1])
+    sum_vm_plus = sum(vm_plus[1 : period + 1])
+    sum_vm_minus = sum(vm_minus[1 : period + 1])
+    sum_tr = sum(true_ranges[1 : period + 1])
     vi_plus[period] = _ratio(sum_vm_plus, sum_tr)
     vi_minus[period] = _ratio(sum_vm_minus, sum_tr)
 

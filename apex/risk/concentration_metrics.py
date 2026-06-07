@@ -24,6 +24,7 @@ handle empty / degenerate / negative-weight inputs gracefully (returning None or
 a benign value rather than garbage). Tested in tests/test_concentration_metrics.py
 against hand-computed values.
 """
+
 from __future__ import annotations
 
 from typing import Optional, Sequence

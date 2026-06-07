@@ -21,6 +21,7 @@ observations are reported as ``None`` (not 0.0) so callers can distinguish "flat
 from "no data" and fail closed. Tested in tests/test_monthly_returns_table.py
 against hand-computed values.
 """
+
 from __future__ import annotations
 
 from datetime import date
@@ -30,8 +31,18 @@ from typing import Dict, List, Optional, Sequence, Tuple
 MonthKey = Tuple[int, int]
 
 MONTH_ABBRS: Tuple[str, ...] = (
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
 )
 
 
@@ -104,7 +115,7 @@ def yearly_returns(
     months = monthly_returns(dated_returns)
     by_year: Dict[int, List[float]] = {}
     # Compound months in calendar order for determinism (Jan..Dec).
-    for (year, month) in sorted(months):
+    for year, month in sorted(months):
         by_year.setdefault(year, []).append(months[(year, month)])
 
     out: Dict[int, float] = {}
@@ -139,9 +150,7 @@ def monthly_returns_table(
 
     table: Dict[int, List[Optional[float]]] = {}
     for year in years:
-        row: List[Optional[float]] = [
-            months.get((year, m)) for m in range(1, 13)
-        ]
+        row: List[Optional[float]] = [months.get((year, m)) for m in range(1, 13)]
         row.append(years[year])
         table[year] = row
     return table

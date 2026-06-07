@@ -19,6 +19,7 @@ Read-only: it reads the run_once state DB and prints the alert that WOULD be sen
 It never opens a socket, never touches the broker, and never calls datetime.now()
 in its logic — the timestamp it renders comes from the recorded run.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -47,15 +48,12 @@ class AlertPreview:
     title: str = ""
     message: str = ""
     priority: str = ""
-    reason: str = ""        # why this alert (or silence) was chosen
+    reason: str = ""  # why this alert (or silence) was chosen
 
     def render(self) -> str:
         """Human-readable one-screen preview of the alert (or the silence)."""
         if not self.would_send:
-            return (
-                "NO ALERT — this cycle is quiet.\n"
-                f"  reason   {self.reason}"
-            )
+            return f"NO ALERT — this cycle is quiet.\n  reason   {self.reason}"
         return "\n".join(
             [
                 "ALERT PREVIEW (not sent)",
@@ -69,6 +67,7 @@ class AlertPreview:
 
 
 # --------------------------------------------------------------------- pure core
+
 
 def preview_alert(report) -> AlertPreview:
     """
@@ -88,21 +87,42 @@ def preview_alert(report) -> AlertPreview:
     """
     message = report.summary()
     if getattr(report, "killed", False):
-        return AlertPreview(True, "Apex Quant - KILL SWITCH", message, "urgent",
-                            "kill switch (APEX_HALT) active — all orders blocked")
+        return AlertPreview(
+            True,
+            "Apex Quant - KILL SWITCH",
+            message,
+            "urgent",
+            "kill switch (APEX_HALT) active — all orders blocked",
+        )
     if getattr(report, "quarantined", False):
-        return AlertPreview(True, "Apex Quant - QUARANTINED", message, "urgent",
-                            "strategy quarantined — alpha decay below drift floor")
+        return AlertPreview(
+            True,
+            "Apex Quant - QUARANTINED",
+            message,
+            "urgent",
+            "strategy quarantined — alpha decay below drift floor",
+        )
     if getattr(report, "halted", False):
-        return AlertPreview(True, "Apex Quant - HALTED", message, "high",
-                            "risk manager halted the system (drawdown/daily breaker)")
+        return AlertPreview(
+            True,
+            "Apex Quant - HALTED",
+            message,
+            "high",
+            "risk manager halted the system (drawdown/daily breaker)",
+        )
     if getattr(report, "orders_submitted", 0) > 0:
-        return AlertPreview(True, "Apex Quant - traded", message, "default",
-                            f"{report.orders_submitted} order(s) submitted this cycle")
+        return AlertPreview(
+            True,
+            "Apex Quant - traded",
+            message,
+            "default",
+            f"{report.orders_submitted} order(s) submitted this cycle",
+        )
     return AlertPreview(False, reason="quiet cycle — no kill/quarantine/halt and no orders")
 
 
 # ------------------------------------------------------------------ state lookup
+
 
 def _load_last_report(state_path: Optional[str], mode: str):
     """
@@ -147,18 +167,21 @@ def _load_last_report(state_path: Optional[str], mode: str):
 
 # -------------------------------------------------------------------- cli wiring
 
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="alerts_preview",
         description="Render the ntfy alert the current run_once state would push, "
-                    "without sending it (read-only dry-run).",
+        "without sending it (read-only dry-run).",
     )
     parser.add_argument(
-        "--mode", default="paper",
+        "--mode",
+        default="paper",
         help="execution mode to preview (paper/live/...). Default: paper.",
     )
     parser.add_argument(
-        "--state", default=None,
+        "--state",
+        default=None,
         help="path to the run_once SQLite state DB (default: run_once's default).",
     )
     return parser
@@ -167,6 +190,7 @@ def _build_parser() -> argparse.ArgumentParser:
 def main(argv: Optional[Sequence[str]] = None) -> int:  # pragma: no cover - I/O shell
     try:
         import sys
+
         sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
     except Exception:  # noqa: BLE001
         pass
@@ -176,8 +200,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:  # pragma: no cover - I/O
     if report is None:
         print(f"No '{args.mode}' runs recorded yet — nothing to preview.")
         return 0
-    print(f"Previewing alert for the last '{args.mode}' cycle "
-          f"@ {report.timestamp:%Y-%m-%d %H:%M}Z (not sent):")
+    print(
+        f"Previewing alert for the last '{args.mode}' cycle "
+        f"@ {report.timestamp:%Y-%m-%d %H:%M}Z (not sent):"
+    )
     print(preview_alert(report).render())
     return 0
 

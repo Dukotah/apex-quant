@@ -16,6 +16,7 @@ gracefully on insufficient data: an empty series yields a single-point curve
 holding just the initial capital, never garbage. Tested in
 tests/test_equity_curve.py against hand-computed values.
 """
+
 from __future__ import annotations
 
 from typing import Sequence

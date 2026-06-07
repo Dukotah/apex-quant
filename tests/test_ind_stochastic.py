@@ -1,4 +1,5 @@
 """Tests for apex.strategy.ind_stochastic — hand-computed values + edge cases."""
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -78,7 +79,7 @@ def test_k_rolling_window_slides():
     k = stochastic_k(highs, lows, closes, k_period=2)
     assert k[0] is None
     assert k[1] == pytest.approx(100.0 * (10 - 8) / (11 - 8))  # 66.67
-    assert k[2] == pytest.approx(100.0 * (8 - 7) / (11 - 7))   # 25
+    assert k[2] == pytest.approx(100.0 * (8 - 7) / (11 - 7))  # 25
     assert k[3] == pytest.approx(100.0 * (11 - 7) / (12 - 7))  # 80
 
 

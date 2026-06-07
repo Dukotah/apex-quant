@@ -46,6 +46,7 @@ CONVENTIONS:
     import the parallel ind_* research files.
   - Deterministic, no I/O, no wall-clock time, stdlib + existing apex only.
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -210,10 +211,7 @@ class ROCMomentumStrategy(BaseStrategy):
                     strategy_id=self.strategy_id,
                     suggested_stop_loss=stop,
                     timestamp=bar.timestamp,
-                    reason=(
-                        f"ROC{self.roc_period}={roc:.4f} "
-                        f">= entry {self.entry_threshold:.4f}"
-                    ),
+                    reason=(f"ROC{self.roc_period}={roc:.4f} >= entry {self.entry_threshold:.4f}"),
                 )
             )
         elif held and not want_long:
@@ -224,10 +222,7 @@ class ROCMomentumStrategy(BaseStrategy):
                     strength=Decimal("1.0"),
                     strategy_id=self.strategy_id,
                     timestamp=bar.timestamp,
-                    reason=(
-                        f"ROC{self.roc_period}={roc:.4f} "
-                        f"<= exit {self.exit_threshold:.4f}"
-                    ),
+                    reason=(f"ROC{self.roc_period}={roc:.4f} <= exit {self.exit_threshold:.4f}"),
                 )
             )
 

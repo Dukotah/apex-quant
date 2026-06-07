@@ -19,6 +19,7 @@ Pure read-only: it never touches the broker or the network. The CSV-building cor
 no clock, no I/O — so it is unit-tested directly. All state/config dependencies are
 lazy-imported inside functions, so importing this module has ZERO side effects.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -76,12 +77,11 @@ def _build_parser() -> argparse.ArgumentParser:
         prog="returns_csv",
         description="Export the equity and returns series to CSV from the state DB.",
     )
-    parser.add_argument("--mode", default="paper",
-                        help="run mode to export (default: paper)")
-    parser.add_argument("--db", default=None,
-                        help="path to the state DB (default: run_once's DEFAULT_STATE_PATH)")
-    parser.add_argument("--out", default=None,
-                        help="output CSV path (default: write to stdout)")
+    parser.add_argument("--mode", default="paper", help="run mode to export (default: paper)")
+    parser.add_argument(
+        "--db", default=None, help="path to the state DB (default: run_once's DEFAULT_STATE_PATH)"
+    )
+    parser.add_argument("--out", default=None, help="output CSV path (default: write to stdout)")
     return parser
 
 
@@ -92,6 +92,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     db_path = args.db
     if db_path is None:
         from scripts.run_once import DEFAULT_STATE_PATH
+
         db_path = str(DEFAULT_STATE_PATH)
 
     rows = _load_rows(db_path, args.mode)
@@ -104,6 +105,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     else:
         try:
             import sys
+
             sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
         except Exception:  # noqa: BLE001
             pass

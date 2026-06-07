@@ -22,6 +22,7 @@ All functions are pure and deterministic given their inputs. They degrade
 gracefully on insufficient data — an empty curve yields an empty series, never
 garbage. Tested in tests/test_underwater_curve.py against hand-computed values.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

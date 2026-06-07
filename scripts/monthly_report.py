@@ -15,16 +15,17 @@ The table-building core (``build_monthly_table``) is a pure, deterministic
 function of (timestamp, equity) pairs — every "now" is the timestamp baked into
 the recorded rows, so the same DB always renders the identical table.
 """
+
 from __future__ import annotations
 
 import argparse
 from typing import List, Optional, Sequence, Tuple
 
-MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun",
-          "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
 
 
 # --------------------------------------------------------------------- pure core
+
 
 def _period_key(ts: str) -> Tuple[int, int]:
     """(year, month) from an ISO timestamp string like '2024-03-07T...'. Fails closed."""
@@ -79,9 +80,7 @@ def monthly_returns(
         return []
 
     out: List[Tuple[int, int, Optional[float]]] = []
-    prev_equity: Optional[float] = (
-        starting_equity if starting_equity not in (None, 0) else None
-    )
+    prev_equity: Optional[float] = starting_equity if starting_equity not in (None, 0) else None
     for year, month, equity in endpoints:
         if prev_equity is None or prev_equity == 0:
             ret: Optional[float] = None
@@ -113,8 +112,7 @@ def build_monthly_table(
     """
     rows = monthly_returns(points, starting_equity=starting_equity)
     if not rows:
-        return (f"No '{mode}' equity history recorded yet — "
-                "the bot hasn't completed a cycle.")
+        return f"No '{mode}' equity history recorded yet — the bot hasn't completed a cycle."
 
     # Bucket returns by year -> {month: ret}.
     by_year: dict[int, dict[int, Optional[float]]] = {}
@@ -141,7 +139,7 @@ def build_monthly_table(
             ret = cells.get(m)
             parts.append(_fmt_pct(ret))
             if ret is not None:
-                ytd *= (1.0 + ret)
+                ytd *= 1.0 + ret
                 have_ytd = True
         ytd_ret = (ytd - 1.0) if have_ytd else None
         parts.append(_fmt_pct(ytd_ret, width=8))
@@ -152,6 +150,7 @@ def build_monthly_table(
 
 
 # ------------------------------------------------------------------- I/O + main
+
 
 def _load_points(db_path: Optional[str], mode: str) -> List[Tuple[str, float]]:
     """Read (ts, equity) pairs for `mode`, oldest->newest. Lazy imports; no logic here."""
@@ -169,22 +168,31 @@ def _parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="monthly_report",
         description="Print a monthly-returns table from the run_once state DB "
-                    "equity history. Read-only; never contacts the broker.",
+        "equity history. Read-only; never contacts the broker.",
     )
     parser.add_argument(
-        "mode", nargs="?", default="paper",
+        "mode",
+        nargs="?",
+        default="paper",
         help="execution mode to report on (default: paper)",
     )
     parser.add_argument(
-        "--mode", dest="mode_opt", default=None,
+        "--mode",
+        dest="mode_opt",
+        default=None,
         help="execution mode (overrides the positional argument if given)",
     )
     parser.add_argument(
-        "--db", dest="db", default=None,
+        "--db",
+        dest="db",
+        default=None,
         help="path to the state DB (default: the run_once default location)",
     )
     parser.add_argument(
-        "--start-equity", dest="start_equity", type=float, default=None,
+        "--start-equity",
+        dest="start_equity",
+        type=float,
+        default=None,
         help="opening balance to measure the first month against (optional)",
     )
     return parser.parse_args(argv)
@@ -193,6 +201,7 @@ def _parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
 def main(argv: Optional[Sequence[str]] = None) -> int:
     try:
         import sys
+
         sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
     except Exception:  # noqa: BLE001
         pass

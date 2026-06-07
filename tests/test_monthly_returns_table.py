@@ -3,6 +3,7 @@
 Hand-computed known values plus edge cases (empty input, single point, gap
 years, out-of-order input, same-day returns, None for missing months).
 """
+
 from __future__ import annotations
 
 import math
@@ -27,6 +28,7 @@ def _close(a, b, tol=1e-12):
 # --------------------------------------------------------------------------
 # monthly_returns
 # --------------------------------------------------------------------------
+
 
 def test_monthly_returns_compounds_within_month():
     # Jan 2020: (1.10)(0.95) - 1 = 0.045
@@ -83,11 +85,12 @@ def test_monthly_returns_zero_is_not_dropped():
 # yearly_returns
 # --------------------------------------------------------------------------
 
+
 def test_yearly_returns_compounds_months():
     data = [
         (date(2020, 1, 5), 0.10),
-        (date(2020, 1, 20), -0.05),   # Jan -> 0.045
-        (date(2020, 2, 3), 0.02),     # Feb -> 0.02
+        (date(2020, 1, 20), -0.05),  # Jan -> 0.045
+        (date(2020, 2, 3), 0.02),  # Feb -> 0.02
     ]
     out = yearly_returns(data)
     # (1.045)(1.02) - 1 = 0.0659
@@ -113,6 +116,7 @@ def test_yearly_returns_empty():
 # monthly_returns_table
 # --------------------------------------------------------------------------
 
+
 def test_table_shape_and_none_for_missing_months():
     data = [
         (date(2020, 1, 5), 0.10),
@@ -123,8 +127,8 @@ def test_table_shape_and_none_for_missing_months():
     assert set(table) == {2020}
     row = table[2020]
     assert len(row) == 13  # 12 months + total
-    assert _close(row[0], 0.045)   # Jan
-    assert _close(row[1], 0.02)    # Feb
+    assert _close(row[0], 0.045)  # Jan
+    assert _close(row[1], 0.02)  # Feb
     # Mar..Dec are missing -> None
     assert all(row[i] is None for i in range(2, 12))
     # Year total
@@ -160,6 +164,7 @@ def test_table_only_years_with_data_are_keys():
 # year_range
 # --------------------------------------------------------------------------
 
+
 def test_year_range_fills_gaps():
     data = [
         (date(2020, 5, 1), 0.01),
@@ -180,6 +185,7 @@ def test_year_range_empty():
 # format_table
 # --------------------------------------------------------------------------
 
+
 def test_format_table_empty():
     assert format_table([]) == ""
 
@@ -187,8 +193,8 @@ def test_format_table_empty():
 def test_format_table_header_and_values():
     data = [
         (date(2020, 1, 5), 0.10),
-        (date(2020, 1, 20), -0.05),   # Jan -> 4.50%
-        (date(2020, 2, 3), 0.02),     # Feb -> 2.00%
+        (date(2020, 1, 20), -0.05),  # Jan -> 4.50%
+        (date(2020, 2, 3), 0.02),  # Feb -> 2.00%
     ]
     text = format_table(data, na="-", decimals=2)
     lines = text.splitlines()
@@ -199,8 +205,8 @@ def test_format_table_header_and_values():
 
     row = lines[1].split()
     assert row[0] == "2020"
-    assert row[1] == "4.50"   # Jan
-    assert row[2] == "2.00"   # Feb
+    assert row[1] == "4.50"  # Jan
+    assert row[2] == "2.00"  # Feb
     # Missing months show the na placeholder.
     assert row[3] == "-"
 

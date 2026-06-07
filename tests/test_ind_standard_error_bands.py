@@ -2,6 +2,7 @@
 
 Hand-computed known values plus edge cases. Float math compared with tolerance.
 """
+
 from __future__ import annotations
 
 import math
@@ -61,9 +62,7 @@ def test_known_endpoint_and_standard_error():
 def test_bands_collapse_on_perfect_line():
     # Perfect line + smooth=1 -> SE 0 -> upper == middle == lower == price.
     data = [10.0, 12.0, 14.0, 16.0, 18.0]
-    upper, middle, lower = standard_error_bands(
-        data, period=3, smooth=1, num_errors=2.0
-    )
+    upper, middle, lower = standard_error_bands(data, period=3, smooth=1, num_errors=2.0)
     for i in range(2, len(data)):
         assert math.isclose(middle[i], data[i], rel_tol=0, abs_tol=TOL)
         assert math.isclose(upper[i], data[i], rel_tol=0, abs_tol=TOL)
@@ -72,17 +71,13 @@ def test_bands_collapse_on_perfect_line():
 
 def test_bands_ordering_and_symmetry():
     data = [1.0, 3.0, 2.0, 5.0, 4.0, 7.0, 6.0, 9.0]
-    upper, middle, lower = standard_error_bands(
-        data, period=3, smooth=1, num_errors=2.0
-    )
+    upper, middle, lower = standard_error_bands(data, period=3, smooth=1, num_errors=2.0)
     for i in range(len(data)):
         if middle[i] is None:
             continue
         assert upper[i] >= middle[i] >= lower[i]
         # Bands are symmetric about the middle.
-        assert math.isclose(
-            upper[i] - middle[i], middle[i] - lower[i], rel_tol=0, abs_tol=TOL
-        )
+        assert math.isclose(upper[i] - middle[i], middle[i] - lower[i], rel_tol=0, abs_tol=TOL)
 
 
 def test_smoothing_pushes_warmup_out():
@@ -110,9 +105,7 @@ def test_num_errors_scales_spread():
 
 def test_zero_num_errors_collapses_to_regression():
     data = [1.0, 3.0, 2.0, 5.0, 4.0]
-    upper, middle, lower = standard_error_bands(
-        data, period=3, smooth=1, num_errors=0.0
-    )
+    upper, middle, lower = standard_error_bands(data, period=3, smooth=1, num_errors=0.0)
     for i in range(len(data)):
         if middle[i] is None:
             continue

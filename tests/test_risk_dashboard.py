@@ -4,6 +4,7 @@ tests/test_risk_dashboard.py
 Tests for the pure risk-dashboard core (scripts/risk_dashboard.py). Imports by
 full path so no package __init__ edit is needed. All values are hand-computed.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -27,6 +28,7 @@ def _pos(ticker: str, qty: str, entry: str, price: str) -> PositionSnapshot:
 
 # --------------------------------------------------------------- known values
 
+
 def test_long_only_known_values():
     # SPY: 100 @ 50 now 60 -> notional 6000 ; GLD: 50 @ 100 now 80 -> 4000.
     # equity 12000, cash 2000. gross=net=10000. lev gross=net=10000/12000.
@@ -49,15 +51,14 @@ def test_long_only_known_values():
 
 def test_long_short_net_vs_gross():
     # Long SPY 6000, short TLT 80 shares @ price 50 -> qty -80 -> mv -4000.
-    long_p = _pos("SPY", "100", "50", "60")          # +6000
-    short_p = _pos("TLT", "-80", "50", "50")          # -4000
-    snap = compute_risk_snapshot([long_p, short_p], equity=D("10000"),
-                                 cash=D("8000"), timestamp=TS)
+    long_p = _pos("SPY", "100", "50", "60")  # +6000
+    short_p = _pos("TLT", "-80", "50", "50")  # -4000
+    snap = compute_risk_snapshot([long_p, short_p], equity=D("10000"), cash=D("8000"), timestamp=TS)
 
-    assert snap.gross_exposure == D("10000")   # 6000 + 4000
-    assert snap.net_exposure == D("2000")      # 6000 - 4000
+    assert snap.gross_exposure == D("10000")  # 6000 + 4000
+    assert snap.net_exposure == D("2000")  # 6000 - 4000
     assert snap.long_exposure == D("6000")
-    assert snap.short_exposure == D("4000")    # reported positive
+    assert snap.short_exposure == D("4000")  # reported positive
     assert snap.gross_leverage == D("1.0")
     assert snap.net_leverage == D("0.2")
     # largest gross is SPY (6000); short flag carried for TLT line.
@@ -83,8 +84,8 @@ def test_non_positive_equity_fails_closed_to_zero_ratios():
     # equity 0 must not divide-by-zero; every ratio reads 0.
     positions = [_pos("SPY", "100", "50", "60")]
     snap = compute_risk_snapshot(positions, equity=D("0"), cash=D("0"), timestamp=TS)
-    assert snap.gross_exposure == D("6000")    # raw notional still computed
-    assert snap.gross_leverage == D("0")       # ratio fails closed
+    assert snap.gross_exposure == D("6000")  # raw notional still computed
+    assert snap.gross_leverage == D("0")  # ratio fails closed
     assert snap.net_leverage == D("0")
     assert snap.cash_pct == D("0")
     assert snap.largest_concentration == D("0")
@@ -92,8 +93,7 @@ def test_non_positive_equity_fails_closed_to_zero_ratios():
 
 def test_determinism_and_sort_stability():
     # Same data, different input order -> identical snapshot.
-    a = [_pos("AAA", "10", "5", "5"), _pos("BBB", "10", "10", "10"),
-         _pos("CCC", "10", "10", "10")]
+    a = [_pos("AAA", "10", "5", "5"), _pos("BBB", "10", "10", "10"), _pos("CCC", "10", "10", "10")]
     b = list(reversed(a))
     sa = compute_risk_snapshot(a, equity=D("1000"), cash=D("0"), timestamp=TS)
     sb = compute_risk_snapshot(b, equity=D("1000"), cash=D("0"), timestamp=TS)
@@ -111,6 +111,7 @@ def test_injected_timestamp_is_preserved():
 
 # --------------------------------------------------------------- helpers
 
+
 def test_to_decimal_fails_closed():
     assert _to_decimal("12.5") == D("12.5")
     assert _to_decimal(None) == D("0")
@@ -127,13 +128,14 @@ def test_positions_from_state_skips_flat_and_garbage():
     out = _positions_from_state(blob)
     tickers = {p.ticker for p in out}
     assert "SPY" in tickers
-    assert "FLAT" not in tickers   # zero qty skipped
-    assert "BAD" not in tickers    # qty parses to 0 -> skipped
+    assert "FLAT" not in tickers  # zero qty skipped
+    assert "BAD" not in tickers  # qty parses to 0 -> skipped
     spy = next(p for p in out if p.ticker == "SPY")
     assert spy.market_value == D("6000")
 
 
 # --------------------------------------------------------------- rendering
+
 
 def test_render_contains_key_lines():
     positions = [_pos("SPY", "100", "50", "60"), _pos("TLT", "-80", "50", "50")]
@@ -158,6 +160,7 @@ def test_module_import_has_no_side_effects():
     import importlib
 
     import scripts.risk_dashboard as mod
+
     importlib.reload(mod)
     assert hasattr(mod, "compute_risk_snapshot")
     assert hasattr(mod, "main")

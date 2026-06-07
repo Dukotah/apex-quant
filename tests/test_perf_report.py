@@ -5,6 +5,7 @@ Focus is the PURE core (compute_perf_stats / build_perf_report): hand-computed
 known values plus edge cases. The thin SQLite CLI is exercised once against a
 real on-disk state DB.
 """
+
 from __future__ import annotations
 
 import math
@@ -104,8 +105,7 @@ def test_cli_core_over_real_state_db(tmp_path):
     base = datetime(2024, 1, 1, tzinfo=timezone.utc)
     for i, eq in enumerate([100000.0, 100500.0, 101000.0]):
         store.save_run(
-            RunReport(timestamp=base + timedelta(days=i), mode="paper",
-                      equity=eq, num_positions=0),
+            RunReport(timestamp=base + timedelta(days=i), mode="paper", equity=eq, num_positions=0),
             {},
         )
     store.close()

@@ -1,4 +1,5 @@
 """Tests for apex.validation.kelly_criterion (hand-computed values + edges)."""
+
 from __future__ import annotations
 
 import math
@@ -14,6 +15,7 @@ from apex.validation.kelly_criterion import (
 )
 
 # --- full_kelly_fraction: classic f* = p - q/b ----------------------------------
+
 
 def test_full_kelly_known_value():
     # p=0.6, q=0.4, b=2.0 -> 0.6 - 0.4/2 = 0.6 - 0.2 = 0.4
@@ -46,6 +48,7 @@ def test_full_kelly_rejects_bad_payoff(b):
 
 
 # --- kelly_from_win_rate: full + fractional + clamping --------------------------
+
 
 def test_kelly_from_win_rate_default_half():
     r = kelly_from_win_rate(0.6, 2.0)
@@ -92,6 +95,7 @@ def test_kelly_from_win_rate_bad_input_returns_none():
 
 
 # --- kelly_from_returns: continuous mean/variance form -------------------------
+
 
 def test_kelly_from_returns_known_value():
     # returns [0.1, -0.05, 0.1, -0.05]
@@ -140,6 +144,7 @@ def test_kelly_from_returns_rejects_non_finite():
 
 
 # --- determinism ----------------------------------------------------------------
+
 
 def test_determinism_same_inputs_same_outputs():
     a = kelly_from_returns([0.1, -0.05, 0.1, -0.05], kelly_fraction=0.5)

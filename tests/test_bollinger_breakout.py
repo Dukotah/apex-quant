@@ -5,6 +5,7 @@ Pure, fast, deterministic. Hand-computed band values where feasible plus
 position-awareness / warmup / stop-fallback edge cases. The strategy is
 imported by full path so no package __init__ edit is needed.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -22,8 +23,9 @@ SYM = Symbol(ticker="TEST", asset_class=AssetClass.ETF)
 T0 = datetime(2026, 1, 1, tzinfo=timezone.utc)
 
 
-def make_bar(close: float, *, i: int, high: Optional[float] = None,
-             low: Optional[float] = None) -> Bar:
+def make_bar(
+    close: float, *, i: int, high: Optional[float] = None, low: Optional[float] = None
+) -> Bar:
     """A 1-day bar at day i. high/low default to a small band around close."""
     c = Decimal(str(close))
     h = Decimal(str(high)) if high is not None else c + Decimal("0.5")
@@ -51,6 +53,7 @@ def feed(strat: BollingerBreakoutStrategy, closes: List[float]) -> List:
 # warmup
 # --------------------------------------------------------------------------
 
+
 def test_warmup_returns_no_signals():
     strat = BollingerBreakoutStrategy("bb", [SYM], period=3, num_std=1.0)
     # Only 2 closes < period=3 -> still warming up.
@@ -61,6 +64,7 @@ def test_warmup_returns_no_signals():
 # --------------------------------------------------------------------------
 # entry: break above the upper band (hand-computed)
 # --------------------------------------------------------------------------
+
 
 def test_break_above_upper_band_emits_buy():
     # period=3, num_std=1.0. Baseline flat [10,10,10] -> upper==middle==10.
@@ -90,6 +94,7 @@ def test_no_break_no_signal_when_flat():
 # --------------------------------------------------------------------------
 # position awareness: never pyramid; exit at middle band
 # --------------------------------------------------------------------------
+
 
 def _ctx_holding() -> StrategyContext:
     ctx = StrategyContext()
@@ -146,10 +151,15 @@ def test_flat_context_treated_as_not_held():
 # stop loss: ATR-based once warmed, percentage fallback during warmup
 # --------------------------------------------------------------------------
 
+
 def test_stop_uses_percentage_fallback_during_atr_warmup():
     # period=3 (bands warm fast) but atr_period large so ATR is not ready at entry.
     strat = BollingerBreakoutStrategy(
-        "bb", [SYM], period=3, num_std=1.0, atr_period=14,
+        "bb",
+        [SYM],
+        period=3,
+        num_std=1.0,
+        atr_period=14,
         stop_loss_pct=Decimal("0.05"),
     )
     sig = feed(strat, [10.0, 10.0, 10.0, 11.0])
@@ -163,8 +173,13 @@ def test_stop_uses_atr_once_warmed():
     # Small atr_period so ATR is ready by the breakout bar; stop should be
     # ATR-based (entry - atr_mult*ATR), differing from the pct fallback.
     strat = BollingerBreakoutStrategy(
-        "bb", [SYM], period=3, num_std=1.0, atr_period=2,
-        atr_mult=Decimal("2.0"), stop_loss_pct=Decimal("0.05"),
+        "bb",
+        [SYM],
+        period=3,
+        num_std=1.0,
+        atr_period=2,
+        atr_mult=Decimal("2.0"),
+        stop_loss_pct=Decimal("0.05"),
     )
     closes = [10.0, 10.0, 10.0, 11.0]
     sig = feed(strat, closes)
@@ -180,24 +195,33 @@ def test_stop_uses_atr_once_warmed():
 # untracked symbol & validation
 # --------------------------------------------------------------------------
 
+
 def test_untracked_symbol_ignored():
     strat = BollingerBreakoutStrategy("bb", [SYM], period=3, num_std=1.0)
     other = Symbol(ticker="OTHER", asset_class=AssetClass.ETF)
     bar = Bar(
-        symbol=other, timestamp=T0, open=Decimal("1"), high=Decimal("2"),
-        low=Decimal("1"), close=Decimal("1"), volume=Decimal("1"),
+        symbol=other,
+        timestamp=T0,
+        open=Decimal("1"),
+        high=Decimal("2"),
+        low=Decimal("1"),
+        close=Decimal("1"),
+        volume=Decimal("1"),
     )
     assert strat.on_bar(bar) == []
 
 
-@pytest.mark.parametrize("kwargs", [
-    {"period": 1},
-    {"num_std": 0.0},
-    {"atr_period": 0},
-    {"atr_mult": Decimal("0")},
-    {"stop_loss_pct": Decimal("0")},
-    {"stop_loss_pct": Decimal("1")},
-])
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"period": 1},
+        {"num_std": 0.0},
+        {"atr_period": 0},
+        {"atr_mult": Decimal("0")},
+        {"stop_loss_pct": Decimal("0")},
+        {"stop_loss_pct": Decimal("1")},
+    ],
+)
 def test_invalid_params_raise(kwargs):
     with pytest.raises(ValueError):
         BollingerBreakoutStrategy("bb", [SYM], **kwargs)

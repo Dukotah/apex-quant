@@ -29,6 +29,7 @@ Conventions (this is the risk layer):
     returns ``None`` rather than a garbage number (e.g. a zero-distance stop,
     or a stop on the wrong side of entry for the given direction).
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -62,9 +63,9 @@ def risk_per_unit(
     entry = _as_decimal(entry)
     stop = _as_decimal(stop)
     if side == OrderSide.BUY:
-        risk = entry - stop          # long: lose if price falls to stop
+        risk = entry - stop  # long: lose if price falls to stop
     else:
-        risk = stop - entry          # short: lose if price rises to stop
+        risk = stop - entry  # short: lose if price rises to stop
     if risk <= _ZERO:
         return None
     return risk
@@ -85,9 +86,9 @@ def reward_per_unit(
     entry = _as_decimal(entry)
     target = _as_decimal(target)
     if side == OrderSide.BUY:
-        reward = target - entry      # long: gain if price rises to target
+        reward = target - entry  # long: gain if price rises to target
     else:
-        reward = entry - target      # short: gain if price falls to target
+        reward = entry - target  # short: gain if price falls to target
     if reward <= _ZERO:
         return None
     return reward
@@ -139,9 +140,9 @@ def r_multiple(
     entry = _as_decimal(entry)
     exit_price = _as_decimal(exit_price)
     if side == OrderSide.BUY:
-        gain = exit_price - entry    # long profits when exit > entry
+        gain = exit_price - entry  # long profits when exit > entry
     else:
-        gain = entry - exit_price    # short profits when exit < entry
+        gain = entry - exit_price  # short profits when exit < entry
     return gain / risk
 
 
@@ -160,6 +161,7 @@ class ExpectancySummary:
                       or 0 if none.
         total_r:      sum of all R-multiples.
     """
+
     expectancy: Decimal
     trade_count: int
     win_rate: Decimal

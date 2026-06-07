@@ -32,6 +32,7 @@ fraction of equity (0.03 = a 3% loss). Convert a dollar VaR to a fraction by
 dividing by equity before calling, or use `var_fraction_of_equity` to do it
 safely (it fails closed to None on a non-positive equity).
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -77,6 +78,7 @@ class VarLimitResult:
             unknown — `within_limit` already says it failed).
         reason: Human-readable explanation of the verdict (for logging).
     """
+
     within_limit: bool
     var_estimate: Optional[Decimal]
     limit: Optional[Decimal]

@@ -1,4 +1,5 @@
 """Tests for apex.analytics.equity_curve — hand-computed values + edge cases."""
+
 from __future__ import annotations
 
 import math
@@ -20,6 +21,7 @@ def _close(a, b, tol=1e-9):
 # ---------------------------------------------------------------------------
 # equity_curve_from_returns
 # ---------------------------------------------------------------------------
+
 
 def test_returns_curve_hand_computed():
     # 1000 -> +10% -> 1100 -> -50% -> 550 -> +0% -> 550
@@ -50,6 +52,7 @@ def test_returns_curve_can_go_to_zero():
 # equity_curve_from_pnl
 # ---------------------------------------------------------------------------
 
+
 def test_pnl_curve_hand_computed():
     # start 1000, +50, -30, +200 -> 1050, 1020, 1220
     curve = equity_curve_from_pnl(1000.0, [50.0, -30.0, 200.0])
@@ -68,6 +71,7 @@ def test_pnl_curve_can_go_negative():
 # ---------------------------------------------------------------------------
 # returns_to_pnl  /  pnl_to_returns  (round-trips)
 # ---------------------------------------------------------------------------
+
 
 def test_returns_to_pnl_hand_computed():
     # 1000 -> +10% (=+100) -> 1100 -> -50% (=-550) -> 550
@@ -122,6 +126,7 @@ def test_pnl_returns_roundtrip():
 # normalize_curve
 # ---------------------------------------------------------------------------
 
+
 def test_normalize_curve_rebases_to_one():
     norm = normalize_curve([1000.0, 1100.0, 550.0])
     assert _close(norm[0], 1.0)
@@ -142,6 +147,7 @@ def test_normalize_curve_zero_base_unchanged():
 # final_equity
 # ---------------------------------------------------------------------------
 
+
 def test_final_equity_matches_curve_tail():
     returns = [0.10, -0.50, 0.0, 0.25]
     assert _close(
@@ -157,6 +163,7 @@ def test_final_equity_empty_is_initial():
 # ---------------------------------------------------------------------------
 # integer / int-input handling (returns should be floats)
 # ---------------------------------------------------------------------------
+
 
 def test_int_inputs_produce_floats():
     curve = equity_curve_from_returns(1000, [1, 1])  # ints

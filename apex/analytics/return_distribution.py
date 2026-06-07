@@ -23,6 +23,7 @@ that are undefined for too-few points return ``None`` (not garbage), and an
 empty series yields an empty histogram. Tested in
 tests/test_return_distribution.py against hand-computed values.
 """
+
 from __future__ import annotations
 
 import math
@@ -121,7 +122,7 @@ def skewness(returns: Sequence[float]) -> Optional[float]:
     if sd == 0:
         return None
     m3 = statistics.fmean([(r - mu) ** 3 for r in returns])
-    return m3 / (sd ** 3)
+    return m3 / (sd**3)
 
 
 def kurtosis(returns: Sequence[float], *, excess: bool = True) -> Optional[float]:
@@ -145,7 +146,7 @@ def kurtosis(returns: Sequence[float], *, excess: bool = True) -> Optional[float
     if sd == 0:
         return None
     m4 = statistics.fmean([(r - mu) ** 4 for r in returns])
-    raw = m4 / (sd ** 4)
+    raw = m4 / (sd**4)
     return raw - 3.0 if excess else raw
 
 

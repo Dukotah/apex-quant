@@ -19,6 +19,7 @@ nothing. Importing this module has ZERO side effects — all state/config access
 lazy-imported INSIDE functions, and the analytics core is a pure, deterministic
 function that takes its inputs (including the timestamp) by argument.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -33,11 +34,13 @@ _ZERO = Decimal("0")
 
 # --------------------------------------------------------------------- inputs
 
+
 @dataclass(frozen=True)
 class PositionSnapshot:
     """One open holding, as read from the state store (all values as Decimal)."""
+
     ticker: str
-    quantity: Decimal          # negative = short
+    quantity: Decimal  # negative = short
     avg_entry_price: Decimal
     current_price: Decimal
 
@@ -58,37 +61,41 @@ class PositionSnapshot:
 
 # --------------------------------------------------------------------- outputs
 
+
 @dataclass(frozen=True)
 class SymbolExposure:
     """Per-symbol exposure line in the snapshot."""
+
     ticker: str
     gross_value: Decimal
     signed_value: Decimal
-    concentration: Decimal     # gross_value / equity, 0 when equity <= 0
+    concentration: Decimal  # gross_value / equity, 0 when equity <= 0
     is_short: bool
 
 
 @dataclass(frozen=True)
 class RiskSnapshot:
     """The full computed risk picture for one moment. Immutable, JSON-friendly via str()."""
+
     timestamp: datetime
     mode: str
     equity: Decimal
     cash: Decimal
     num_positions: int
-    gross_exposure: Decimal            # sum |market_value|
-    net_exposure: Decimal              # sum market_value (longs - shorts)
+    gross_exposure: Decimal  # sum |market_value|
+    net_exposure: Decimal  # sum market_value (longs - shorts)
     long_exposure: Decimal
-    short_exposure: Decimal            # reported as a positive magnitude
-    gross_leverage: Decimal            # gross_exposure / equity (0 if equity <= 0)
-    net_leverage: Decimal              # net_exposure / equity (0 if equity <= 0)
-    cash_pct: Decimal                  # cash / equity (0 if equity <= 0)
-    largest_concentration: Decimal     # biggest single-name gross / equity
+    short_exposure: Decimal  # reported as a positive magnitude
+    gross_leverage: Decimal  # gross_exposure / equity (0 if equity <= 0)
+    net_leverage: Decimal  # net_exposure / equity (0 if equity <= 0)
+    cash_pct: Decimal  # cash / equity (0 if equity <= 0)
+    largest_concentration: Decimal  # biggest single-name gross / equity
     largest_ticker: Optional[str]
     per_symbol: List[SymbolExposure] = field(default_factory=list)
 
 
 # ------------------------------------------------------------------- pure core
+
 
 def compute_risk_snapshot(
     positions: Sequence[PositionSnapshot],
@@ -153,6 +160,7 @@ def compute_risk_snapshot(
 
 # ----------------------------------------------------------------- rendering
 
+
 def render_snapshot(snap: RiskSnapshot) -> str:
     """Format a RiskSnapshot as the plain-text dashboard. Pure: snapshot -> string."""
     lines = [
@@ -193,6 +201,7 @@ def render_snapshot(snap: RiskSnapshot) -> str:
 
 # ------------------------------------------------------- state-store adapter
 
+
 def _to_decimal(value: object, default: Decimal = _ZERO) -> Decimal:
     """Best-effort string/number -> Decimal. Fails closed to ``default`` on bad input."""
     try:
@@ -211,12 +220,14 @@ def _positions_from_state(positions_json: Dict[str, dict]) -> List[PositionSnaps
         qty = _to_decimal(raw.get("qty"))
         if qty == _ZERO:
             continue
-        out.append(PositionSnapshot(
-            ticker=ticker,
-            quantity=qty,
-            avg_entry_price=_to_decimal(raw.get("avg_entry_price")),
-            current_price=_to_decimal(raw.get("current_price")),
-        ))
+        out.append(
+            PositionSnapshot(
+                ticker=ticker,
+                quantity=qty,
+                avg_entry_price=_to_decimal(raw.get("avg_entry_price")),
+                current_price=_to_decimal(raw.get("current_price")),
+            )
+        )
     return out
 
 
@@ -246,24 +257,31 @@ def build_snapshot_from_store(store: object, mode: str) -> Optional[RiskSnapshot
 
     ts = datetime.fromisoformat(row["ts"])
     return compute_risk_snapshot(
-        positions, equity=equity, cash=cash, timestamp=ts, mode=mode,
+        positions,
+        equity=equity,
+        cash=cash,
+        timestamp=ts,
+        mode=mode,
     )
 
 
 # ------------------------------------------------------------------- CLI
 
+
 def _parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="risk_dashboard",
         description="Print a read-only risk snapshot (exposure, leverage, "
-                    "concentration) from the latest persisted portfolio state.",
+        "concentration) from the latest persisted portfolio state.",
     )
     parser.add_argument(
-        "--mode", default="paper",
+        "--mode",
+        default="paper",
         help="Which run mode to report on (default: paper).",
     )
     parser.add_argument(
-        "--db", default=None,
+        "--db",
+        default=None,
         help="Path to the state DB (default: the run_once DEFAULT_STATE_PATH).",
     )
     return parser.parse_args(argv)
@@ -272,6 +290,7 @@ def _parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
 def main(argv: Optional[Sequence[str]] = None) -> int:
     try:
         import sys
+
         sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
     except Exception:  # noqa: BLE001
         pass

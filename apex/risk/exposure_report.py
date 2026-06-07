@@ -29,6 +29,7 @@ The single public entry point is `build_exposure_report(positions, equity)`.
 `positions` is any mapping of ticker -> Position (e.g. Portfolio.open_positions)
 or any iterable of Position objects.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -47,12 +48,12 @@ class SymbolExposure:
     """Exposure attributable to a single instrument."""
 
     ticker: str
-    quantity: Decimal           # signed: negative = short
-    market_value: Decimal       # signed notional (qty * price * multiplier)
-    gross: Decimal              # abs(market_value)  (>= 0)
-    net: Decimal                # == market_value (signed); kept for symmetry
-    long: Decimal               # market_value if long else 0  (>= 0)
-    short: Decimal              # abs(market_value) if short else 0  (>= 0)
+    quantity: Decimal  # signed: negative = short
+    market_value: Decimal  # signed notional (qty * price * multiplier)
+    gross: Decimal  # abs(market_value)  (>= 0)
+    net: Decimal  # == market_value (signed); kept for symmetry
+    long: Decimal  # market_value if long else 0  (>= 0)
+    short: Decimal  # abs(market_value) if short else 0  (>= 0)
     pct_of_equity: Optional[Decimal]  # gross / equity, or None if equity <= 0
 
     @property
@@ -156,7 +157,7 @@ def build_exposure_report(
         if qty == _ZERO:
             continue
 
-        mv = pos.market_value                # signed notional
+        mv = pos.market_value  # signed notional
         gross = abs(mv)
         if qty > _ZERO:
             long_total += mv

@@ -29,6 +29,7 @@ Design notes:
     factor of ``0`` legitimately; anything below ``-1`` is rejected as it would
     imply negative equity.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -51,6 +52,7 @@ class PeriodReturn:
     bounds — only days that actually had a return). ``ret`` is the compounded
     return as a fraction, and ``count`` is how many daily returns it spans.
     """
+
     key: object
     label: str
     start: date
@@ -70,7 +72,7 @@ def _as_date(value: object) -> date:
         if not text:
             raise ValueError("date is missing/empty")
         if text[-1] in ("Z", "z"):
-            text = text[:-1] + "+00:00"   # 3.11-safe Zulu handling
+            text = text[:-1] + "+00:00"  # 3.11-safe Zulu handling
         try:
             return datetime.fromisoformat(text).date()
         except ValueError as exc:
@@ -110,6 +112,7 @@ def compound(returns: Iterable[float]) -> float:
 
 
 # --------------------------------------------------------------- bucket keying
+
 
 def _week_key(d: date) -> Tuple[int, int]:
     """ISO (year, week) — weeks start Monday, per ISO-8601."""
@@ -195,6 +198,7 @@ def _aggregate(
 
 
 # ------------------------------------------------------------------- public API
+
 
 def to_weekly(daily: Sequence[DatedReturn]) -> List[PeriodReturn]:
     """Compound dated daily returns into ISO-week (Monday-start) buckets."""

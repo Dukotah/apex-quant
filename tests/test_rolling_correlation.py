@@ -2,6 +2,7 @@
 
 Hand-computed known values plus edge cases. Pure and fast.
 """
+
 from __future__ import annotations
 
 import math
@@ -22,6 +23,7 @@ TOL = 1e-9
 # ---------------------------------------------------------------------------
 # pearson_correlation
 # ---------------------------------------------------------------------------
+
 
 def test_pearson_perfect_positive():
     # b = 2*a, perfectly correlated -> +1.0
@@ -74,6 +76,7 @@ def test_pearson_clamped_to_unit_interval():
 # ---------------------------------------------------------------------------
 # rolling_correlation
 # ---------------------------------------------------------------------------
+
 
 def test_rolling_basic_lengths():
     a = [1.0, 2.0, 3.0, 4.0, 5.0]
@@ -140,6 +143,7 @@ def test_rolling_truncates_uneven_inputs():
 # latest_rolling_correlation
 # ---------------------------------------------------------------------------
 
+
 def test_latest_uses_most_recent_window():
     # Last 3 of a=[..,2,3,4], b=[..,3,2,4] -> 0.5 known value.
     a = [9.0, 2.0, 3.0, 4.0]
@@ -159,6 +163,7 @@ def test_latest_window_below_two_raises():
 # ---------------------------------------------------------------------------
 # average_rolling_correlation / max_rolling_correlation
 # ---------------------------------------------------------------------------
+
 
 def test_average_skips_none_windows():
     # Two windows both 0.5 -> mean 0.5

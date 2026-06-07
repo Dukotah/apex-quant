@@ -5,6 +5,7 @@ Imported by full path so no package __init__ edits are needed. Values are
 hand-/reference-computed from the Corwin-Schultz (2012) formulas; edge cases
 exercise the degenerate-pair and insufficient-data handling.
 """
+
 from __future__ import annotations
 
 import math
@@ -24,6 +25,7 @@ from apex.data.spread_estimator import (
 
 # ----------------------------------------------------------------- helpers
 
+
 def _ref_alpha(h0: float, l0: float, h1: float, l1: float) -> float:
     """Independent re-implementation of the CS alpha, for cross-checking."""
     r0 = math.log(h0 / l0)
@@ -42,6 +44,7 @@ def _ref_spread(h0: float, l0: float, h1: float, l1: float) -> float:
 
 # ----------------------------------------------------------------- alpha_to_spread
 
+
 def test_alpha_zero_gives_zero_spread():
     assert alpha_to_spread(0.0) == 0.0
 
@@ -58,10 +61,11 @@ def test_negative_alpha_floored_to_zero():
 
 # ------------------------------------------------- corwin_schultz_spreads core
 
+
 def test_identical_wide_bars_known_spread():
     # Two identical bars (H=110, L=90). Reference: alpha ~= 0.20067, spread = 0.2.
     spreads = corwin_schultz_spreads([110.0, 110.0], [90.0, 90.0])
-    assert spreads[0] is None                      # no preceding bar
+    assert spreads[0] is None  # no preceding bar
     assert spreads[1] == pytest.approx(0.2, abs=1e-9)
 
 
@@ -88,6 +92,7 @@ def test_output_same_length_as_input():
 
 # ------------------------------------------------- edge / degenerate cases
 
+
 def test_single_bar_yields_all_none():
     assert corwin_schultz_spreads([100.0], [90.0]) == [None]
 
@@ -104,15 +109,15 @@ def test_mismatched_lengths_raise():
 def test_non_positive_price_pair_is_none():
     # A zero low in one bar makes that pair's log undefined -> None, not garbage.
     spreads = corwin_schultz_spreads([100.0, 100.0, 100.0], [0.0, 90.0, 95.0])
-    assert spreads[1] is None      # pair (bar0 with low=0, bar1)
+    assert spreads[1] is None  # pair (bar0 with low=0, bar1)
     assert spreads[2] is not None  # pair (bar1, bar2) is fine
 
 
 def test_high_below_low_pair_is_none():
     # Degenerate bar (high < low) -> that pair has no usable estimate.
     spreads = corwin_schultz_spreads([100.0, 80.0, 100.0], [90.0, 95.0, 92.0])
-    assert spreads[1] is None      # bar1 has high 80 < low 95
-    assert spreads[2] is None      # bar1 again on the left of this pair
+    assert spreads[1] is None  # bar1 has high 80 < low 95
+    assert spreads[2] is None  # bar1 again on the left of this pair
 
 
 def test_zero_range_bars_give_zero_spread():
@@ -122,6 +127,7 @@ def test_zero_range_bars_give_zero_spread():
 
 
 # ------------------------------------------------- mean / median collapse
+
 
 def test_mean_and_median_none_when_no_usable_pairs():
     assert mean_spread([100.0], [90.0]) is None
@@ -149,10 +155,10 @@ def test_median_ignores_degenerate_pairs():
 
 # ------------------------------------------------- Decimal inputs / Bar adapter
 
+
 def test_decimal_inputs_match_float_inputs():
     f = corwin_schultz_spreads([110.0, 108.0], [90.0, 95.0])
-    d = corwin_schultz_spreads([Decimal("110"), Decimal("108")],
-                               [Decimal("90"), Decimal("95")])
+    d = corwin_schultz_spreads([Decimal("110"), Decimal("108")], [Decimal("90"), Decimal("95")])
     assert d[1] == pytest.approx(f[1])
 
 

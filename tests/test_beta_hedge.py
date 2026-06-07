@@ -1,4 +1,5 @@
 """Tests for apex.risk.beta_hedge — beta estimation and hedge sizing."""
+
 from __future__ import annotations
 
 import math
@@ -10,6 +11,7 @@ from apex.risk.beta_hedge import BetaHedge, beta, beta_hedge, hedge_ratio
 # ----------------------------------------------------------------------
 # beta()
 # ----------------------------------------------------------------------
+
 
 def test_beta_perfect_one_to_one():
     # Asset moves exactly with the benchmark => beta 1.0.
@@ -64,6 +66,7 @@ def test_beta_flat_benchmark_returns_none():
 # hedge_ratio()
 # ----------------------------------------------------------------------
 
+
 def test_hedge_ratio_full_neutral():
     # Default target 0 => short the full beta.
     assert hedge_ratio(1.3) == pytest.approx(1.3)
@@ -82,6 +85,7 @@ def test_hedge_ratio_negative_means_add_exposure():
 # ----------------------------------------------------------------------
 # beta_hedge()
 # ----------------------------------------------------------------------
+
 
 def test_beta_hedge_full_neutralization():
     bench = [0.01, -0.02, 0.03, -0.01]
@@ -107,9 +111,7 @@ def test_beta_hedge_target_beta():
 def test_beta_hedge_units_from_price():
     bench = [0.01, -0.02, 0.03, -0.01]
     asset = list(bench)  # beta 1.0
-    result = beta_hedge(
-        asset, bench, portfolio_value=50_000.0, benchmark_price=500.0
-    )
+    result = beta_hedge(asset, bench, portfolio_value=50_000.0, benchmark_price=500.0)
     assert result.hedge_notional == pytest.approx(50_000.0)
     # 50_000 notional / 500 price = 100 units to short.
     assert result.hedge_units == pytest.approx(100.0)
@@ -118,9 +120,7 @@ def test_beta_hedge_units_from_price():
 def test_beta_hedge_negative_beta_adds_exposure():
     bench = [0.01, -0.02, 0.03, -0.01]
     asset = [-1 * x for x in bench]  # beta -1.0
-    result = beta_hedge(
-        asset, bench, portfolio_value=10_000.0, benchmark_price=100.0
-    )
+    result = beta_hedge(asset, bench, portfolio_value=10_000.0, benchmark_price=100.0)
     assert result.hedge_ratio == pytest.approx(-1.0)
     # Negative notional/units => LONG the benchmark.
     assert result.hedge_notional == pytest.approx(-10_000.0)
@@ -146,17 +146,13 @@ def test_beta_hedge_insufficient_data_returns_none():
 
 
 def test_beta_hedge_flat_benchmark_returns_none():
-    assert beta_hedge(
-        [0.01, -0.02, 0.03], [0.0, 0.0, 0.0], portfolio_value=100.0
-    ) is None
+    assert beta_hedge([0.01, -0.02, 0.03], [0.0, 0.0, 0.0], portfolio_value=100.0) is None
 
 
 def test_beta_hedge_zero_price_skips_units():
     bench = [0.01, -0.02, 0.03, -0.01]
     asset = list(bench)
-    result = beta_hedge(
-        asset, bench, portfolio_value=1_000.0, benchmark_price=0.0
-    )
+    result = beta_hedge(asset, bench, portfolio_value=1_000.0, benchmark_price=0.0)
     assert result.hedge_units is None
 
 

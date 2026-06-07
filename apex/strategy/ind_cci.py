@@ -16,6 +16,7 @@ Standalone companion to apex.strategy.indicators, following the same CONTRACT:
 
 Tested in tests/test_ind_cci.py against hand-computed values.
 """
+
 from __future__ import annotations
 
 from typing import Optional, Sequence
@@ -29,9 +30,7 @@ def _to_floats(data: Sequence) -> list[float]:
     return [float(x) for x in data]
 
 
-def typical_price(
-    high: Sequence, low: Sequence, close: Sequence
-) -> list[float]:
+def typical_price(high: Sequence, low: Sequence, close: Sequence) -> list[float]:
     """
     Typical price = (high + low + close) / 3 for each bar. Same length as input.
     The series CCI is built from.
@@ -43,9 +42,7 @@ def typical_price(
     return [(highs[i] + lows[i] + closes[i]) / 3.0 for i in range(n)]
 
 
-def cci(
-    high: Sequence, low: Sequence, close: Sequence, period: int = 20
-) -> list[Optional[float]]:
+def cci(high: Sequence, low: Sequence, close: Sequence, period: int = 20) -> list[Optional[float]]:
     """
     Commodity Channel Index over `period` bars.
 
@@ -70,7 +67,7 @@ def cci(
         return out
 
     for i in range(period - 1, n):
-        window = tp[i - period + 1: i + 1]
+        window = tp[i - period + 1 : i + 1]
         ma = sum(window) / period
         mean_dev = sum(abs(x - ma) for x in window) / period
         if mean_dev == 0:

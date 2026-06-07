@@ -43,6 +43,7 @@ Design invariants:
   - Output is always long-only and normalised to sum 1 (within tolerance) when
     a solution exists.
 """
+
 from __future__ import annotations
 
 import math
@@ -102,10 +103,7 @@ def _symmetrize(cov: List[List[float]]) -> List[List[float]]:
     so the risk-contribution math is well defined and deterministic.
     """
     n = len(cov)
-    return [
-        [0.5 * (cov[i][j] + cov[j][i]) for j in range(n)]
-        for i in range(n)
-    ]
+    return [[0.5 * (cov[i][j] + cov[j][i]) for j in range(n)] for i in range(n)]
 
 
 def _matvec(mat: List[List[float]], vec: Sequence[float]) -> List[float]:

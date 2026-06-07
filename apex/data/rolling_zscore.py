@@ -29,6 +29,7 @@ codebase's vocabulary:
   - ``sample``: divides by ``N - 1`` (``statistics.stdev``), the unbiased
     estimator; requires at least two points in the window.
 """
+
 from __future__ import annotations
 
 import statistics
@@ -73,8 +74,7 @@ def rolling_zscore(
         raise ValueError(f"ddof must be 0 (population) or 1 (sample), got {ddof!r}")
     if window - ddof < 1:
         raise ValueError(
-            f"window={window} too small for ddof={ddof} "
-            f"(need at least {ddof + 1} points)"
+            f"window={window} too small for ddof={ddof} (need at least {ddof + 1} points)"
         )
 
     out: List[Optional[float]] = []
@@ -106,8 +106,7 @@ def latest_zscore(
         raise ValueError(f"ddof must be 0 (population) or 1 (sample), got {ddof!r}")
     if window - ddof < 1:
         raise ValueError(
-            f"window={window} too small for ddof={ddof} "
-            f"(need at least {ddof + 1} points)"
+            f"window={window} too small for ddof={ddof} (need at least {ddof + 1} points)"
         )
 
     if len(series) < window:

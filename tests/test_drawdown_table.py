@@ -1,4 +1,5 @@
 """Tests for apex.analytics.drawdown_table — hand-computed values + edges."""
+
 from __future__ import annotations
 
 import math

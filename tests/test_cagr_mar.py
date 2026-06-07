@@ -1,4 +1,5 @@
 """Tests for apex.validation.cagr_mar — hand-computed values + edge cases."""
+
 from __future__ import annotations
 
 import math
@@ -139,4 +140,4 @@ def test_cagr_mar_empty_curve_all_zero():
 def _geometric_curve(start: float, end: float, steps: int) -> list[float]:
     """Build a smooth geometric equity curve with ``steps`` periods (steps+1 pts)."""
     ratio = (end / start) ** (1.0 / steps)
-    return [start * (ratio ** i) for i in range(steps + 1)]
+    return [start * (ratio**i) for i in range(steps + 1)]

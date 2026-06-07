@@ -33,6 +33,7 @@ This module is pure: no file or network I/O. ``generate_bars`` returns a list of
 ``Bar``; ``generate_market_events`` wraps each in a ``MarketEvent`` so a synthetic
 feed is a drop-in for ``HistoricalDataFeed`` output.
 """
+
 from __future__ import annotations
 
 import math
@@ -112,9 +113,7 @@ def generate_prices(
 
     periods = _PERIODS_PER_YEAR.get(timeframe)
     if periods is None:
-        raise ValueError(
-            f"unknown timeframe {timeframe!r}; known: {sorted(_PERIODS_PER_YEAR)}"
-        )
+        raise ValueError(f"unknown timeframe {timeframe!r}; known: {sorted(_PERIODS_PER_YEAR)}")
     dt = 1.0 / periods
 
     rng = np.random.default_rng(seed)

@@ -1,4 +1,5 @@
 """Tests for apex.risk.leverage_metrics — gross/net leverage from positions."""
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -41,6 +42,7 @@ def _pos(ticker: str, qty: str, price: str, multiplier: str = "1") -> Position:
 # Exposure primitives (hand-computed)
 # ---------------------------------------------------------------------------
 
+
 def test_exposures_long_only():
     # 100 @ 10 = 1000 long; 50 @ 20 = 1000 long. Total 2000 long, 0 short.
     positions = [_pos("AAA", "100", "10"), _pos("BBB", "50", "20")]
@@ -53,10 +55,10 @@ def test_exposures_long_only():
 def test_exposures_with_short():
     # +100 @ 10 = +1000 long ; -30 @ 20 = -600 (short notional 600).
     positions = [_pos("AAA", "100", "10"), _pos("BBB", "-30", "20")]
-    assert gross_exposure(positions) == Decimal("1600")   # 1000 + 600
-    assert net_exposure(positions) == Decimal("400")      # 1000 - 600
+    assert gross_exposure(positions) == Decimal("1600")  # 1000 + 600
+    assert net_exposure(positions) == Decimal("400")  # 1000 - 600
     assert long_exposure(positions) == Decimal("1000")
-    assert short_exposure(positions) == Decimal("600")    # positive magnitude
+    assert short_exposure(positions) == Decimal("600")  # positive magnitude
 
 
 def test_market_neutral_book():
@@ -83,6 +85,7 @@ def test_contract_multiplier_scales_notional():
 # ---------------------------------------------------------------------------
 # Leverage ratios (hand-computed)
 # ---------------------------------------------------------------------------
+
 
 def test_gross_and_net_leverage_long_only():
     # gross 2000, equity 1000 -> 2.0x gross, 2.0x net.
@@ -113,6 +116,7 @@ def test_flat_book_zero_leverage_against_positive_equity():
 # Fail-closed on degenerate equity
 # ---------------------------------------------------------------------------
 
+
 def test_non_positive_equity_returns_none():
     positions = [_pos("AAA", "100", "10")]
     assert gross_leverage(positions, Decimal("0")) is None
@@ -133,6 +137,7 @@ def test_equity_accepts_int_float_str_without_float_error():
 # ---------------------------------------------------------------------------
 # compute_leverage / LeverageSnapshot
 # ---------------------------------------------------------------------------
+
 
 def test_compute_leverage_full_snapshot():
     positions = [_pos("AAA", "100", "10"), _pos("BBB", "-30", "20")]
@@ -163,7 +168,7 @@ def test_snapshot_fail_closed_and_flags():
     snap = compute_leverage([_pos("AAA", "100", "10")], Decimal("0"))
     assert snap.gross_leverage is None
     assert snap.net_leverage is None
-    assert snap.is_levered is False               # unknown -> not levered
+    assert snap.is_levered is False  # unknown -> not levered
     assert snap.gross_exposure == Decimal("1000")  # exposures still computed
 
 
@@ -186,14 +191,20 @@ def test_to_dict_round_trips_values():
     assert d["gross_leverage"] == Decimal("1")
     assert d["net_exposure"] == Decimal("1000")
     assert set(d.keys()) == {
-        "equity", "gross_exposure", "net_exposure", "long_exposure",
-        "short_exposure", "gross_leverage", "net_leverage",
+        "equity",
+        "gross_exposure",
+        "net_exposure",
+        "long_exposure",
+        "short_exposure",
+        "gross_leverage",
+        "net_leverage",
     }
 
 
 # ---------------------------------------------------------------------------
 # Portfolio adapter (duck-typed, no real Portfolio import needed)
 # ---------------------------------------------------------------------------
+
 
 class _FakePortfolio:
     def __init__(self, positions, equity):

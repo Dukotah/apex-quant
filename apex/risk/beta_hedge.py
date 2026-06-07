@@ -19,6 +19,7 @@ justify from the data).
 All functions are pure and deterministic given their inputs. Tested in
 tests/test_beta_hedge.py against hand-computed values.
 """
+
 from __future__ import annotations
 
 import statistics

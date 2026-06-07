@@ -2,6 +2,7 @@
 
 Hand-computed known values plus edge cases. Pure and fast.
 """
+
 from __future__ import annotations
 
 import math
@@ -29,6 +30,7 @@ def _manual_sharpe(window, rf=0.0, ppy=252):
 
 
 # --- window_sharpe -------------------------------------------------------
+
 
 def test_window_sharpe_hand_computed():
     # Returns [0.01, 0.02, 0.03]: mean=0.02, pop var = 2/3*0.0001
@@ -65,6 +67,7 @@ def test_window_sharpe_risk_free_rate_applied():
 
 
 # --- rolling_sharpe ------------------------------------------------------
+
 
 def test_rolling_sharpe_length_and_values():
     returns = [0.01, 0.02, 0.03, 0.04]
@@ -112,6 +115,7 @@ def test_rolling_sharpe_window_too_small_raises():
 
 # --- latest_rolling_sharpe ----------------------------------------------
 
+
 def test_latest_rolling_sharpe_matches_last_of_series():
     returns = [0.01, 0.02, 0.03, 0.04, 0.05]
     series = rolling_sharpe(returns, window=3)
@@ -128,6 +132,7 @@ def test_latest_rolling_sharpe_window_too_small_none():
 
 
 # --- rolling_sharpe_stats ------------------------------------------------
+
 
 def test_rolling_sharpe_stats_basic():
     returns = [0.01, 0.02, 0.03, 0.04]

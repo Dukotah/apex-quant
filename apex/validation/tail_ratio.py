@@ -18,6 +18,7 @@ tests/test_tail_ratio.py against hand-computed values.
 
 Dependency-light (stdlib only) so it runs anywhere, including the free CI runner.
 """
+
 from __future__ import annotations
 
 from typing import Sequence

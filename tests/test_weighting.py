@@ -7,6 +7,7 @@ Math is checked against hand-computed values and the contract is enforced:
 non-negative Decimal weights summing EXACTLY to the cap, deterministic output,
 and graceful edge-case handling (empty / single / zero-None-NaN vol).
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -34,6 +35,7 @@ def _assert_sums_to(weights, cap: Decimal) -> None:
 # --------------------------------------------------------------------------- #
 # equal_weight
 # --------------------------------------------------------------------------- #
+
 
 def test_equal_weight_sums_to_one():
     w = equal_weight([_sym("SPY"), _sym("TLT"), _sym("GLD"), _sym("DBC")])
@@ -75,6 +77,7 @@ def test_equal_weight_respects_cap():
 # --------------------------------------------------------------------------- #
 # inverse_vol_weight
 # --------------------------------------------------------------------------- #
+
 
 def test_inverse_vol_known_values():
     # vols 0.1 and 0.2 -> raw 10 and 5 -> normalized 2/3 and 1/3.
@@ -128,6 +131,7 @@ def test_inverse_vol_deterministic():
 # risk_parity_weight (diagonal == inverse vol)
 # --------------------------------------------------------------------------- #
 
+
 def test_risk_parity_equals_inverse_vol():
     vols = {"A": 0.1, "B": 0.2, "C": 0.4}
     assert risk_parity_weight(vols) == inverse_vol_weight(vols)
@@ -140,6 +144,7 @@ def test_risk_parity_sums_to_one():
 # --------------------------------------------------------------------------- #
 # correlation_down_weight
 # --------------------------------------------------------------------------- #
+
 
 def test_corr_down_weight_trims_correlated_keeps_diversifier():
     base = {"SPY": Decimal("0.5"), "TLT": Decimal("0.5")}

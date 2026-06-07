@@ -6,6 +6,7 @@ we can reason about (a steady downtrend that flips to a steady uptrend produces 
 bullish MACD crossover), drive the strategy bar-by-bar, and assert the
 position-aware delta logic, the mandatory stop, and warmup behaviour.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone

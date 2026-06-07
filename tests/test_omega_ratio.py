@@ -1,4 +1,5 @@
 """Tests for apex.validation.omega_ratio (hand-computed values + edge cases)."""
+
 from __future__ import annotations
 
 import math

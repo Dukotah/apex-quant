@@ -24,6 +24,7 @@ gracefully on insufficient data (empty / flat / monotonically-rising curves
 yield an empty episode list, never garbage). Tested in
 tests/test_drawdown_table.py against hand-computed values.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

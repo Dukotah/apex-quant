@@ -21,6 +21,7 @@ message, exit 0) when matplotlib isn't installed. It is NOT a hard dependency.
 
 Pure read-only; never touches the broker. Deterministic given the same state DB.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -72,6 +73,7 @@ def render_equity_png(store: StateStore, mode: str, out_path: Path) -> bool:
 
     try:
         import matplotlib
+
         matplotlib.use("Agg")  # headless: no display needed, deterministic raster
         import matplotlib.pyplot as plt
     except Exception:  # noqa: BLE001 — any import/backend failure degrades gracefully
@@ -91,7 +93,10 @@ def render_equity_png(store: StateStore, mode: str, out_path: Path) -> bool:
     first, last = rows[0]["ts"][:10], rows[-1]["ts"][:10]
 
     fig, (ax_eq, ax_dd) = plt.subplots(
-        2, 1, figsize=(11, 7), sharex=True,
+        2,
+        1,
+        figsize=(11, 7),
+        sharex=True,
         gridspec_kw={"height_ratios": [3, 1]},
     )
 
@@ -99,8 +104,7 @@ def render_equity_png(store: StateStore, mode: str, out_path: Path) -> bool:
     ax_eq.fill_between(x, equities, min(equities), color="#2e7d32", alpha=0.08)
     ax_eq.set_ylabel("equity ($)")
     ax_eq.set_title(
-        f"APEX QUANT — {mode} equity   "
-        f"{first}..{last}   total {total_ret:+.2%}   max DD {mdd:.1%}"
+        f"APEX QUANT — {mode} equity   {first}..{last}   total {total_ret:+.2%}   max DD {mdd:.1%}"
     )
     ax_eq.grid(True, alpha=0.3)
     ax_eq.legend(loc="upper left")
@@ -128,11 +132,14 @@ def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         description="Render the run_once equity curve + drawdown to a PNG.",
     )
     parser.add_argument(
-        "mode", nargs="?", default="paper",
+        "mode",
+        nargs="?",
+        default="paper",
         help="trading mode to plot (default: paper)",
     )
     parser.add_argument(
-        "--out", default=None,
+        "--out",
+        default=None,
         help="output PNG path (default: logs/equity_<mode>.png)",
     )
     return parser.parse_args(argv)

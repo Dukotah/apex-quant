@@ -32,6 +32,7 @@ are pure and deterministic given their inputs. Insufficient / degenerate inputs
 return a fail-closed estimate (capacity 0.0) rather than garbage. Tested in
 tests/test_capacity_estimate.py against hand-computed values.
 """
+
 from __future__ import annotations
 
 import math
@@ -43,12 +44,12 @@ from typing import Sequence
 class CapacityEstimate:
     """Result of a strategy capacity estimate (all dollar figures in USD)."""
 
-    capacity_usd: float          # max deployable capital before breaching the cap
-    daily_volume_usd: float      # total ADV across the basket, in dollars
+    capacity_usd: float  # max deployable capital before breaching the cap
+    daily_volume_usd: float  # total ADV across the basket, in dollars
     tradable_usd_per_day: float  # ADV dollars * participation_cap
-    participation_cap: float     # fraction of ADV we allow ourselves to be
-    turnover: float              # fraction of book traded per rebalance period
-    num_names: int               # how many tradable names fed the estimate
+    participation_cap: float  # fraction of ADV we allow ourselves to be
+    turnover: float  # fraction of book traded per rebalance period
+    num_names: int  # how many tradable names fed the estimate
 
     def summary(self) -> str:
         return (

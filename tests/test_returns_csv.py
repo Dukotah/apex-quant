@@ -5,6 +5,7 @@ The pure core (``build_csv``) is tested directly against hand-computed values;
 the DB-backed loader is exercised through a tmp state DB plus the file/stdout
 paths of ``main``.
 """
+
 from __future__ import annotations
 
 import csv
@@ -19,6 +20,7 @@ def _parse(text):
 
 # --------------------------------------------------------------- pure core
 
+
 def test_empty_rows_is_header_only():
     out = build_csv([])
     rows = _parse(out)
@@ -31,14 +33,14 @@ def test_single_row_has_blank_return():
     assert rows[0] == list(CSV_HEADER)
     assert rows[1][0] == "2024-01-01"
     assert float(rows[1][1]) == 100000.0
-    assert rows[1][2] == ""              # no prior point -> undefined return
+    assert rows[1][2] == ""  # no prior point -> undefined return
 
 
 def test_returns_are_hand_computed():
     # 100 -> 110 = +10%; 110 -> 99 = -10%.
     out = build_csv([("d0", 100.0), ("d1", 110.0), ("d2", 99.0)])
     rows = _parse(out)
-    assert rows[1][2] == ""                       # first row blank
+    assert rows[1][2] == ""  # first row blank
     assert abs(float(rows[2][2]) - 0.10) < 1e-12  # +10%
     assert abs(float(rows[3][2]) - (-0.10)) < 1e-12  # -10%
 
@@ -46,8 +48,8 @@ def test_returns_are_hand_computed():
 def test_zero_prior_equity_yields_blank_return():
     out = build_csv([("d0", 0.0), ("d1", 100.0)])
     rows = _parse(out)
-    assert rows[1][2] == ""   # first row always blank
-    assert rows[2][2] == ""   # division by zero prior -> blank, never garbage
+    assert rows[1][2] == ""  # first row always blank
+    assert rows[2][2] == ""  # division by zero prior -> blank, never garbage
 
 
 def test_deterministic_same_input_same_output():
@@ -65,14 +67,17 @@ def test_equity_values_preserved():
 
 # ----------------------------------------------------- module import is clean
 
+
 def test_module_import_has_no_side_effects():
     import importlib
 
     import scripts.returns_csv as mod
+
     importlib.reload(mod)  # re-import must not raise / connect to anything
 
 
 # -------------------------------------------------------- DB-backed main()
+
 
 def _seed(db_path):
     from datetime import datetime, timedelta, timezone
@@ -83,8 +88,7 @@ def _seed(db_path):
     base = datetime(2024, 1, 1, tzinfo=timezone.utc)
     for i, eq in enumerate([100000.0, 100500.0, 101000.0]):
         store.save_run(
-            RunReport(timestamp=base + timedelta(days=i), mode="paper",
-                      equity=eq, num_positions=0),
+            RunReport(timestamp=base + timedelta(days=i), mode="paper", equity=eq, num_positions=0),
             {},
         )
     store.close()
@@ -100,8 +104,8 @@ def test_main_writes_file(tmp_path, capsys):
 
     rows = _parse(out.read_text(encoding="utf-8"))
     assert rows[0] == list(CSV_HEADER)
-    assert len(rows) == 4                      # header + 3 data rows
-    assert rows[1][2] == ""                    # first return blank
+    assert len(rows) == 4  # header + 3 data rows
+    assert rows[1][2] == ""  # first return blank
     assert abs(float(rows[2][2]) - (100500.0 / 100000.0 - 1.0)) < 1e-12
 
 

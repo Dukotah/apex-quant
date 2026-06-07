@@ -35,6 +35,7 @@ the first bar with a full window.
 
 Tested in tests/test_ind_fisher_transform.py against hand-computed values.
 """
+
 from __future__ import annotations
 
 import math
@@ -46,8 +47,8 @@ def _to_floats(data: Sequence) -> list[float]:
 
 
 # Ehlers' canonical smoothing/clamp constants.
-_ALPHA = 0.33          # weight on the new normalized value (applied to 2*raw)
-_CLAMP = 0.999         # keep |value| < 1 so ln((1+v)/(1-v)) stays finite
+_ALPHA = 0.33  # weight on the new normalized value (applied to 2*raw)
+_CLAMP = 0.999  # keep |value| < 1 so ln((1+v)/(1-v)) stays finite
 
 
 def fisher_transform(data: Sequence, period: int = 10) -> list[Optional[float]]:
@@ -68,10 +69,10 @@ def fisher_transform(data: Sequence, period: int = 10) -> list[Optional[float]]:
     if n < period:
         return out
 
-    prev_value = 0.0    # smoothed normalized value, seeded at 0
-    prev_fisher = 0.0   # Fisher output, seeded at 0
+    prev_value = 0.0  # smoothed normalized value, seeded at 0
+    prev_fisher = 0.0  # Fisher output, seeded at 0
     for i in range(period - 1, n):
-        window = values[i - period + 1: i + 1]
+        window = values[i - period + 1 : i + 1]
         mx = max(window)
         mn = min(window)
         spread = mx - mn

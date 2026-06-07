@@ -3,6 +3,7 @@
 Hand-computed known values plus edge cases (empty series, all-wins, all-losses,
 flats, streak structure, undefined-without-both-sides ratios). Pure and fast.
 """
+
 from __future__ import annotations
 
 import math

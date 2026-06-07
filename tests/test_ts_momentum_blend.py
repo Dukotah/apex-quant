@@ -20,6 +20,7 @@ Covered:
   - unknown symbols ignored,
   - determinism.
 """
+
 from __future__ import annotations
 
 import math
@@ -40,13 +41,11 @@ OTHER = Symbol("NOPE", AssetClass.ETF)
 SHORT_LOOKBACKS = [2, 4]
 
 
-def _bar(sym: Symbol, t: datetime, price: float, *, high: float = None,
-         low: float = None) -> Bar:
+def _bar(sym: Symbol, t: datetime, price: float, *, high: float = None, low: float = None) -> Bar:
     p = Decimal(str(price))
     h = Decimal(str(high)) if high is not None else p
     lo = Decimal(str(low)) if low is not None else p
-    return Bar(symbol=sym, timestamp=t, open=p, high=h, low=lo, close=p,
-               volume=Decimal("1000"))
+    return Bar(symbol=sym, timestamp=t, open=p, high=h, low=lo, close=p, volume=Decimal("1000"))
 
 
 class _Harness:
@@ -66,9 +65,9 @@ class _Harness:
         self.i = 0
 
     def _refresh(self):
-        self.ctx.sync_state(positions={
-            k: SimpleNamespace(quantity=q) for k, q in self.held.items() if q > 0
-        })
+        self.ctx.sync_state(
+            positions={k: SimpleNamespace(quantity=q) for k, q in self.held.items() if q > 0}
+        )
 
     def step(self, sym: Symbol, price: float, **kw):
         self._refresh()
@@ -99,6 +98,7 @@ def _strat(**kw) -> TimeSeriesMomentumBlend:
 # ----------------------------------------------------------------------
 # Constructor validation
 # ----------------------------------------------------------------------
+
 
 def test_rejects_empty_lookbacks():
     with pytest.raises(ValueError):
@@ -146,6 +146,7 @@ def test_rejects_bad_atr_mult():
 # Warmup / insufficient history
 # ----------------------------------------------------------------------
 
+
 def test_no_signal_during_warmup():
     # Shortest lookback is 2 -> needs 3 closes before ANY sub-score is warm.
     h = _Harness(_strat())
@@ -160,6 +161,7 @@ def test_no_signal_for_unknown_symbol():
 # ----------------------------------------------------------------------
 # Core blended-score math (hand-computed)
 # ----------------------------------------------------------------------
+
 
 def test_blended_score_matches_hand_computation():
     """
@@ -202,12 +204,13 @@ def test_partial_warmup_uses_only_warm_lookbacks():
 # Long-only behaviour
 # ----------------------------------------------------------------------
 
+
 def test_rising_prices_emit_buy_with_sensible_strength_and_atr_stop():
     h = _Harness(_strat())
     prices = [100, 102, 104, 107, 110, 114, 119, 125, 132, 140]
     sigs = h.feed(SYM, prices)
     buys = [s for s in sigs if s.side == OrderSide.BUY]
-    assert len(buys) == 1                       # enters once, then holds
+    assert len(buys) == 1  # enters once, then holds
     b = buys[0]
     assert Decimal("0") < b.strength <= Decimal("1")
     assert b.suggested_stop_loss is not None
@@ -236,7 +239,7 @@ def test_falling_after_long_exits():
     assert sides.index(OrderSide.BUY) < sides.index(OrderSide.SELL)
     sells = [s for s in sigs if s.side == OrderSide.SELL]
     assert sells[0].strength == Decimal("1.0")  # full-conviction exit
-    assert h.held["MOM"] == 0                    # left flat
+    assert h.held["MOM"] == 0  # left flat
 
 
 def test_monotonic_decline_from_flat_never_buys():
@@ -268,7 +271,7 @@ def test_no_pyramiding_while_held():
 
 def test_flat_stays_flat_when_no_position_and_weak_momentum():
     """score in (0, threshold] while flat -> no buy; score>0 while flat held=False."""
-    h = _Harness(_strat(buy_threshold=0.95))   # threshold so high nothing triggers
+    h = _Harness(_strat(buy_threshold=0.95))  # threshold so high nothing triggers
     prices = [100, 101, 102, 103, 104, 105, 106, 107]
     assert h.feed(SYM, prices) == []
 
@@ -276,6 +279,7 @@ def test_flat_stays_flat_when_no_position_and_weak_momentum():
 # ----------------------------------------------------------------------
 # Stop-loss fallback
 # ----------------------------------------------------------------------
+
 
 def test_stop_uses_pct_fallback_before_atr_warm():
     """
@@ -312,11 +316,13 @@ def test_atr_stop_below_entry_with_volatile_bars():
 # Determinism
 # ----------------------------------------------------------------------
 
+
 def test_deterministic():
     prices = [100, 104, 108, 113, 119, 126, 134, 120, 105, 92, 80]
     h1 = _Harness(_strat())
     h2 = _Harness(_strat())
     s1 = h1.feed(SYM, prices)
     s2 = h2.feed(SYM, prices)
-    assert [(s.side, s.strength, s.suggested_stop_loss) for s in s1] == \
-           [(s.side, s.strength, s.suggested_stop_loss) for s in s2]
+    assert [(s.side, s.strength, s.suggested_stop_loss) for s in s1] == [
+        (s.side, s.strength, s.suggested_stop_loss) for s in s2
+    ]

@@ -17,6 +17,7 @@ gracefully on short windows (returning ``None`` for a window with no defined
 Sharpe rather than garbage). Tested in tests/test_rolling_sharpe.py against
 hand-computed values.
 """
+
 from __future__ import annotations
 
 import math
@@ -102,9 +103,7 @@ def latest_rolling_sharpe(
     """
     if window < 2 or len(returns) < window:
         return None
-    return window_sharpe(
-        returns[-window:], risk_free_rate, periods_per_year
-    )
+    return window_sharpe(returns[-window:], risk_free_rate, periods_per_year)
 
 
 def rolling_sharpe_stats(

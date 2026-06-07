@@ -23,6 +23,7 @@ zero-return edge cases) by returning empty/None rather than garbage, and they
 never perform I/O. Tested in tests/test_contribution_analysis.py against
 hand-computed values.
 """
+
 from __future__ import annotations
 
 import math
@@ -128,9 +129,7 @@ def multi_period_contributions(
 
     totals: Dict[str, float] = {}
     for t in range(n):
-        contribs = single_period_contributions(
-            weights_by_period[t], returns_by_period[t]
-        )
+        contribs = single_period_contributions(weights_by_period[t], returns_by_period[t])
         scale = scales[t]
         for asset, c in contribs.items():
             totals[asset] = totals.get(asset, 0.0) + c * scale

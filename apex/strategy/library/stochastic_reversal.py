@@ -48,6 +48,7 @@ CONVENTIONS:
     the Stochastic itself is implemented PRIVATELY here (not in the shared lib).
   - Deterministic, no I/O — safe on the free CI runner.
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -116,7 +117,9 @@ class StochasticReversalStrategy(BaseStrategy):
 
     # ---- stochastic oscillator (private; not in the shared indicator lib) ----
 
-    def _raw_k(self, highs: list[float], lows: list[float], closes: list[float]) -> list[Optional[float]]:
+    def _raw_k(
+        self, highs: list[float], lows: list[float], closes: list[float]
+    ) -> list[Optional[float]]:
         """
         Fast %K over the rolling high-low range. Same length as input, None until
         `k_period` bars exist. A flat range (high == low) maps to 50.0 (neutral),
@@ -126,8 +129,8 @@ class StochasticReversalStrategy(BaseStrategy):
         n = len(closes)
         out: list[Optional[float]] = [None] * n
         for i in range(self.k_period - 1, n):
-            window_hi = max(highs[i - self.k_period + 1: i + 1])
-            window_lo = min(lows[i - self.k_period + 1: i + 1])
+            window_hi = max(highs[i - self.k_period + 1 : i + 1])
+            window_lo = min(lows[i - self.k_period + 1 : i + 1])
             rng = window_hi - window_lo
             if rng <= 0:
                 out[i] = 50.0

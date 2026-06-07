@@ -7,6 +7,7 @@ last-bar timestamp, the >= threshold trigger, single-bar overflow, partial-tail
 handling, multi-symbol rejection, and graceful empty/insufficient input. Pure and
 offline: no I/O, no clock, no randomness. Values are hand-computed.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -53,14 +54,14 @@ def _bar(
 
 # ----------------------------------------------------------------- helpers
 
+
 def test_bar_dollar_volume_is_close_times_volume():
     b = _bar(0, "10", "11", "9", "10", "100")
     assert bar_dollar_volume(b) == Decimal("1000")
 
 
 def test_total_metric_volume_and_dollar():
-    bars = [_bar(0, "10", "10", "10", "10", "100"),
-            _bar(1, "20", "20", "20", "20", "50")]
+    bars = [_bar(0, "10", "10", "10", "10", "100"), _bar(1, "20", "20", "20", "20", "50")]
     assert total_metric(bars, BarMetric.VOLUME) == Decimal("150")
     # 10*100 + 20*50 = 1000 + 1000 = 2000
     assert total_metric(bars, BarMetric.DOLLAR_VOLUME) == Decimal("2000")
@@ -71,6 +72,7 @@ def test_total_metric_empty_is_zero():
 
 
 # ------------------------------------------------------------- volume bars
+
 
 def test_volume_bars_basic_ohlc_and_timestamp():
     # Three 1Min bars; volume threshold 250 → first two (100+150=250) form bar 1.
@@ -83,10 +85,10 @@ def test_volume_bars_basic_ohlc_and_timestamp():
     assert len(out) == 2
 
     b1 = out[0]
-    assert b1.open == Decimal("10")     # first bar's open
-    assert b1.high == Decimal("15")     # max(12, 15)
-    assert b1.low == Decimal("9")       # min(9, 10)
-    assert b1.close == Decimal("14")    # last contributing close
+    assert b1.open == Decimal("10")  # first bar's open
+    assert b1.high == Decimal("15")  # max(12, 15)
+    assert b1.low == Decimal("9")  # min(9, 10)
+    assert b1.close == Decimal("14")  # last contributing close
     assert b1.volume == Decimal("250")  # 100 + 150
     assert b1.timestamp == T0 + timedelta(minutes=1)  # last contributor's ts
 
@@ -117,6 +119,7 @@ def test_single_bar_exceeding_threshold_emits_alone():
 
 # ------------------------------------------------------- dollar-volume bars
 
+
 def test_dollar_volume_bars_threshold():
     # dollar volume per bar: 10*50=500, 20*30=600 -> cumulative 1100 >= 1000 after 2.
     bars = [
@@ -125,15 +128,14 @@ def test_dollar_volume_bars_threshold():
         _bar(2, "20", "20", "20", "20", "10"),  # 20*10=200, leftover (<1000)
     ]
     out = aggregate_dollar_volume_bars(bars, 1000)
-    assert len(out) == 1   # trailing 200 dropped by default
+    assert len(out) == 1  # trailing 200 dropped by default
     assert out[0].open == Decimal("10")
     assert out[0].close == Decimal("20")
     assert out[0].volume == Decimal("80")  # 50 + 30
 
 
 def test_default_metric_is_dollar_volume():
-    bars = [_bar(0, "10", "10", "10", "10", "50"),
-            _bar(1, "20", "20", "20", "20", "30")]
+    bars = [_bar(0, "10", "10", "10", "10", "50"), _bar(1, "20", "20", "20", "20", "30")]
     via_default = aggregate_bars(bars, 1000)
     via_explicit = aggregate_dollar_volume_bars(bars, 1000)
     assert [b.volume for b in via_default] == [b.volume for b in via_explicit]
@@ -141,6 +143,7 @@ def test_default_metric_is_dollar_volume():
 
 
 # ----------------------------------------------------------- partial tail
+
 
 def test_partial_tail_dropped_by_default():
     bars = [_bar(0, "10", "10", "10", "10", "100")]
@@ -164,6 +167,7 @@ def test_partial_tail_emitted_when_requested():
 
 # --------------------------------------------------- edge cases / failures
 
+
 def test_empty_input_yields_empty():
     assert aggregate_bars([], 100) == []
     assert aggregate_volume_bars([], 100, emit_partial=True) == []
@@ -172,12 +176,12 @@ def test_empty_input_yields_empty():
 def test_zero_volume_bar_folds_into_ohlc_without_advancing():
     # A zero-volume bar still contributes price action but not to the running total.
     bars = [
-        _bar(0, "10", "12", "9", "11", "0"),    # vol 0
+        _bar(0, "10", "12", "9", "11", "0"),  # vol 0
         _bar(1, "11", "20", "8", "15", "250"),
     ]
     out = aggregate_volume_bars(bars, 250)
     assert len(out) == 1
-    assert out[0].open == Decimal("10")   # zero-vol bar's open is kept
+    assert out[0].open == Decimal("10")  # zero-vol bar's open is kept
     assert out[0].high == Decimal("20")
     assert out[0].low == Decimal("8")
     assert out[0].close == Decimal("15")

@@ -3,6 +3,7 @@ Tests for apex.strategy.ind_parabolic_sar.
 
 Hand-computed known values plus edge cases. Pure and fast.
 """
+
 from __future__ import annotations
 
 from decimal import Decimal

@@ -2,6 +2,7 @@
 
 Hand-computed known values plus edge cases. Pure and fast.
 """
+
 from __future__ import annotations
 
 import math
@@ -20,6 +21,7 @@ from apex.analytics.contribution_analysis import (
 # single_period_contributions / portfolio_return
 # --------------------------------------------------------------------------
 
+
 def test_single_period_basic():
     weights = {"AAA": 0.6, "BBB": 0.4}
     returns = {"AAA": 0.10, "BBB": -0.05}
@@ -34,9 +36,7 @@ def test_portfolio_return_is_sum_of_contributions():
     returns = {"AAA": 0.10, "BBB": -0.05}
     pr = portfolio_return(weights, returns)
     assert pr == pytest.approx(0.06 - 0.02)  # = 0.04
-    assert pr == pytest.approx(
-        math.fsum(single_period_contributions(weights, returns).values())
-    )
+    assert pr == pytest.approx(math.fsum(single_period_contributions(weights, returns).values()))
 
 
 def test_missing_return_treated_as_zero():
@@ -55,6 +55,7 @@ def test_empty_weights():
 # --------------------------------------------------------------------------
 # multi_period_contributions + Cariño reconciliation
 # --------------------------------------------------------------------------
+
 
 def test_single_asset_reconciles_to_geometric_total():
     # One asset, full weight each period. Returns +10% then -5%.
@@ -126,6 +127,7 @@ def test_single_period_via_multi_matches_arithmetic():
 # --------------------------------------------------------------------------
 # contribution_fractions
 # --------------------------------------------------------------------------
+
 
 def test_contribution_fractions_basic():
     fracs = contribution_fractions({"AAA": 0.06, "BBB": 0.02})

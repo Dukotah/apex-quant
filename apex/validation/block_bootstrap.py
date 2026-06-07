@@ -31,6 +31,7 @@ Pure stdlib (random + statistics + the metrics module) — runs on the free CI
 runner with no heavy installs. Statistical code here uses ``float`` to match
 ``apex/validation/metrics.py`` (the layer this lives in is float-based by design).
 """
+
 from __future__ import annotations
 
 import random
@@ -48,11 +49,11 @@ MetricFn = Callable[[Sequence[float]], float]
 class BlockBootstrapResult:
     """Summary of a block-bootstrap distribution for one metric."""
 
-    observed: float                 # metric on the real (unresampled) series
-    mean: float                     # mean metric across resamples
-    std: float                      # sample std of the metric across resamples
-    p_value: float                  # P(resample metric >= observed)
-    percentiles: dict[float, float] # e.g. {5: ..., 25: ..., 50: ..., 75: ..., 95: ...}
+    observed: float  # metric on the real (unresampled) series
+    mean: float  # mean metric across resamples
+    std: float  # sample std of the metric across resamples
+    p_value: float  # P(resample metric >= observed)
+    percentiles: dict[float, float]  # e.g. {5: ..., 25: ..., 50: ..., 75: ..., 95: ...}
     n_resamples: int
     block_size: int
     samples: tuple[float, ...] = field(repr=False)  # the raw resampled metrics

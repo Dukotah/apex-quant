@@ -19,6 +19,7 @@ Covered:
   - unknown symbol ignored,
   - determinism.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -34,13 +35,13 @@ from apex.strategy.library.donchian_breakout import DonchianBreakoutStrategy
 SYM = Symbol("SYM", AssetClass.ETF)
 
 
-def _bar(sym: Symbol, t: datetime, price: float,
-         high: float | None = None, low: float | None = None) -> Bar:
+def _bar(
+    sym: Symbol, t: datetime, price: float, high: float | None = None, low: float | None = None
+) -> Bar:
     c = Decimal(str(price))
     h = Decimal(str(high)) if high is not None else c
     lo = Decimal(str(low)) if low is not None else c
-    return Bar(symbol=sym, timestamp=t, open=c, high=h, low=lo, close=c,
-               volume=Decimal("1000"))
+    return Bar(symbol=sym, timestamp=t, open=c, high=h, low=lo, close=c, volume=Decimal("1000"))
 
 
 class _Harness:
@@ -49,6 +50,7 @@ class _Harness:
     portfolio before each bar, and applies emitted signals as IMMEDIATE fills so the
     next bar sees the updated holding (mirrors engine fill-before-dispatch ordering).
     """
+
     def __init__(self, strat: DonchianBreakoutStrategy):
         self.strat = strat
         self.ctx = StrategyContext()
@@ -58,19 +60,16 @@ class _Harness:
         self.i = 0
 
     def _refresh(self):
-        self.ctx.sync_state(positions={
-            k: SimpleNamespace(quantity=q) for k, q in self.held.items() if q > 0
-        })
+        self.ctx.sync_state(
+            positions={k: SimpleNamespace(quantity=q) for k, q in self.held.items() if q > 0}
+        )
 
-    def step(self, sym: Symbol, price: float,
-             high: float | None = None, low: float | None = None):
+    def step(self, sym: Symbol, price: float, high: float | None = None, low: float | None = None):
         self._refresh()
-        sigs = self.strat.on_bar(_bar(sym, self.t + timedelta(days=self.i),
-                                      price, high, low))
+        sigs = self.strat.on_bar(_bar(sym, self.t + timedelta(days=self.i), price, high, low))
         self.i += 1
         for s in sigs:
-            self.held[sym.ticker] = (
-                Decimal("1") if s.side == OrderSide.BUY else Decimal("0"))
+            self.held[sym.ticker] = Decimal("1") if s.side == OrderSide.BUY else Decimal("0")
         return sigs
 
     def feed(self, sym: Symbol, prices: list[float]):
@@ -81,13 +80,13 @@ class _Harness:
 
 
 def _strat(**kw) -> DonchianBreakoutStrategy:
-    base = dict(entry_period=3, exit_period=2, atr_period=3,
-                stop_loss_pct=Decimal("0.05"))
+    base = dict(entry_period=3, exit_period=2, atr_period=3, stop_loss_pct=Decimal("0.05"))
     base.update(kw)
     return DonchianBreakoutStrategy("s", [SYM], **base)
 
 
 # ---- validation ----------------------------------------------------------
+
 
 def test_exit_must_not_exceed_entry():
     with pytest.raises(ValueError):
@@ -111,6 +110,7 @@ def test_stop_pct_must_be_positive():
 
 # ---- warmup --------------------------------------------------------------
 
+
 def test_no_signal_during_warmup():
     h = _Harness(_strat())
     # entry_period=3 -> need 4 bars before any opinion; first 3 produce nothing.
@@ -118,6 +118,7 @@ def test_no_signal_during_warmup():
 
 
 # ---- breakout / breakdown with hand-computed transitions -----------------
+
 
 def test_breakout_emits_buy_then_breakdown_sells():
     """
@@ -135,8 +136,7 @@ def test_breakout_emits_buy_then_breakdown_sells():
 
 def test_buy_carries_stop_below_price():
     h = _Harness(_strat())
-    buys = [s for s in h.feed(SYM, [10, 10, 10, 10, 15, 15, 15, 8, 8])
-            if s.side == OrderSide.BUY]
+    buys = [s for s in h.feed(SYM, [10, 10, 10, 10, 15, 15, 15, 8, 8]) if s.side == OrderSide.BUY]
     assert len(buys) == 1
     assert buys[0].suggested_stop_loss is not None
     assert Decimal("0") < buys[0].suggested_stop_loss < Decimal("15")
@@ -144,8 +144,7 @@ def test_buy_carries_stop_below_price():
 
 def test_sell_is_full_conviction():
     h = _Harness(_strat())
-    sells = [s for s in h.feed(SYM, [10, 10, 10, 10, 15, 15, 15, 8, 8])
-             if s.side == OrderSide.SELL]
+    sells = [s for s in h.feed(SYM, [10, 10, 10, 10, 15, 15, 15, 8, 8]) if s.side == OrderSide.SELL]
     assert sells and sells[0].strength == Decimal("1.0")
 
 
@@ -181,14 +180,14 @@ def test_cold_start_enters_established_breakout():
 
 # ---- stop placement: ATR vs percentage fallback --------------------------
 
+
 def test_percentage_fallback_during_atr_warmup():
     """
     Force the BUY to fire before ATR has enough bars (atr_period large). The stop
     must then be exactly the percentage fallback: close * (1 - stop_loss_pct).
     """
     h = _Harness(_strat(atr_period=50, stop_loss_pct=Decimal("0.05")))
-    buys = [s for s in h.feed(SYM, [10, 10, 10, 10, 15])
-            if s.side == OrderSide.BUY]
+    buys = [s for s in h.feed(SYM, [10, 10, 10, 10, 15]) if s.side == OrderSide.BUY]
     assert len(buys) == 1
     # close at entry is 15 -> 15 * 0.95 = 14.25
     assert buys[0].suggested_stop_loss == Decimal("15") * Decimal("0.95")
@@ -199,8 +198,7 @@ def test_atr_stop_used_when_warm():
     With a small atr_period and ranged bars, ATR is available at the breakout, so
     the stop should be close - atr_mult*ATR, which differs from the 5% fallback.
     """
-    strat = _strat(atr_period=3, atr_mult=Decimal("2.0"),
-                   stop_loss_pct=Decimal("0.05"))
+    strat = _strat(atr_period=3, atr_mult=Decimal("2.0"), stop_loss_pct=Decimal("0.05"))
     ctx = StrategyContext()
     strat.bind_context(ctx)
     t = datetime(2024, 1, 1, tzinfo=timezone.utc)
@@ -211,12 +209,11 @@ def test_atr_stop_used_when_warm():
         (10, 11, 9),
         (10, 11, 9),
         (10, 11, 9),
-        (15, 16, 14),   # close 15 > prior-3 high (11) -> BUY here, ATR warm
+        (15, 16, 14),  # close 15 > prior-3 high (11) -> BUY here, ATR warm
     ]
     captured = None
     for i, (c, hi, lo) in enumerate(rows):
-        ctx.sync_state(positions={
-            k: SimpleNamespace(quantity=q) for k, q in held.items() if q > 0})
+        ctx.sync_state(positions={k: SimpleNamespace(quantity=q) for k, q in held.items() if q > 0})
         for s in strat.on_bar(_bar(SYM, t + timedelta(days=i), c, hi, lo)):
             if s.side == OrderSide.BUY:
                 captured = s
@@ -230,6 +227,7 @@ def test_atr_stop_used_when_warm():
 
 # ---- misc ----------------------------------------------------------------
 
+
 def test_ignores_unknown_symbol():
     h = _Harness(_strat())
     other = Symbol("NOPE", AssetClass.ETF)
@@ -242,5 +240,6 @@ def test_deterministic():
     h2 = _Harness(_strat())
     s1 = h1.feed(SYM, prices)
     s2 = h2.feed(SYM, prices)
-    assert ([(s.side, s.suggested_stop_loss) for s in s1]
-            == [(s.side, s.suggested_stop_loss) for s in s2])
+    assert [(s.side, s.suggested_stop_loss) for s in s1] == [
+        (s.side, s.suggested_stop_loss) for s in s2
+    ]

@@ -32,6 +32,7 @@ Insufficient data returns None rather than garbage (fail closed).
 
 Tested in tests/test_variance_ratio_test.py against hand-computed values.
 """
+
 from __future__ import annotations
 
 import math
@@ -42,13 +43,14 @@ from typing import Sequence
 @dataclass(frozen=True)
 class VarianceRatioResult:
     """Outcome of a single Lo-MacKinlay variance ratio test at horizon q."""
-    q: int                       # the aggregation horizon tested
-    n: int                       # number of one-period returns used
-    variance_ratio: float        # VR(q); 1.0 under the random-walk null
-    z_homoskedastic: float       # z1: assumes constant variance
-    z_heteroskedastic: float     # z2: Lo-MacKinlay robust z (use this one)
-    p_value: float               # two-sided p-value from the robust z
-    rejects_random_walk: bool    # p_value < significance
+
+    q: int  # the aggregation horizon tested
+    n: int  # number of one-period returns used
+    variance_ratio: float  # VR(q); 1.0 under the random-walk null
+    z_homoskedastic: float  # z1: assumes constant variance
+    z_heteroskedastic: float  # z2: Lo-MacKinlay robust z (use this one)
+    p_value: float  # two-sided p-value from the robust z
+    rejects_random_walk: bool  # p_value < significance
 
     def summary(self) -> str:
         if self.variance_ratio > 1.0:

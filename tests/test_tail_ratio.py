@@ -3,6 +3,7 @@ Tests for apex.validation.tail_ratio.
 
 Hand-computed known values plus edge cases. Pure and fast.
 """
+
 from __future__ import annotations
 
 import math
@@ -10,6 +11,7 @@ import math
 from apex.validation.tail_ratio import percentile, tail_ratio
 
 # --- percentile -----------------------------------------------------------
+
 
 def test_percentile_empty_returns_none():
     assert percentile([], 95.0) is None
@@ -52,6 +54,7 @@ def test_percentile_clamps_out_of_range_q():
 
 
 # --- tail_ratio -----------------------------------------------------------
+
 
 def test_tail_ratio_symmetric_is_one():
     # Symmetric distribution: right and left tail magnitudes are equal -> 1.0

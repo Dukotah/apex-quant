@@ -30,6 +30,7 @@ yields None at that position rather than inf/nan — fail closed.
 
 All functions tested in tests/test_ind_roc.py against hand-computed values.
 """
+
 from __future__ import annotations
 
 from typing import Optional, Sequence

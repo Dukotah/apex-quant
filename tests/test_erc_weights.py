@@ -6,6 +6,7 @@ contribution RC_i = w_i * (Sigma w)_i is equal. We also pin a couple of
 closed-form cases (uncorrelated => inverse-vol; single asset; 2x2 with known
 correlation) against hand-computed values.
 """
+
 from __future__ import annotations
 
 from apex.risk.erc_weights import (
@@ -22,6 +23,7 @@ def _approx(a: float, b: float, tol: float = 1e-6) -> bool:
 # --------------------------------------------------------------------------
 # Core ERC property
 # --------------------------------------------------------------------------
+
 
 def test_single_asset():
     assert erc_weights([[0.04]]) == [1.0]
@@ -103,6 +105,7 @@ def test_asymmetric_input_is_symmetrized():
 # inverse_variance_weights baseline
 # --------------------------------------------------------------------------
 
+
 def test_inverse_variance_weights():
     # 1/var = (1/0.01, 1/0.04) = (100, 25) -> normalise -> (0.8, 0.2).
     cov = [[0.01, 0.0], [0.0, 0.04]]
@@ -123,13 +126,14 @@ def test_inverse_variance_differs_from_erc():
 # Fail-closed / edge cases
 # --------------------------------------------------------------------------
 
+
 def test_empty_matrix_fails_closed():
     assert erc_weights([]) == []
     assert inverse_variance_weights([]) == []
 
 
 def test_non_square_fails_closed():
-    assert erc_weights([[0.04, 0.01]]) == []          # 1x2
+    assert erc_weights([[0.04, 0.01]]) == []  # 1x2
     assert erc_weights([[0.04, 0.01], [0.01]]) == []  # ragged
 
 
@@ -157,7 +161,7 @@ def test_bad_solver_params_fail_closed():
 
 
 def test_risk_contributions_invalid_inputs():
-    assert risk_contributions([0.5, 0.5], []) == []          # bad cov
+    assert risk_contributions([0.5, 0.5], []) == []  # bad cov
     assert risk_contributions([0.5], [[0.04, 0.0], [0.0, 0.04]]) == []  # size mismatch
     assert risk_contributions([float("nan"), 0.5], [[0.04, 0.0], [0.0, 0.04]]) == []
 

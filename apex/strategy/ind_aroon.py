@@ -29,6 +29,7 @@ smallest "periods since"), the standard tie-breaking rule.
 
 All functions tested in tests/test_ind_aroon.py against hand-computed values.
 """
+
 from __future__ import annotations
 
 from typing import Optional, Sequence
@@ -79,7 +80,7 @@ def aroon_up(high: Sequence, period: int = 25) -> list[Optional[float]]:
     n = len(highs)
     out: list[Optional[float]] = [None] * n
     for i in range(period, n):
-        window = highs[i - period: i + 1]
+        window = highs[i - period : i + 1]
         since = _periods_since_highest(window)
         out[i] = (period - since) / period * 100.0
     return out
@@ -96,7 +97,7 @@ def aroon_down(low: Sequence, period: int = 25) -> list[Optional[float]]:
     n = len(lows)
     out: list[Optional[float]] = [None] * n
     for i in range(period, n):
-        window = lows[i - period: i + 1]
+        window = lows[i - period : i + 1]
         since = _periods_since_lowest(window)
         out[i] = (period - since) / period * 100.0
     return out

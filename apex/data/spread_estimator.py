@@ -39,6 +39,7 @@ Daily High and Low Prices," Journal of Finance 67(2), 2012.
 
 Tested in tests/test_spread_estimator.py against hand-computed values.
 """
+
 from __future__ import annotations
 
 import math
@@ -121,9 +122,7 @@ def corwin_schultz_spreads(
     h = _to_floats(highs)
     lo = _to_floats(lows)
     if len(h) != len(lo):
-        raise ValueError(
-            f"highs and lows must be the same length ({len(h)} != {len(lo)})"
-        )
+        raise ValueError(f"highs and lows must be the same length ({len(h)} != {len(lo)})")
 
     out: list[Optional[float]] = [None] * len(h)
     for i in range(1, len(h)):

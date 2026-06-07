@@ -27,6 +27,7 @@ convention of the metrics layer it operates on float, not Decimal (these are
 reporting statistics, not P&L). Pure, no I/O, deterministic given its inputs.
 Tested in tests/test_benchmark_comparison.py against hand-computed values.
 """
+
 from __future__ import annotations
 
 import math

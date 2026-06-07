@@ -38,6 +38,7 @@ Design notes (mirrors the risk layer's conventions):
 This duplicates no live state and imports nothing from sibling risk modules; it
 is a self-contained kernel the RiskManager (or a backtest report) can call.
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -140,7 +141,7 @@ def throttle_factor(
         return floor_d
 
     # Strictly inside the ramp: linear interpolation 1 → floor.
-    frac = (dd - start_d) / (full_d - start_d)          # 0..1 across the ramp
+    frac = (dd - start_d) / (full_d - start_d)  # 0..1 across the ramp
     return _ONE - frac * (_ONE - floor_d)
 
 

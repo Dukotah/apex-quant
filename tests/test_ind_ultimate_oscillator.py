@@ -4,6 +4,7 @@ Tests for apex.strategy.ind_ultimate_oscillator.
 Hand-computed known values plus warmup, bounds, and edge-case coverage.
 Imported by full path so no package __init__ edits are needed.
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -48,9 +49,9 @@ def test_strong_uptrend_pegs_near_100():
         TR = close - prior_close  ->  BP == TR.
     """
     n = 40
-    close = [100.0 + i for i in range(n)]      # +1 each bar
-    high = close[:]                            # high == close
-    low = [close[0]] + close[:-1]              # low == prior close
+    close = [100.0 + i for i in range(n)]  # +1 each bar
+    high = close[:]  # high == close
+    low = [close[0]] + close[:-1]  # low == prior close
     out = ultimate_oscillator(high, low, close)
     for v in out[28:]:
         assert v == pytest.approx(100.0)
@@ -66,9 +67,9 @@ def test_strong_downtrend_pegs_near_zero():
         TR = prior_close - close > 0  ->  avg = 0  ->  UO = 0.
     """
     n = 40
-    close = [200.0 - i for i in range(n)]      # -1 each bar
-    low = close[:]                             # low == close
-    high = [close[0]] + close[:-1]             # high == prior close
+    close = [200.0 - i for i in range(n)]  # -1 each bar
+    low = close[:]  # low == close
+    high = [close[0]] + close[:-1]  # high == prior close
     out = ultimate_oscillator(high, low, close)
     for v in out[28:]:
         assert v == pytest.approx(0.0)

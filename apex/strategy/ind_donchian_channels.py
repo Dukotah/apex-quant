@@ -21,6 +21,7 @@ CONTRACT (same as apex.strategy.indicators):
 
 Tested in tests/test_ind_donchian_channels.py against hand-computed values.
 """
+
 from __future__ import annotations
 
 from typing import Optional, Sequence
@@ -60,8 +61,8 @@ def donchian_channels(
         return upper, middle, lower
 
     for i in range(period - 1, n):
-        window_high = max(highs[i - period + 1: i + 1])
-        window_low = min(lows[i - period + 1: i + 1])
+        window_high = max(highs[i - period + 1 : i + 1])
+        window_low = min(lows[i - period + 1 : i + 1])
         upper[i] = window_high
         lower[i] = window_low
         middle[i] = (window_high + window_low) / 2.0
@@ -78,7 +79,7 @@ def donchian_upper(high: Sequence, period: int = 20) -> list[Optional[float]]:
     if n < period:
         return out
     for i in range(period - 1, n):
-        out[i] = max(highs[i - period + 1: i + 1])
+        out[i] = max(highs[i - period + 1 : i + 1])
     return out
 
 
@@ -92,7 +93,7 @@ def donchian_lower(low: Sequence, period: int = 20) -> list[Optional[float]]:
     if n < period:
         return out
     for i in range(period - 1, n):
-        out[i] = min(lows[i - period + 1: i + 1])
+        out[i] = min(lows[i - period + 1 : i + 1])
     return out
 
 

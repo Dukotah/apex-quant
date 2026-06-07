@@ -4,6 +4,7 @@ Tests for apex.risk.stop_levels.
 Hand-computed known values plus edge cases (insufficient/garbage data must
 fail closed to None, never produce a wrong level).
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -16,6 +17,7 @@ from apex.risk.stop_levels import atr_stop, chandelier_stop, percent_stop
 # --------------------------------------------------------------------------
 # percent_stop
 # --------------------------------------------------------------------------
+
 
 def test_percent_stop_long_known_value():
     # 100 with a 5% stop -> 95.
@@ -66,6 +68,7 @@ def test_percent_stop_none_inputs():
 # atr_stop
 # --------------------------------------------------------------------------
 
+
 def test_atr_stop_long_known_value():
     # entry 100, ATR 2, multiplier 3 -> 100 - 6 = 94.
     assert atr_stop(Decimal("100"), Decimal("2"), Decimal("3"), OrderSide.BUY) == Decimal("94")
@@ -112,6 +115,7 @@ def test_atr_stop_none_inputs():
 # chandelier_stop
 # --------------------------------------------------------------------------
 
+
 def test_chandelier_long_known_value():
     # highest high = 120, ATR 2, mult 3 -> 120 - 6 = 114.
     highs = [Decimal("100"), Decimal("120"), Decimal("110")]
@@ -128,9 +132,16 @@ def test_chandelier_short_known_value():
 
 def test_chandelier_long_trails_up_with_new_highs():
     # Adding a higher high raises the stop (ratchets in the favourable direction).
-    base = chandelier_stop([Decimal("110")], [Decimal("100")], Decimal("2"), Decimal("3"), OrderSide.BUY)
-    higher = chandelier_stop([Decimal("110"), Decimal("130")], [Decimal("100"), Decimal("120")],
-                             Decimal("2"), Decimal("3"), OrderSide.BUY)
+    base = chandelier_stop(
+        [Decimal("110")], [Decimal("100")], Decimal("2"), Decimal("3"), OrderSide.BUY
+    )
+    higher = chandelier_stop(
+        [Decimal("110"), Decimal("130")],
+        [Decimal("100"), Decimal("120")],
+        Decimal("2"),
+        Decimal("3"),
+        OrderSide.BUY,
+    )
     assert base == Decimal("104")
     assert higher == Decimal("124")
     assert higher > base
@@ -144,7 +155,9 @@ def test_chandelier_skips_none_entries():
 
 
 def test_chandelier_accepts_floats():
-    assert chandelier_stop([100.0, 105.0], [98.0, 101.0], 1.0, 2.0, OrderSide.BUY) == Decimal("103.0")
+    assert chandelier_stop([100.0, 105.0], [98.0, 101.0], 1.0, 2.0, OrderSide.BUY) == Decimal(
+        "103.0"
+    )
 
 
 def test_chandelier_empty_series_returns_none():
@@ -166,7 +179,10 @@ def test_chandelier_rejects_non_positive_atr_or_multiplier():
 
 def test_chandelier_long_rejects_level_at_or_below_zero():
     # highest high 5, distance 6 -> level -1 <= 0.
-    assert chandelier_stop([Decimal("5")], [Decimal("4")], Decimal("2"), Decimal("3"), OrderSide.BUY) is None
+    assert (
+        chandelier_stop([Decimal("5")], [Decimal("4")], Decimal("2"), Decimal("3"), OrderSide.BUY)
+        is None
+    )
 
 
 def test_all_stops_return_decimal_type():

@@ -9,6 +9,7 @@ We verify:
   - Degenerate (flat) windows fail closed to 0.0, not garbage.
   - Edge cases: insufficient data, bad period, mismatched lengths, Decimal input.
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -22,6 +23,7 @@ from apex.strategy.ind_adx import (
 )
 
 # --- An independent reference implementation (deliberately written differently) ---
+
 
 def _ref_di_adx(highs, lows, closes, period):
     n = len(closes)
@@ -40,9 +42,9 @@ def _ref_di_adx(highs, lows, closes, period):
     if n < period + 1:
         return pdi, mdi, [None] * n
 
-    sp = sum(pdm[1:period + 1])
-    sm = sum(mdm[1:period + 1])
-    st = sum(tr[1:period + 1])
+    sp = sum(pdm[1 : period + 1])
+    sm = sum(mdm[1 : period + 1])
+    st = sum(tr[1 : period + 1])
 
     def di(d, t):
         return 0.0 if t == 0 else 100.0 * d / t
@@ -74,6 +76,7 @@ def _ref_di_adx(highs, lows, closes, period):
 def _series(seed=7, n=80):
     """Deterministic pseudo-random OHLC series (seeded, no global RNG)."""
     import random
+
     rng = random.Random(seed)
     highs, lows, closes = [], [], []
     price = 100.0
@@ -127,7 +130,7 @@ def test_warmup_placement():
     # ADX: first value at index 2*period - 1.
     assert all(v is None for v in a[: 2 * period - 1])
     assert a[2 * period - 1] is not None
-    assert all(v is not None for v in a[2 * period - 1:])
+    assert all(v is not None for v in a[2 * period - 1 :])
 
 
 def test_pure_uptrend():

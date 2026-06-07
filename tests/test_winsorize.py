@@ -1,4 +1,5 @@
 """Tests for apex.data.winsorize — winsorize/clip a numeric series at percentiles."""
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -8,6 +9,7 @@ import pytest
 from apex.data.winsorize import clip, winsorize
 
 # ----------------------------------------------------------------- winsorize
+
 
 def test_clips_extremes_to_percentile_bounds():
     # 0..10, eleven values. last index = 10.
@@ -47,8 +49,13 @@ def test_no_op_full_range():
 
 
 def test_decimal_type_preserved_exactly():
-    series = [Decimal("100.10"), Decimal("100.20"), Decimal("100.30"),
-              Decimal("100.40"), Decimal("999.99")]
+    series = [
+        Decimal("100.10"),
+        Decimal("100.20"),
+        Decimal("100.30"),
+        Decimal("100.40"),
+        Decimal("999.99"),
+    ]
     out = winsorize(series, 0.0, 0.75)
     # high bound = ceil(0.75*4)=index3 -> Decimal("100.40")
     assert out[-1] == Decimal("100.40")
@@ -90,6 +97,7 @@ def test_invalid_percentiles_raise(lo, hi):
 
 
 # ----------------------------------------------------------------------- clip
+
 
 def test_clip_explicit_bounds():
     assert clip([1, 5, 10, 15, 20], 5, 15) == [5, 5, 10, 15, 15]

@@ -5,6 +5,7 @@ All expected values are hand-computed. The Coppock Curve is:
     WMA(wma_period) of ( ROC(long_roc) + ROC(short_roc) )
 with ROC expressed as a percent (classic convention).
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -123,7 +124,7 @@ def test_coppock_warmup_all_none_when_too_short():
 
 def test_coppock_first_value_index_default_params():
     # 30 bars; first non-None should be exactly at index 23 (14 + (10-1)).
-    data = [100.0 * (1.01 ** i) for i in range(30)]
+    data = [100.0 * (1.01**i) for i in range(30)]
     out = coppock_curve(data)
     for i in range(23):
         assert out[i] is None, f"index {i} should be warmup None"
@@ -164,8 +165,7 @@ def test_coppock_hand_computed_varying_series():
 
 def test_coppock_accepts_decimal_input():
     # money-style Decimal prices must be accepted (converted to float internally)
-    data = [Decimal("100"), Decimal("110"), Decimal("121"),
-            Decimal("133.1"), Decimal("146.41")]
+    data = [Decimal("100"), Decimal("110"), Decimal("121"), Decimal("133.1"), Decimal("146.41")]
     out = coppock_curve(data, long_roc=2, short_roc=1, wma_period=2)
     assert approx(out[3], 31.0)
     assert approx(out[4], 31.0)

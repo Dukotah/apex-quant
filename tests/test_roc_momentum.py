@@ -16,6 +16,7 @@ Covered:
   - ATR stop vs. percentage-fallback stop during warmup,
   - unknown-symbol guard, determinism.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -31,13 +32,11 @@ from apex.strategy.library.roc_momentum import ROCMomentumStrategy
 SYM = Symbol("MOM", AssetClass.ETF)
 
 
-def _bar(t: datetime, close: float, high: float | None = None,
-         low: float | None = None) -> Bar:
+def _bar(t: datetime, close: float, high: float | None = None, low: float | None = None) -> Bar:
     c = Decimal(str(close))
     h = Decimal(str(high)) if high is not None else c
     lo = Decimal(str(low)) if low is not None else c
-    return Bar(symbol=SYM, timestamp=t, open=c, high=h, low=lo, close=c,
-               volume=Decimal("1000"))
+    return Bar(symbol=SYM, timestamp=t, open=c, high=h, low=lo, close=c, volume=Decimal("1000"))
 
 
 class _Harness:
@@ -46,6 +45,7 @@ class _Harness:
     holding before each bar, and applies emitted signals as IMMEDIATE fills so the
     next bar sees the updated position (mirrors engine fill-before-dispatch order).
     """
+
     def __init__(self, strat: ROCMomentumStrategy):
         self.strat = strat
         self.ctx = StrategyContext()
@@ -60,11 +60,9 @@ class _Harness:
             positions[SYM.ticker] = SimpleNamespace(quantity=self.qty)
         self.ctx.sync_state(positions=positions)
 
-    def step(self, close: float, high: float | None = None,
-             low: float | None = None):
+    def step(self, close: float, high: float | None = None, low: float | None = None):
         self._refresh()
-        sigs = self.strat.on_bar(
-            _bar(self.t + timedelta(days=self.i), close, high, low))
+        sigs = self.strat.on_bar(_bar(self.t + timedelta(days=self.i), close, high, low))
         self.i += 1
         for s in sigs:
             self.qty = Decimal("1") if s.side == OrderSide.BUY else Decimal("0")
@@ -78,6 +76,7 @@ class _Harness:
 
 
 # ---- constructor validation ------------------------------------------------
+
 
 def test_rejects_exit_above_entry():
     with pytest.raises(ValueError):
@@ -106,6 +105,7 @@ def test_rejects_bad_stop_pct():
 
 # ---- warmup & core transitions --------------------------------------------
 
+
 def test_no_signal_during_warmup():
     # roc_period=3 needs 4 closes before any ROC exists.
     h = _Harness(ROCMomentumStrategy("s", [SYM], roc_period=3, entry_threshold=0.05))
@@ -113,8 +113,7 @@ def test_no_signal_during_warmup():
 
 
 def test_strong_roc_emits_buy_with_stop():
-    h = _Harness(ROCMomentumStrategy("s", [SYM], roc_period=3, entry_threshold=0.05,
-                                     atr_period=14))
+    h = _Harness(ROCMomentumStrategy("s", [SYM], roc_period=3, entry_threshold=0.05, atr_period=14))
     # 4th bar: ROC = 120/100 - 1 = 0.20 >= 0.05 -> BUY.
     buys = [s for s in h.feed([100, 105, 110, 120]) if s.side == OrderSide.BUY]
     assert len(buys) == 1
@@ -142,27 +141,28 @@ def test_just_below_threshold_no_entry():
 def test_no_pyramiding_while_held():
     h = _Harness(ROCMomentumStrategy("s", [SYM], roc_period=3, entry_threshold=0.05))
     # Strongly rising the whole way: enters once, then stays long (no duplicate buys).
-    buys = [s for s in h.feed([100, 110, 120, 130, 140, 150, 160])
-            if s.side == OrderSide.BUY]
+    buys = [s for s in h.feed([100, 110, 120, 130, 140, 150, 160]) if s.side == OrderSide.BUY]
     assert len(buys) == 1
 
 
 def test_exit_when_momentum_fades():
-    h = _Harness(ROCMomentumStrategy("s", [SYM], roc_period=3, entry_threshold=0.05,
-                                     exit_threshold=0.0))
+    h = _Harness(
+        ROCMomentumStrategy("s", [SYM], roc_period=3, entry_threshold=0.05, exit_threshold=0.0)
+    )
     # Rise to trigger a long, then decline so trailing ROC turns negative -> SELL.
-    sides = [s.side for s in h.feed(
-        [100, 110, 120, 130, 125, 110, 95, 80, 70])]
+    sides = [s.side for s in h.feed([100, 110, 120, 130, 125, 110, 95, 80, 70])]
     assert OrderSide.BUY in sides and OrderSide.SELL in sides
     assert sides.index(OrderSide.BUY) < sides.index(OrderSide.SELL)
     assert h.qty == 0
 
 
 def test_sell_is_full_conviction():
-    h = _Harness(ROCMomentumStrategy("s", [SYM], roc_period=3, entry_threshold=0.05,
-                                     exit_threshold=0.0))
-    sells = [s for s in h.feed([100, 110, 120, 130, 125, 110, 95, 80, 70])
-             if s.side == OrderSide.SELL]
+    h = _Harness(
+        ROCMomentumStrategy("s", [SYM], roc_period=3, entry_threshold=0.05, exit_threshold=0.0)
+    )
+    sells = [
+        s for s in h.feed([100, 110, 120, 130, 125, 110, 95, 80, 70]) if s.side == OrderSide.SELL
+    ]
     assert sells and sells[0].strength == Decimal("1.0")
 
 
@@ -171,8 +171,7 @@ def test_hysteresis_holds_through_shallow_dip():
     With entry=0.10 and exit=0.0, a long should be HELD while ROC is positive but
     below the entry trigger — it must not re-evaluate against the entry threshold.
     """
-    strat = ROCMomentumStrategy("s", [SYM], roc_period=2, entry_threshold=0.10,
-                                exit_threshold=0.0)
+    strat = ROCMomentumStrategy("s", [SYM], roc_period=2, entry_threshold=0.10, exit_threshold=0.0)
     h = _Harness(strat)
     # closes: 100,100,120 -> ROC(2) at idx2 = 120/100-1 = 0.20 >= 0.10 -> BUY.
     # then 124 -> ROC = 124/120-1 = 0.033: positive but < entry; exit thresh is 0
@@ -181,7 +180,7 @@ def test_hysteresis_holds_through_shallow_dip():
     buys = [s for s in sigs if s.side == OrderSide.BUY]
     sells = [s for s in sigs if s.side == OrderSide.SELL]
     assert len(buys) == 1
-    assert sells == []          # held through the shallow ROC dip (hysteresis)
+    assert sells == []  # held through the shallow ROC dip (hysteresis)
     assert h.qty > 0
 
 
@@ -193,6 +192,7 @@ def test_flat_weak_momentum_stays_flat():
 
 # ---- cold start ------------------------------------------------------------
 
+
 def test_cold_start_enters_established_strength():
     """
     Warm over a window where the instrument is already strongly up the whole time
@@ -201,21 +201,22 @@ def test_cold_start_enters_established_strength():
     """
     h = _Harness(ROCMomentumStrategy("s", [SYM], roc_period=3, entry_threshold=0.05))
     # Every computable ROC >> 0.05 from the first bar onward; never a fresh cross.
-    buys = [s for s in h.feed([100, 115, 130, 150, 175, 200])
-            if s.side == OrderSide.BUY]
+    buys = [s for s in h.feed([100, 115, 130, 150, 175, 200]) if s.side == OrderSide.BUY]
     assert len(buys) == 1
     assert h.qty > 0
 
 
 # ---- stop sizing -----------------------------------------------------------
 
+
 def test_pct_fallback_stop_during_atr_warmup():
     """
     With only 4 bars and atr_period=14, ATR is None -> the stop must be the fixed
     percentage fallback: price * (1 - stop_loss_pct).
     """
-    strat = ROCMomentumStrategy("s", [SYM], roc_period=3, entry_threshold=0.05,
-                                atr_period=14, stop_loss_pct=Decimal("0.05"))
+    strat = ROCMomentumStrategy(
+        "s", [SYM], roc_period=3, entry_threshold=0.05, atr_period=14, stop_loss_pct=Decimal("0.05")
+    )
     h = _Harness(strat)
     buys = [s for s in h.feed([100, 105, 110, 120]) if s.side == OrderSide.BUY]
     assert len(buys) == 1
@@ -228,16 +229,23 @@ def test_atr_stop_used_when_warm():
     Once enough bars exist for ATR, the stop should be ATR-based and differ from the
     plain percentage stop (because the path carries real high/low range).
     """
-    strat = ROCMomentumStrategy("s", [SYM], roc_period=3, entry_threshold=0.01,
-                                atr_period=3, atr_mult=2.0, stop_loss_pct=Decimal("0.05"))
+    strat = ROCMomentumStrategy(
+        "s",
+        [SYM],
+        roc_period=3,
+        entry_threshold=0.01,
+        atr_period=3,
+        atr_mult=2.0,
+        stop_loss_pct=Decimal("0.05"),
+    )
     h = _Harness(strat)
     # Feed bars with explicit ranges so ATR > 0. Keep flat (small ROC) until ATR is
     # warm, then trigger an entry on the last bar.
     h.step(100, high=101, low=99)
     h.step(100, high=101, low=99)
     h.step(100, high=101, low=99)
-    h.step(100, high=101, low=99)   # ATR now defined; ROC ~0 so still flat
-    sigs = h.step(105, high=106, low=104)   # ROC = 105/100-1 = 0.05 >= 0.01 -> BUY
+    h.step(100, high=101, low=99)  # ATR now defined; ROC ~0 so still flat
+    sigs = h.step(105, high=106, low=104)  # ROC = 105/100-1 = 0.05 >= 0.01 -> BUY
     buys = [s for s in sigs if s.side == OrderSide.BUY]
     assert len(buys) == 1
     stop = buys[0].suggested_stop_loss
@@ -248,14 +256,22 @@ def test_atr_stop_used_when_warm():
 
 # ---- guards & determinism --------------------------------------------------
 
+
 def test_ignores_unknown_symbol():
     strat = ROCMomentumStrategy("s", [SYM], roc_period=3, entry_threshold=0.05)
     ctx = StrategyContext()
     strat.bind_context(ctx)
     other = Symbol("NOPE", AssetClass.ETF)
     t = datetime(2024, 1, 1, tzinfo=timezone.utc)
-    bar = Bar(symbol=other, timestamp=t, open=Decimal("1"), high=Decimal("1"),
-              low=Decimal("1"), close=Decimal("1"), volume=Decimal("1"))
+    bar = Bar(
+        symbol=other,
+        timestamp=t,
+        open=Decimal("1"),
+        high=Decimal("1"),
+        low=Decimal("1"),
+        close=Decimal("1"),
+        volume=Decimal("1"),
+    )
     assert strat.on_bar(bar) == []
 
 
@@ -275,5 +291,6 @@ def test_deterministic():
     h2 = _Harness(ROCMomentumStrategy("s", [SYM], roc_period=3, entry_threshold=0.05))
     s1 = h1.feed(closes)
     s2 = h2.feed(closes)
-    assert [(s.side, s.strength, s.suggested_stop_loss) for s in s1] == \
-           [(s.side, s.strength, s.suggested_stop_loss) for s in s2]
+    assert [(s.side, s.strength, s.suggested_stop_loss) for s in s1] == [
+        (s.side, s.strength, s.suggested_stop_loss) for s in s2
+    ]

@@ -15,6 +15,7 @@ The exit code is the machine-readable verdict: non-zero ONLY on a genuine proble
 (the kill switch is armed, or the persisted state is stale), 0 otherwise. Importable
 without side effects.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -40,19 +41,21 @@ DEFAULT_STALE_AFTER_HOURS = 48
 
 # ----------------------------------------------------------------- status model
 
+
 @dataclass(frozen=True)
 class HealthStatus:
     """The observable state of the system at one instant — a pure value object."""
+
     mode: str
     broker: str
-    halted: bool                       # manual kill switch (APEX_HALT) armed
-    last_run_ts: Optional[str]         # ISO timestamp of the last cron cycle, or None
+    halted: bool  # manual kill switch (APEX_HALT) armed
+    last_run_ts: Optional[str]  # ISO timestamp of the last cron cycle, or None
     last_run_mode: Optional[str]
-    age_hours: Optional[float]         # how long ago the last run was, in hours
-    stale: bool                        # last run older than the stale threshold
+    age_hours: Optional[float]  # how long ago the last run was, in hours
+    stale: bool  # last run older than the stale threshold
     stale_after_hours: float
     open_positions: int
-    whitelist_size: Optional[int]      # None = no whitelist (all symbols allowed)
+    whitelist_size: Optional[int]  # None = no whitelist (all symbols allowed)
     max_position_size_pct: str
     max_drawdown_pct: str
     max_daily_loss_pct: str
@@ -164,12 +167,21 @@ def render(status: HealthStatus) -> str:
         run_line = "no cron cycle ever recorded"
     else:
         flag = "  ** STALE **" if status.stale else ""
-        run_line = (f"{status.last_run_ts[:16]}  ({_age_str(status.age_hours)}, "
-                    f"mode {status.last_run_mode}){flag}")
-    wl = "all (no whitelist)" if status.whitelist_size is None else f"{status.whitelist_size} symbol(s)"
+        run_line = (
+            f"{status.last_run_ts[:16]}  ({_age_str(status.age_hours)}, "
+            f"mode {status.last_run_mode}){flag}"
+        )
+    wl = (
+        "all (no whitelist)"
+        if status.whitelist_size is None
+        else f"{status.whitelist_size} symbol(s)"
+    )
 
-    verdict = "OK — healthy" if status.ok else (
-        "PROBLEM — KILL SWITCH ARMED" if status.halted else "PROBLEM — STATE STALE")
+    verdict = (
+        "OK — healthy"
+        if status.ok
+        else ("PROBLEM — KILL SWITCH ARMED" if status.halted else "PROBLEM — STATE STALE")
+    )
 
     lines = [
         "APEX QUANT — SYSTEM HEALTH",
@@ -194,16 +206,19 @@ def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="scripts.health",
         description="Read-only one-screen system status for Apex Quant. "
-                    "Never trades, never requires the network.",
+        "Never trades, never requires the network.",
     )
     parser.add_argument(
-        "--state-path", default=str(DEFAULT_STATE_PATH),
+        "--state-path",
+        default=str(DEFAULT_STATE_PATH),
         help=f"Path to the state SQLite DB (default: {DEFAULT_STATE_PATH}).",
     )
     parser.add_argument(
-        "--stale-after-hours", type=float, default=DEFAULT_STALE_AFTER_HOURS,
+        "--stale-after-hours",
+        type=float,
+        default=DEFAULT_STALE_AFTER_HOURS,
         help="Treat the last run as stale (a problem) if older than this "
-             f"many hours (default: {DEFAULT_STALE_AFTER_HOURS}).",
+        f"many hours (default: {DEFAULT_STALE_AFTER_HOURS}).",
     )
     return parser
 
@@ -231,7 +246,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     store = StateStore(args.state_path)
     try:
         status = gather_status(
-            config, store,
+            config,
+            store,
             now=datetime.now(UTC),  # entry-point only; logic stays deterministic
             stale_after_hours=args.stale_after_hours,
         )

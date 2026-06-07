@@ -24,6 +24,7 @@ Insufficient-data windows return None rather than garbage (fail closed).
 
 Tested in tests/test_skew_kurtosis.py against hand-computed values.
 """
+
 from __future__ import annotations
 
 import math
@@ -35,13 +36,14 @@ from typing import Optional, Sequence
 @dataclass(frozen=True)
 class ShapeStats:
     """Bundle of distribution-shape diagnostics for a return series."""
+
     n: int
     mean: float
-    std: float                 # sample standard deviation (ddof=1)
-    skewness: float            # bias-corrected sample skewness
-    excess_kurtosis: float     # bias-corrected EXCESS kurtosis (normal -> 0)
-    jarque_bera: float         # JB test statistic (>= 0)
-    jb_p_value: float          # approx p-value under chi-sq(2); small => non-normal
+    std: float  # sample standard deviation (ddof=1)
+    skewness: float  # bias-corrected sample skewness
+    excess_kurtosis: float  # bias-corrected EXCESS kurtosis (normal -> 0)
+    jarque_bera: float  # JB test statistic (>= 0)
+    jb_p_value: float  # approx p-value under chi-sq(2); small => non-normal
 
     def is_normal(self, significance: float = 0.05) -> bool:
         """True if we CANNOT reject normality at the given level (p >= alpha)."""
@@ -50,8 +52,10 @@ class ShapeStats:
     def summary(self) -> str:
         tail = "fat tails" if self.excess_kurtosis > 0 else "thin tails"
         lean = (
-            "left-skewed" if self.skewness < 0
-            else "right-skewed" if self.skewness > 0
+            "left-skewed"
+            if self.skewness < 0
+            else "right-skewed"
+            if self.skewness > 0
             else "symmetric"
         )
         verdict = "normal-ish" if self.is_normal() else "NON-normal"
@@ -87,7 +91,7 @@ def skewness(returns: Sequence[float]) -> Optional[float]:
     if m2 == 0:
         return None
     m3 = _central_moment(returns, mean, 3)
-    g1 = m3 / (m2 ** 1.5)
+    g1 = m3 / (m2**1.5)
     return g1 * math.sqrt(n * (n - 1)) / (n - 2)
 
 
@@ -148,8 +152,8 @@ def jarque_bera(returns: Sequence[float]) -> Optional[tuple[float, float]]:
         return None
     m3 = _central_moment(returns, mean, 3)
     m4 = _central_moment(returns, mean, 4)
-    s = m3 / (m2 ** 1.5)          # biased skewness
-    k = m4 / (m2 * m2) - 3.0      # biased excess kurtosis
+    s = m3 / (m2**1.5)  # biased skewness
+    k = m4 / (m2 * m2) - 3.0  # biased excess kurtosis
     jb = (n / 6.0) * (s * s + (k * k) / 4.0)
     return jb, _chi2_2df_sf(jb)
 

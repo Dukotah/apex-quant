@@ -27,6 +27,7 @@ Pure and deterministic: no I/O, no clock, no randomness. Insufficient data is
 handled gracefully — a window with zero total volume (or an empty/short series)
 yields ``None`` rather than dividing by zero or inventing a number.
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -42,6 +43,7 @@ _THREE = Decimal("3")
 
 # --------------------------------------------------------------------- prices
 
+
 def typical_price(bar: Bar) -> Decimal:
     """The standard VWAP input price: ``(high + low + close) / 3``."""
     return (bar.high + bar.low + bar.close) / _THREE
@@ -53,6 +55,7 @@ def close_price(bar: Bar) -> Decimal:
 
 
 # ------------------------------------------------------------------- helpers
+
 
 def _vwap(bars: Sequence[Bar], price_fn: PriceFn) -> Optional[Decimal]:
     """
@@ -77,6 +80,7 @@ def _vwap(bars: Sequence[Bar], price_fn: PriceFn) -> Optional[Decimal]:
 
 
 # ------------------------------------------------------------------- public
+
 
 def anchored_vwap(
     bars: Sequence[Bar],

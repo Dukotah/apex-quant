@@ -1,4 +1,5 @@
 """Tests for apex.validation.ulcer_index — hand-computed values + edge cases."""
+
 from __future__ import annotations
 
 import math
@@ -82,9 +83,7 @@ def test_upi_matches_definition():
     ui = ulcer_index(curve)
     ann = metrics.annualized_return(curve, periods_per_year=252)
     expected = (ann - 0.0) / ui
-    assert math.isclose(
-        ulcer_performance_index(curve), expected, abs_tol=TOL
-    )
+    assert math.isclose(ulcer_performance_index(curve), expected, abs_tol=TOL)
 
 
 def test_upi_risk_free_lowers_score():

@@ -22,6 +22,7 @@ Pure, deterministic, stdlib-only (matches metrics.py) so it runs anywhere,
 including the free CI runner. Tested in tests/test_omega_ratio.py against
 hand-computed values.
 """
+
 from __future__ import annotations
 
 from typing import Optional, Sequence

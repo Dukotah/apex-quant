@@ -26,6 +26,7 @@ This module is self-contained: it reimplements the EMA and ATR math locally
 dependency. Tested in tests/test_ind_keltner_channels.py against hand-computed
 values.
 """
+
 from __future__ import annotations
 
 from typing import Optional, Sequence
@@ -57,9 +58,7 @@ def _ema(data: Sequence, period: int) -> list[Optional[float]]:
     return out
 
 
-def _atr(
-    high: Sequence, low: Sequence, close: Sequence, period: int
-) -> list[Optional[float]]:
+def _atr(high: Sequence, low: Sequence, close: Sequence, period: int) -> list[Optional[float]]:
     """
     Average True Range (Wilder). Mirrors apex.strategy.indicators.atr.
     None until `period`+1 bars (true range needs the prior close).
@@ -83,7 +82,7 @@ def _atr(
         )
         true_ranges[i] = tr
 
-    first_atr = sum(true_ranges[1: period + 1]) / period
+    first_atr = sum(true_ranges[1 : period + 1]) / period
     out[period] = first_atr
     prev = first_atr
     for i in range(period + 1, n):

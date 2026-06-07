@@ -1,4 +1,5 @@
 """Tests for apex.analytics.underwater_curve (drawdown-over-time series)."""
+
 from __future__ import annotations
 
 import math
@@ -30,6 +31,7 @@ def approx(a: float, b: float, tol: float = 1e-9) -> bool:
 # running_peak
 # --------------------------------------------------------------------------
 
+
 def test_running_peak_basic():
     assert running_peak(CURVE) == [100.0, 120.0, 120.0, 120.0, 120.0, 120.0, 150.0]
 
@@ -45,6 +47,7 @@ def test_running_peak_monotonic():
 # --------------------------------------------------------------------------
 # underwater_curve (fractional)
 # --------------------------------------------------------------------------
+
 
 def test_underwater_curve_hand_computed():
     uw = underwater_curve(CURVE)
@@ -91,6 +94,7 @@ def test_underwater_curve_negative_peak_fail_closed():
 # underwater_curve_absolute
 # --------------------------------------------------------------------------
 
+
 def test_underwater_curve_absolute_hand_computed():
     uw = underwater_curve_absolute(CURVE)
     # peak - value: 0,0,30,60,40,0,0
@@ -109,6 +113,7 @@ def test_underwater_curve_absolute_works_with_negative_peak():
 # --------------------------------------------------------------------------
 # time_underwater / max_time_underwater
 # --------------------------------------------------------------------------
+
 
 def test_time_underwater_hand_computed():
     # CURVE peaks: 100,120,120,120,120,120,150. idx5 (120) equals the running
@@ -149,6 +154,7 @@ def test_max_time_underwater_empty():
 # --------------------------------------------------------------------------
 # drawdown_episodes
 # --------------------------------------------------------------------------
+
 
 def test_drawdown_episodes_single_recovered():
     eps = drawdown_episodes(CURVE)

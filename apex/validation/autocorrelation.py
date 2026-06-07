@@ -24,6 +24,7 @@ empty) on insufficient data rather than emitting garbage.
 Statistical/metric code here uses float to match apex/validation/metrics.py.
 Tested in tests/test_autocorrelation.py against hand-computed values.
 """
+
 from __future__ import annotations
 
 import statistics
@@ -66,15 +67,11 @@ def autocorrelation(series: Sequence[float], lag: int) -> float | None:
     denom = sum((x - mean) ** 2 for x in series)
     if denom == 0:
         return None
-    numer = sum(
-        (series[t] - mean) * (series[t - lag] - mean) for t in range(lag, n)
-    )
+    numer = sum((series[t] - mean) * (series[t - lag] - mean) for t in range(lag, n))
     return numer / denom
 
 
-def autocorrelation_function(
-    series: Sequence[float], max_lag: int
-) -> list[float]:
+def autocorrelation_function(series: Sequence[float], max_lag: int) -> list[float]:
     """
     The autocorrelation function (ACF) for lags 1..max_lag inclusive.
 
@@ -95,28 +92,42 @@ def autocorrelation_function(
 @dataclass(frozen=True)
 class LjungBoxResult:
     """Outcome of a Ljung-Box-style portmanteau test."""
-    statistic: float        # the Q statistic
-    lags: int               # number of lags pooled
-    dof: int                # degrees of freedom (== lags here)
+
+    statistic: float  # the Q statistic
+    lags: int  # number of lags pooled
+    dof: int  # degrees of freedom (== lags here)
     autocorrelations: tuple[float, ...]  # r_1 .. r_lags actually used
-    significant: bool       # True => serial correlation detected (reject null)
+    significant: bool  # True => serial correlation detected (reject null)
 
     def summary(self) -> str:
         verdict = "SERIAL CORRELATION" if self.significant else "no serial correlation"
-        return (
-            f"Ljung-Box [{verdict}]: Q={self.statistic:.4f} "
-            f"over {self.lags} lag(s)"
-        )
+        return f"Ljung-Box [{verdict}]: Q={self.statistic:.4f} over {self.lags} lag(s)"
 
 
 # Upper-tail chi-squared critical values at the 5% level, indexed by degrees of
 # freedom (dof -> critical value). Lets us flag significance without scipy. Only
 # the first handful of lags are typically tested; we cover dof 1..20.
 _CHI2_95: dict[int, float] = {
-    1: 3.841, 2: 5.991, 3: 7.815, 4: 9.488, 5: 11.070,
-    6: 12.592, 7: 14.067, 8: 15.507, 9: 16.919, 10: 18.307,
-    11: 19.675, 12: 21.026, 13: 22.362, 14: 23.685, 15: 24.996,
-    16: 26.296, 17: 27.587, 18: 28.869, 19: 30.144, 20: 31.410,
+    1: 3.841,
+    2: 5.991,
+    3: 7.815,
+    4: 9.488,
+    5: 11.070,
+    6: 12.592,
+    7: 14.067,
+    8: 15.507,
+    9: 16.919,
+    10: 18.307,
+    11: 19.675,
+    12: 21.026,
+    13: 22.362,
+    14: 23.685,
+    15: 24.996,
+    16: 26.296,
+    17: 27.587,
+    18: 28.869,
+    19: 30.144,
+    20: 31.410,
 }
 
 

@@ -26,6 +26,7 @@ Definitions (fast stochastic):
 
 Tested in tests/test_ind_stochastic.py against hand-computed values.
 """
+
 from __future__ import annotations
 
 from typing import Optional, Sequence
@@ -57,8 +58,8 @@ def stochastic_k(
 
     for i in range(k_period - 1, n):
         window_start = i - k_period + 1
-        highest_high = max(highs[window_start: i + 1])
-        lowest_low = min(lows[window_start: i + 1])
+        highest_high = max(highs[window_start : i + 1])
+        lowest_low = min(lows[window_start : i + 1])
         rng = highest_high - lowest_low
         if rng == 0:
             out[i] = 50.0
@@ -67,9 +68,7 @@ def stochastic_k(
     return out
 
 
-def stochastic_d(
-    k_values: Sequence[Optional[float]], d_period: int = 3
-) -> list[Optional[float]]:
+def stochastic_d(k_values: Sequence[Optional[float]], d_period: int = 3) -> list[Optional[float]]:
     """
     %D = SMA of %K over `d_period`. Same length as `k_values`.
 
@@ -84,7 +83,7 @@ def stochastic_d(
     for i in range(n):
         if i < d_period - 1:
             continue
-        window = k_values[i - d_period + 1: i + 1]
+        window = k_values[i - d_period + 1 : i + 1]
         if any(v is None for v in window):
             continue
         out[i] = sum(window) / d_period  # type: ignore[misc]

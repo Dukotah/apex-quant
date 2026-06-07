@@ -17,6 +17,7 @@ All functions are pure and deterministic given their inputs. Statistical code,
 so floats (matching apex/validation/metrics.py), never datetime.now() or RNG.
 Tested in tests/test_t_test_returns.py against hand-computed values.
 """
+
 from __future__ import annotations
 
 import math
@@ -28,13 +29,14 @@ from typing import Sequence
 @dataclass(frozen=True)
 class TTestResult:
     """Outcome of the one-sample, one-sided t-test (H1: mean return > 0)."""
-    n: int                      # number of observations used
-    mean: float                 # sample mean return
-    std: float                  # sample standard deviation (Bessel-corrected)
-    t_statistic: float          # the t-statistic
-    df: int                     # degrees of freedom (n - 1)
-    p_value: float              # one-sided P(T >= t | H0: mean <= 0)
-    significant: bool           # p_value < significance threshold
+
+    n: int  # number of observations used
+    mean: float  # sample mean return
+    std: float  # sample standard deviation (Bessel-corrected)
+    t_statistic: float  # the t-statistic
+    df: int  # degrees of freedom (n - 1)
+    p_value: float  # one-sided P(T >= t | H0: mean <= 0)
+    significant: bool  # p_value < significance threshold
 
     def summary(self) -> str:
         verdict = "SIGNIFICANT" if self.significant else "not significant"
@@ -156,8 +158,13 @@ def t_test_mean_gt_zero(
             t_stat = float("-inf") if mean < 0.0 else 0.0
             p_value = 1.0
         return TTestResult(
-            n=n, mean=mean, std=std, t_statistic=t_stat,
-            df=df, p_value=p_value, significant=p_value < significance,
+            n=n,
+            mean=mean,
+            std=std,
+            t_statistic=t_stat,
+            df=df,
+            p_value=p_value,
+            significant=p_value < significance,
         )
 
     standard_error = std / math.sqrt(n)

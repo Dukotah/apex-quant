@@ -4,6 +4,7 @@ tests.test_trade_analyzer
 Pure, fast tests for apex.analytics.trade_analyzer. Hand-computed known values
 plus the insufficient-data and degenerate edge cases the golden rules require.
 """
+
 from __future__ import annotations
 
 import math
@@ -47,13 +48,13 @@ def test_counts():
 
 def test_gross_and_net():
     assert gross_profit(SAMPLE) == 200.0
-    assert gross_loss(SAMPLE) == 70.0   # abs of (-45 + -25)
+    assert gross_loss(SAMPLE) == 70.0  # abs of (-45 + -25)
     assert net_profit(SAMPLE) == 130.0  # 200 - 70
 
 
 def test_averages():
     assert average_win(SAMPLE) == 200.0 / 3
-    assert average_loss(SAMPLE) == 35.0          # 70 / 2, positive magnitude
+    assert average_loss(SAMPLE) == 35.0  # 70 / 2, positive magnitude
     assert average_trade(SAMPLE) == 130.0 / 6
     assert expectancy(SAMPLE) == average_trade(SAMPLE)
 
@@ -112,6 +113,7 @@ def test_frozen_dataclass_is_immutable():
 # Edge cases — insufficient / degenerate data must fail closed.
 # ---------------------------------------------------------------------------
 
+
 def test_empty_list():
     empty: list[float] = []
     assert trade_count(empty) == 0
@@ -168,7 +170,7 @@ def test_all_wins_profit_factor_is_inf():
 
 def test_all_losses():
     losses = [-10.0, -20.0, -5.0]
-    assert profit_factor(losses) == 0.0       # no profit -> 0.0
+    assert profit_factor(losses) == 0.0  # no profit -> 0.0
     assert payoff_ratio(losses) == 0.0
     assert win_rate(losses) == 0.0
     assert loss_rate(losses) == 1.0

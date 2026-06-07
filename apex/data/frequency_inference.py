@@ -28,6 +28,7 @@ Insufficient data fails *soft*: fewer than two distinct timestamps means there
 is no gap to measure, so the inference functions return ``None`` rather than
 guessing. Callers decide whether a missing cadence is fatal.
 """
+
 from __future__ import annotations
 
 from collections import Counter

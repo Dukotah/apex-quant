@@ -1,4 +1,5 @@
 """Tests for apex.data.corporate_actions — back-adjustment for splits & dividends."""
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -37,6 +38,7 @@ def _bar(day: int, close: str, *, volume: str = "100") -> Bar:
 
 # ------------------------------------------------------------------ edge cases
 
+
 def test_empty_bars_returns_empty():
     assert adjust_bars([], [CorporateAction.split(_dt(2), 2)]) == []
 
@@ -56,6 +58,7 @@ def test_action_outside_window_is_noop():
 
 
 # ----------------------------------------------------------------------- splits
+
 
 def test_split_4_for_1_halves_prior_prices_and_quadruples_volume():
     bars = [_bar(1, "400", volume="100"), _bar(2, "100", volume="50")]
@@ -89,13 +92,14 @@ def test_split_factory_new_for_old():
 
 # -------------------------------------------------------------------- dividends
 
+
 def test_dividend_proportional_adjustment():
     # close_before = 100, dividend = 2 → factor = 1 - 2/100 = 0.98
     bars = [_bar(1, "100", volume="100"), _bar(2, "98")]
     out = adjust_bars(bars, [CorporateAction.dividend(_dt(2), "2")])
     assert out[0].close == Decimal("98.00")
     assert out[0].volume == Decimal("100")  # dividends never touch volume
-    assert out[1].close == Decimal("98")    # ex-date bar untouched
+    assert out[1].close == Decimal("98")  # ex-date bar untouched
 
 
 def test_dividend_predating_series_is_noop():
@@ -112,6 +116,7 @@ def test_dividend_larger_than_close_fails_closed():
 
 
 # ------------------------------------------------------------------ compounding
+
 
 def test_split_then_dividend_compound():
     # day1=400, day2 (ex-split 2-for-1)=200, day3 (ex-div 1.00 off 200 close)=199
@@ -149,6 +154,7 @@ def test_inputs_not_mutated():
 
 
 # ----------------------------------------------------------------- validation
+
 
 def test_split_zero_ratio_rejected():
     with pytest.raises(ValueError):

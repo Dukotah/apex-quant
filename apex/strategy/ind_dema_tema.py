@@ -30,6 +30,7 @@ of the previous stage's outputs, DEMA needs 2*period-1 bars and TEMA needs
 
 Tested in tests/test_ind_dema_tema.py against hand-computed values.
 """
+
 from __future__ import annotations
 
 from typing import Optional, Sequence
@@ -59,9 +60,7 @@ def _ema(values: Sequence[float], period: int) -> list[Optional[float]]:
     return out
 
 
-def _ema_of_optional(
-    series: Sequence[Optional[float]], period: int
-) -> list[Optional[float]]:
+def _ema_of_optional(series: Sequence[Optional[float]], period: int) -> list[Optional[float]]:
     """
     EMA of a series that may contain leading None warmup values. The EMA is
     computed over only the non-None (contiguous trailing) portion and re-aligned

@@ -1,4 +1,5 @@
 """Tests for apex.validation.regime_split_metrics."""
+
 from __future__ import annotations
 
 import math

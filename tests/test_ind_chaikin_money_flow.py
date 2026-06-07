@@ -1,4 +1,5 @@
 """Tests for apex.strategy.ind_chaikin_money_flow against hand-computed values."""
+
 from __future__ import annotations
 
 from decimal import Decimal

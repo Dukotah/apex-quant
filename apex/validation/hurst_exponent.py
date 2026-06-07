@@ -35,6 +35,7 @@ including the free CI runner, with no heavy installs.
 
 Tested in tests/test_hurst_exponent.py against hand-computed values.
 """
+
 from __future__ import annotations
 
 import math
@@ -46,12 +47,13 @@ from typing import Sequence
 @dataclass(frozen=True)
 class HurstResult:
     """Outcome of a rescaled-range Hurst estimation."""
-    hurst: float                    # the estimated exponent H
-    intercept: float                # intercept c of the log-log fit (log(R/S)=H*log(n)+c)
-    log_sizes: tuple[float, ...]    # log(n) values that went into the fit
-    log_rs: tuple[float, ...]       # log((R/S)_n) values that went into the fit
-    r_squared: float                # goodness of the log-log line fit (0..1)
-    num_points: int                 # number of (n, R/S) points used in the fit
+
+    hurst: float  # the estimated exponent H
+    intercept: float  # intercept c of the log-log fit (log(R/S)=H*log(n)+c)
+    log_sizes: tuple[float, ...]  # log(n) values that went into the fit
+    log_rs: tuple[float, ...]  # log((R/S)_n) values that went into the fit
+    r_squared: float  # goodness of the log-log line fit (0..1)
+    num_points: int  # number of (n, R/S) points used in the fit
 
     @property
     def regime(self) -> str:

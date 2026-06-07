@@ -52,6 +52,7 @@ implemented privately here (we deliberately do NOT import any parallel ind_*
 modules). Indicator-layer math uses float; suggested stop prices use Decimal.
 No look-ahead — every read uses only data up to and including the current bar.
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -160,15 +161,13 @@ class ConnorsRSIStrategy(BaseStrategy):
         if len(returns) < 2:
             return None
         current = returns[-1]
-        history = returns[-(self.rank_window + 1):-1]  # up to rank_window priors
+        history = returns[-(self.rank_window + 1) : -1]  # up to rank_window priors
         if not history:
             return None
         less = sum(1 for r in history if r < current)
         return 100.0 * less / len(history)
 
-    def _connors_rsi(
-        self, closes: list[float]
-    ) -> tuple[Optional[float], Optional[float]]:
+    def _connors_rsi(self, closes: list[float]) -> tuple[Optional[float], Optional[float]]:
         """
         Compute (composite_connors_rsi, price_rsi) for the latest bar from the
         close buffer, or (None, None)/(None, price_rsi) while warming up.
@@ -200,9 +199,7 @@ class ConnorsRSIStrategy(BaseStrategy):
         composite = (price_rsi + streak_rsi + rank) / 3.0
         return composite, price_rsi
 
-    def _suggested_stop(
-        self, ticker: str, entry: Decimal
-    ) -> Decimal:
+    def _suggested_stop(self, ticker: str, entry: Decimal) -> Decimal:
         """
         ATR-based protective stop  entry - atr_mult * ATR, falling back to a fixed
         percentage stop during ATR warmup so every BUY carries a stop. The stop is
@@ -251,9 +248,11 @@ class ConnorsRSIStrategy(BaseStrategy):
 
         # Keep buffers bounded: need the rank window of returns plus slack for the
         # RSI/ATR warmups and the streak history.
-        max_len = max(self.rank_window, self.atr_period) + max(
-            self.rsi_period, self.streak_rsi_period
-        ) + 5
+        max_len = (
+            max(self.rank_window, self.atr_period)
+            + max(self.rsi_period, self.streak_rsi_period)
+            + 5
+        )
         if len(closes) > max_len:
             del highs[:-max_len]
             del lows[:-max_len]

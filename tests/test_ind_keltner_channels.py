@@ -3,6 +3,7 @@ Tests for apex.strategy.ind_keltner_channels.
 
 Hand-computed known values plus edge cases. Pure and fast.
 """
+
 from __future__ import annotations
 
 import math
@@ -41,7 +42,7 @@ def _atrs(high, low, close, period):
             abs(high[i] - close[i - 1]),
             abs(low[i] - close[i - 1]),
         )
-    first = sum(tr[1: period + 1]) / period
+    first = sum(tr[1 : period + 1]) / period
     out[period] = first
     prev = first
     for i in range(period + 1, n):
@@ -77,12 +78,14 @@ def test_matches_independent_reference():
     low = [20, 21, 22, 22, 23, 25, 24, 26, 27, 28]
     close = [21, 22, 24, 23, 25, 27, 26, 28, 29, 30]
     ema_p, atr_p, mult = 4, 3, 2.0
-    up, mid, lo = keltner_channels(high, low, close, ema_period=ema_p,
-                                   atr_period=atr_p, atr_mult=mult)
+    up, mid, lo = keltner_channels(
+        high, low, close, ema_period=ema_p, atr_period=atr_p, atr_mult=mult
+    )
 
     ref_ema = _emas([float(c) for c in close], ema_p)
-    ref_atr = _atrs([float(x) for x in high], [float(x) for x in low],
-                    [float(c) for c in close], atr_p)
+    ref_atr = _atrs(
+        [float(x) for x in high], [float(x) for x in low], [float(c) for c in close], atr_p
+    )
 
     for i in range(len(close)):
         if ref_ema[i] is None or ref_atr[i] is None:
@@ -102,8 +105,7 @@ def test_hand_computed_first_band():
     high = [11, 13, 15, 17]
     low = [9, 11, 13, 15]
     close = [10, 12, 14, 16]
-    up, mid, lo = keltner_channels(high, low, close, ema_period=3,
-                                   atr_period=3, atr_mult=2.0)
+    up, mid, lo = keltner_channels(high, low, close, ema_period=3, atr_period=3, atr_mult=2.0)
 
     # EMA(3): seed at idx2 = mean(10,12,14) = 12.
     # idx3: alpha = 2/4 = 0.5; ema = (16 - 12)*0.5 + 12 = 14.
@@ -113,8 +115,8 @@ def test_hand_computed_first_band():
     # first ATR at idx3 = mean(TR[1..3]) = 3.
     # Bands first appear at idx3 (EMA ready at idx2, ATR ready at idx3).
     assert mid[3] == pytest.approx(14.0)
-    assert up[3] == pytest.approx(14.0 + 2.0 * 3.0)   # 20.0
-    assert lo[3] == pytest.approx(14.0 - 2.0 * 3.0)   # 8.0
+    assert up[3] == pytest.approx(14.0 + 2.0 * 3.0)  # 20.0
+    assert lo[3] == pytest.approx(14.0 - 2.0 * 3.0)  # 8.0
     # idx2: EMA ready but ATR not -> bands None.
     assert mid[2] is None and up[2] is None and lo[2] is None
 
@@ -123,8 +125,7 @@ def test_zero_mult_collapses_to_ema():
     high = [11, 13, 15, 17, 19]
     low = [9, 11, 13, 15, 17]
     close = [10, 12, 14, 16, 18]
-    up, mid, lo = keltner_channels(high, low, close, ema_period=3,
-                                   atr_period=3, atr_mult=0.0)
+    up, mid, lo = keltner_channels(high, low, close, ema_period=3, atr_period=3, atr_mult=0.0)
     for i in range(len(close)):
         if mid[i] is None:
             assert up[i] is None and lo[i] is None
@@ -153,8 +154,7 @@ def test_accepts_decimal_input():
     high = [Decimal("11"), Decimal("13"), Decimal("15"), Decimal("17")]
     low = [Decimal("9"), Decimal("11"), Decimal("13"), Decimal("15")]
     close = [Decimal("10"), Decimal("12"), Decimal("14"), Decimal("16")]
-    up, mid, lo = keltner_channels(high, low, close, ema_period=3,
-                                   atr_period=3, atr_mult=2.0)
+    up, mid, lo = keltner_channels(high, low, close, ema_period=3, atr_period=3, atr_mult=2.0)
     assert mid[3] == pytest.approx(14.0)
     assert up[3] == pytest.approx(20.0)
     assert lo[3] == pytest.approx(8.0)

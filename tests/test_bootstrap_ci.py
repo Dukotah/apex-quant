@@ -1,4 +1,5 @@
 """Tests for apex.validation.bootstrap_ci (seeded percentile bootstrap)."""
+
 from __future__ import annotations
 
 import statistics
@@ -19,6 +20,7 @@ def mean_metric(xs):
 # --------------------------------------------------------------------------- #
 # _percentile: hand-computed linear-interpolation values                      #
 # --------------------------------------------------------------------------- #
+
 
 def test_percentile_endpoints():
     vals = [10.0, 20.0, 30.0, 40.0]
@@ -49,6 +51,7 @@ def test_percentile_single_element():
 # --------------------------------------------------------------------------- #
 # bootstrap_metric_ci: basic behavior                                         #
 # --------------------------------------------------------------------------- #
+
 
 def test_constant_series_zero_width_interval():
     # Every resample of a constant series has the same mean -> degenerate CI.
@@ -118,6 +121,7 @@ def test_metadata_fields():
 # Insufficient data / invalid params -> fail closed (None)                    #
 # --------------------------------------------------------------------------- #
 
+
 def test_empty_returns_none():
     assert bootstrap_metric_ci([], mean_metric) is None
 
@@ -141,10 +145,18 @@ def test_invalid_confidence_returns_none():
 # BootstrapCI helper methods                                                  #
 # --------------------------------------------------------------------------- #
 
+
 def test_contains():
     ci = BootstrapCI(
-        point_estimate=0.5, lower=0.1, upper=0.9, median=0.5, mean=0.5,
-        std_error=0.2, confidence=0.95, iterations=100, n=10,
+        point_estimate=0.5,
+        lower=0.1,
+        upper=0.9,
+        median=0.5,
+        mean=0.5,
+        std_error=0.2,
+        confidence=0.95,
+        iterations=100,
+        n=10,
     )
     assert ci.contains(0.5)
     assert ci.contains(0.1)
@@ -155,24 +167,45 @@ def test_contains():
 
 def test_excludes_zero_positive_interval():
     ci = BootstrapCI(
-        point_estimate=0.5, lower=0.1, upper=0.9, median=0.5, mean=0.5,
-        std_error=0.2, confidence=0.95, iterations=100, n=10,
+        point_estimate=0.5,
+        lower=0.1,
+        upper=0.9,
+        median=0.5,
+        mean=0.5,
+        std_error=0.2,
+        confidence=0.95,
+        iterations=100,
+        n=10,
     )
     assert ci.excludes_zero()
 
 
 def test_excludes_zero_negative_interval():
     ci = BootstrapCI(
-        point_estimate=-0.5, lower=-0.9, upper=-0.1, median=-0.5, mean=-0.5,
-        std_error=0.2, confidence=0.95, iterations=100, n=10,
+        point_estimate=-0.5,
+        lower=-0.9,
+        upper=-0.1,
+        median=-0.5,
+        mean=-0.5,
+        std_error=0.2,
+        confidence=0.95,
+        iterations=100,
+        n=10,
     )
     assert ci.excludes_zero()
 
 
 def test_does_not_exclude_zero_straddling_interval():
     ci = BootstrapCI(
-        point_estimate=0.05, lower=-0.1, upper=0.2, median=0.05, mean=0.05,
-        std_error=0.1, confidence=0.95, iterations=100, n=10,
+        point_estimate=0.05,
+        lower=-0.1,
+        upper=0.2,
+        median=0.05,
+        mean=0.05,
+        std_error=0.1,
+        confidence=0.95,
+        iterations=100,
+        n=10,
     )
     assert not ci.excludes_zero()
 
@@ -189,13 +222,12 @@ def test_summary_string():
 # Works with a real metric from apex.validation.metrics                       #
 # --------------------------------------------------------------------------- #
 
+
 def test_works_with_metrics_sharpe():
     from apex.validation import metrics
 
     data = [0.01, -0.005, 0.02, 0.015, -0.01, 0.008, 0.012, -0.003, 0.01, 0.006]
-    ci = bootstrap_metric_ci(
-        data, lambda xs: metrics.sharpe_ratio(xs), iterations=500, seed=42
-    )
+    ci = bootstrap_metric_ci(data, lambda xs: metrics.sharpe_ratio(xs), iterations=500, seed=42)
     assert ci is not None
     assert ci.point_estimate == pytest.approx(metrics.sharpe_ratio(data))
     assert ci.lower <= ci.upper

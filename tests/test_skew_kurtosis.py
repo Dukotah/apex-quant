@@ -1,4 +1,5 @@
 """Tests for apex.validation.skew_kurtosis — hand-computed values + edge cases."""
+
 from __future__ import annotations
 
 import math
@@ -19,6 +20,7 @@ TOL = 1e-9
 # --------------------------------------------------------------------------- #
 # Insufficient-data / degenerate windows: must fail closed (None), no garbage. #
 # --------------------------------------------------------------------------- #
+
 
 def test_skewness_too_few_points():
     assert skewness([]) is None
@@ -55,6 +57,7 @@ def test_shape_stats_insufficient_or_degenerate():
 # Symmetric data: skewness exactly 0.                                          #
 # --------------------------------------------------------------------------- #
 
+
 def test_skewness_symmetric_is_zero():
     # [1,2,3,4,5] is symmetric about 3 -> third moment 0 -> skew 0.
     assert skewness([1.0, 2.0, 3.0, 4.0, 5.0]) == pytest.approx(0.0, abs=TOL)
@@ -81,6 +84,7 @@ def test_skewness_positive_for_right_tail():
 #   = (4/(3*2)) * (6*(-1.3) + 6) = (4/6) * (-1.8) = -1.2                       #
 # --------------------------------------------------------------------------- #
 
+
 def test_excess_kurtosis_known_value():
     assert excess_kurtosis([1.0, 2.0, 3.0, 4.0, 5.0]) == pytest.approx(-1.2, abs=1e-9)
 
@@ -92,6 +96,7 @@ def test_excess_kurtosis_known_value():
 #   JB = (n/6)*(S^2 + K^2/4) = (5/6)*(0 + 1.69/4) = (5/6)*0.4225 = 0.3520833.. #
 #   p = exp(-JB/2) = exp(-0.17604166..) = 0.838573...                          #
 # --------------------------------------------------------------------------- #
+
 
 def test_jarque_bera_known_value():
     result = jarque_bera([1.0, 2.0, 3.0, 4.0, 5.0])
@@ -124,6 +129,7 @@ def test_jarque_bera_pvalue_small_for_heavy_tails():
 # --------------------------------------------------------------------------- #
 # shape_stats bundle.                                                          #
 # --------------------------------------------------------------------------- #
+
 
 def test_shape_stats_bundle_consistent():
     data = [1.0, 2.0, 3.0, 4.0, 5.0]

@@ -25,6 +25,7 @@ timestamp is injected. Importing this module has ZERO side effects.
 Pure core (tested): ``expand_grid``, ``count_combinations``, ``parse_param_specs``,
 ``label_combination``. I/O lives only in ``main()``.
 """
+
 from __future__ import annotations
 
 from typing import Dict, Iterable, Iterator, List, Mapping, Optional, Sequence
@@ -36,6 +37,7 @@ Combination = Dict[str, object]
 
 
 # ----------------------------------------------------------------- pure core
+
 
 def count_combinations(grid: Grid) -> int:
     """
@@ -74,11 +76,7 @@ def expand_grid(grid: Grid) -> List[Combination]:
 
     combos: List[Combination] = [{}]
     for name, values in zip(names, value_lists):
-        combos = [
-            {**partial, name: value}
-            for partial in combos
-            for value in values
-        ]
+        combos = [{**partial, name: value} for partial in combos for value in values]
     return combos
 
 
@@ -163,12 +161,13 @@ def parse_param_specs(specs: Iterable[str]) -> Dict[str, List[object]]:
             values.append(value)
         if not values:
             raise ValueError(f"bad --param {raw!r}: no values given")
-        grid[name] = values   # last write wins; insertion order preserved
+        grid[name] = values  # last write wins; insertion order preserved
     return grid
 
 
-def label_combination(combo: Combination, *, index: Optional[int] = None,
-                      timestamp: Optional[str] = None) -> str:
+def label_combination(
+    combo: Combination, *, index: Optional[int] = None, timestamp: Optional[str] = None
+) -> str:
     """
     Render one combination as a stable, human-readable single line.
 
@@ -183,8 +182,7 @@ def label_combination(combo: Combination, *, index: Optional[int] = None,
     return f"{prefix}{body}{suffix}"
 
 
-def render_grid(grid: Grid, *, limit: Optional[int] = None,
-                timestamp: Optional[str] = None) -> str:
+def render_grid(grid: Grid, *, limit: Optional[int] = None, timestamp: Optional[str] = None) -> str:
     """
     Build the full report text for a grid: a header line with the combination
     count, then one labeled line per combination (optionally capped at ``limit``).
@@ -210,25 +208,34 @@ def render_grid(grid: Grid, *, limit: Optional[int] = None,
 
 # ----------------------------------------------------------------- CLI (I/O only)
 
+
 def _build_parser():  # pragma: no cover - thin argparse wiring
     import argparse
 
     parser = argparse.ArgumentParser(
         prog="backtest_grid",
         description="Expand a backtest parameter grid into ordered combinations "
-                    "(deterministic cartesian product). Read-only; no network.",
+        "(deterministic cartesian product). Read-only; no network.",
     )
     parser.add_argument(
-        "--param", "-p", action="append", default=[], metavar="NAME=v1,v2,...",
+        "--param",
+        "-p",
+        action="append",
+        default=[],
+        metavar="NAME=v1,v2,...",
         help="A parameter and its candidate values. Repeat for more parameters. "
-             "Values are coerced to int/float when possible, else kept as strings.",
+        "Values are coerced to int/float when possible, else kept as strings.",
     )
     parser.add_argument(
-        "--limit", type=int, default=None, metavar="N",
+        "--limit",
+        type=int,
+        default=None,
+        metavar="N",
         help="Show only the first N combinations (the full count is still reported).",
     )
     parser.add_argument(
-        "--count", action="store_true",
+        "--count",
+        action="store_true",
         help="Print only the number of combinations and exit.",
     )
     return parser
@@ -254,4 +261,5 @@ def main(argv: Optional[Sequence[str]] = None) -> int:  # pragma: no cover - I/O
 
 if __name__ == "__main__":  # pragma: no cover
     import sys
+
     sys.exit(main())

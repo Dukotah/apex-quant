@@ -45,6 +45,7 @@ existing-apex only — safe on the free CI runner.
 NOTE: indicators work in float (comparative math); money/prices the strategy hands
 back to the risk layer (the suggested stop) stay Decimal, per the layer convention.
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -113,9 +114,7 @@ class KeltnerTrendStrategy(BaseStrategy):
 
     # ---- channel ----------------------------------------------------------
 
-    def _keltner(
-        self, ticker: str
-    ) -> tuple[Optional[float], Optional[float]]:
+    def _keltner(self, ticker: str) -> tuple[Optional[float], Optional[float]]:
         """
         Latest (middle EMA, upper band) for `ticker`, computed from closed bars.
         Returns (None, None) until both the EMA and ATR have warmed up. `upper`
@@ -127,9 +126,7 @@ class KeltnerTrendStrategy(BaseStrategy):
         if middle is None:
             return None, None
 
-        atr_series = ind.atr(
-            self._highs[ticker], self._lows[ticker], closes, self.atr_period
-        )
+        atr_series = ind.atr(self._highs[ticker], self._lows[ticker], closes, self.atr_period)
         atr_val = atr_series[-1] if atr_series else None
         if atr_val is None:
             return middle, None
@@ -139,7 +136,9 @@ class KeltnerTrendStrategy(BaseStrategy):
 
     def _latest_atr(self, ticker: str) -> Optional[float]:
         atr_series = ind.atr(
-            self._highs[ticker], self._lows[ticker], self._closes[ticker],
+            self._highs[ticker],
+            self._lows[ticker],
+            self._closes[ticker],
             self.atr_period,
         )
         return atr_series[-1] if atr_series else None

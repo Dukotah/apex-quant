@@ -36,6 +36,7 @@ wall clock, so the same inputs always produce the same document.
 Run:  python -m scripts.export_status            # default state DB -> state/status.json
       python -m scripts.export_status --mode paper --out state/status.json
 """
+
 from __future__ import annotations
 
 import argparse
@@ -87,8 +88,7 @@ def build_status(
     ]
 
     per_strategy_rows: List[Dict[str, str]] = [
-        {"id": sid, "pnl": str(pnl)}
-        for sid, pnl in (per_strategy or {}).items()
+        {"id": sid, "pnl": str(pnl)} for sid, pnl in (per_strategy or {}).items()
     ]
 
     return {
@@ -156,12 +156,20 @@ def _portfolio_from_state(  # pragma: no cover - reads the real state DB
         avg = Decimal(str(p["avg_entry_price"]))
         cur = Decimal(str(p.get("current_price", p["avg_entry_price"])))
         side = OrderSide.BUY if qty > 0 else OrderSide.SELL
-        portfolio.on_fill(FillEvent(
-            symbol=symbol, side=side, quantity=abs(qty), fill_price=avg,
-            commission=Decimal("0"), slippage=Decimal("0"),
-            order_id="export", broker_order_id="export",
-            timestamp=None, is_paper=True,
-        ))
+        portfolio.on_fill(
+            FillEvent(
+                symbol=symbol,
+                side=side,
+                quantity=abs(qty),
+                fill_price=avg,
+                commission=Decimal("0"),
+                slippage=Decimal("0"),
+                order_id="export",
+                broker_order_id="export",
+                timestamp=None,
+                is_paper=True,
+            )
+        )
         portfolio.on_market(_mark_event(symbol, cur, row["ts"]))
 
     return portfolio, bool(row["halted"]), str(row["ts"])
@@ -175,8 +183,15 @@ def _mark_event(symbol, price: Decimal, ts: str):  # pragma: no cover - live wir
     from apex.core.models import Bar
 
     when = datetime.fromisoformat(ts)
-    bar = Bar(symbol=symbol, timestamp=when, open=price, high=price,
-              low=price, close=price, volume=Decimal("0"))
+    bar = Bar(
+        symbol=symbol,
+        timestamp=when,
+        open=price,
+        high=price,
+        low=price,
+        close=price,
+        volume=Decimal("0"),
+    )
     return MarketEvent(bar=bar)
 
 
@@ -188,7 +203,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:  # pragma: no cover - wir
 
     portfolio, halted, generated_at = _portfolio_from_state(args.mode)
     status = build_status(
-        portfolio, mode=args.mode, halted=halted, generated_at=generated_at,
+        portfolio,
+        mode=args.mode,
+        halted=halted,
+        generated_at=generated_at,
     )
     path = write_status(status, args.out)
     print(f"Wrote status snapshot -> {path}")

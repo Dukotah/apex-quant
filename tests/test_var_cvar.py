@@ -1,4 +1,5 @@
 """Tests for apex.validation.var_cvar — hand-computed values + edge cases."""
+
 from __future__ import annotations
 
 import math
@@ -20,6 +21,7 @@ from apex.validation.var_cvar import (
 # ---------------------------------------------------------------------------
 # _norm_ppf / _norm_pdf — sanity vs known standard-normal values
 # ---------------------------------------------------------------------------
+
 
 def test_norm_ppf_median_is_zero():
     assert _norm_ppf(0.5) == pytest.approx(0.0, abs=1e-9)
@@ -52,6 +54,7 @@ def test_norm_pdf_known_values():
 # ---------------------------------------------------------------------------
 # historical_var — hand-computed
 # ---------------------------------------------------------------------------
+
 
 def test_historical_var_hand_computed():
     # 20 returns, worst is -0.10. At 95% conf, alpha=0.05, idx=floor(0.05*20)=1
@@ -86,6 +89,7 @@ def test_historical_var_single_observation():
 # ---------------------------------------------------------------------------
 # historical_cvar — hand-computed (mean of the tail)
 # ---------------------------------------------------------------------------
+
 
 def test_historical_cvar_hand_computed():
     # n=20, alpha=0.05. 0.05*20 == 1.0000000000000002 in float, so
@@ -124,6 +128,7 @@ def test_cvar_ge_var_historical():
 # ---------------------------------------------------------------------------
 # parametric_var / parametric_cvar — closed-form checks
 # ---------------------------------------------------------------------------
+
 
 def test_parametric_var_zero_mean_known_z():
     # Construct symmetric returns with known sample std and zero mean.
@@ -168,6 +173,7 @@ def test_parametric_zero_variance_gain_clamps():
 # Guards / edge cases
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.parametrize("conf", [0.0, 1.0, -0.1, 1.5])
 def test_bad_confidence_returns_none(conf):
     returns = [-0.01, 0.02, 0.03]
@@ -191,8 +197,28 @@ def test_too_few_for_parametric():
 
 def test_higher_confidence_means_larger_or_equal_var():
     # More extreme confidence -> deeper into the tail -> VaR not smaller.
-    returns = [-0.10, -0.06, -0.04, -0.02, 0.0, 0.01, 0.02, 0.03, 0.04, 0.05,
-               0.06, 0.07, 0.08, 0.09, 0.10, -0.08, -0.05, -0.03, 0.005, 0.015]
+    returns = [
+        -0.10,
+        -0.06,
+        -0.04,
+        -0.02,
+        0.0,
+        0.01,
+        0.02,
+        0.03,
+        0.04,
+        0.05,
+        0.06,
+        0.07,
+        0.08,
+        0.09,
+        0.10,
+        -0.08,
+        -0.05,
+        -0.03,
+        0.005,
+        0.015,
+    ]
     assert historical_var(returns, 0.95) >= historical_var(returns, 0.80)
     assert parametric_var(returns, 0.99) >= parametric_var(returns, 0.90)
 
@@ -200,6 +226,7 @@ def test_higher_confidence_means_larger_or_equal_var():
 # ---------------------------------------------------------------------------
 # compute_var_cvar bundle
 # ---------------------------------------------------------------------------
+
 
 def test_compute_bundle_matches_individual():
     returns = [-0.05, -0.02, 0.01, 0.03, -0.01, 0.04, 0.02, -0.03, 0.05, -0.04]

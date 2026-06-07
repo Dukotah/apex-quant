@@ -23,6 +23,7 @@ apex/validation/metrics.py: this is statistical/metric code, not money handling.
 All functions are pure and deterministic given their inputs. Tested in
 tests/test_cagr_mar.py against hand-computed values.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -105,15 +106,13 @@ def mar_ratio(
 @dataclass(frozen=True)
 class CagrMarResult:
     """Bundled CAGR + MAR summary for an equity curve."""
+
     cagr: float
     max_drawdown: float
     mar_ratio: float
 
     def summary(self) -> str:
-        return (
-            f"CAGR {self.cagr:.1%}, max DD {self.max_drawdown:.1%}, "
-            f"MAR {self.mar_ratio:.2f}"
-        )
+        return f"CAGR {self.cagr:.1%}, max DD {self.max_drawdown:.1%}, MAR {self.mar_ratio:.2f}"
 
 
 def cagr_mar(

@@ -6,6 +6,7 @@ entry, the cross-back exit, position-awareness (no pyramiding, correct on a
 "restart" with an existing holding), and that every BUY carries a stop — both
 ATR-based and via the percentage warmup fallback.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -187,9 +188,7 @@ def test_percentage_stop_fallback_during_atr_warmup():
     # SMA ready quickly, ATR still warming: sma_period < atr_period+1 so there is
     # a window where mid exists but ATR is None. A breakout there must still carry
     # the percentage fallback stop.
-    strat = _strategy(
-        sma_period=2, atr_period=10, channel_mult=2.0, stop_loss_pct=Decimal("0.05")
-    )
+    strat = _strategy(sma_period=2, atr_period=10, channel_mult=2.0, stop_loss_pct=Decimal("0.05"))
     # bar 0,1 establish SMA(2); ATR(10) needs 11 bars, so still None here.
     strat.on_bar(_flat_bar(0, 100.0))
     out = strat.on_bar(_bar(1, o=100.0, h=200.0, lo=100.0, c=200.0))

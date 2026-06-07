@@ -4,6 +4,7 @@ Tests for apex.analytics.rolling_beta — verified against hand-computed values.
 Beta = Cov(strategy, benchmark) / Var(benchmark), using population moments
 (matching the manual computations below).
 """
+
 from __future__ import annotations
 
 from apex.analytics.rolling_beta import beta, latest_beta, rolling_beta

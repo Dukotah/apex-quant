@@ -20,6 +20,7 @@ hands it to that pure core. Statistical code uses float to match the
 ``apex.validation.metrics`` layer it builds on (Golden Rule: follow the layer's
 convention).
 """
+
 from __future__ import annotations
 
 import argparse
@@ -43,6 +44,7 @@ class PerfStats:
 
 
 # ------------------------------------------------------------------- pure core
+
 
 def compute_perf_stats(
     equity_curve: Sequence[float],
@@ -116,6 +118,7 @@ def build_perf_report(
 
 
 # --------------------------------------------------------------- CLI plumbing
+
 
 def _load_equities(db_path: str, mode: str) -> list[float]:
     """

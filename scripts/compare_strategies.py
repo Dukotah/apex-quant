@@ -24,6 +24,7 @@ deterministic core (``rank_strategies`` / ``compare_strategies``) that does no
 I/O and takes any "now" as an injected argument — tested in
 tests/test_compare_strategies.py.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -71,6 +72,7 @@ def supported_metrics() -> List[str]:
 @dataclass(frozen=True)
 class MetricSpec:
     """A named metric: how to compute it from an equity curve, and its ranking sense."""
+
     name: str
     fn: MetricFn
     higher_is_better: bool
@@ -79,9 +81,10 @@ class MetricSpec:
 @dataclass(frozen=True)
 class StrategyScore:
     """One strategy's computed metric and how much usable data backed it."""
+
     name: str
     metric: str
-    value: Optional[float]   # None when the curve is too short to score
+    value: Optional[float]  # None when the curve is too short to score
     points: int
 
     @property
@@ -90,6 +93,7 @@ class StrategyScore:
 
 
 # ------------------------------------------------------------------- pure core
+
 
 def rank_strategies(
     results: Mapping[str, Sequence[float]],
@@ -107,9 +111,7 @@ def rank_strategies(
     """
     registry = _metric_registry()
     if metric not in registry:
-        raise ValueError(
-            f"unknown metric {metric!r}; choose one of {', '.join(registry)}"
-        )
+        raise ValueError(f"unknown metric {metric!r}; choose one of {', '.join(registry)}")
     spec = registry[metric]
 
     scores: List[StrategyScore] = []
@@ -175,6 +177,7 @@ def compare_strategies(
 # ----------------------------------------------------------------- I/O wrappers
 # (I/O lives only here and in main(), never in the pure core above.)
 
+
 def load_results(path: str) -> Dict[str, List[float]]:
     """
     Read stored backtest results from a JSON file: {"<strategy>": [equity, ...]}.
@@ -197,22 +200,29 @@ def load_results(path: str) -> Dict[str, List[float]]:
 
 # ------------------------------------------------------------------- CLI
 
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="compare_strategies",
         description="Rank library strategies by a chosen metric from stored backtest results "
-                    "(read-only; never trades or fetches data).",
+        "(read-only; never trades or fetches data).",
     )
     parser.add_argument(
         "results",
-        help="path to a JSON results file: {\"<strategy>\": [equity, equity, ...], ...}",
+        help='path to a JSON results file: {"<strategy>": [equity, equity, ...], ...}',
     )
     parser.add_argument(
-        "--metric", "-m", default="sharpe", choices=supported_metrics(),
+        "--metric",
+        "-m",
+        default="sharpe",
+        choices=supported_metrics(),
         help="metric to rank by (default: sharpe)",
     )
     parser.add_argument(
-        "--top", "-t", type=int, default=None,
+        "--top",
+        "-t",
+        type=int,
+        default=None,
         help="show only the top N strategies (default: all)",
     )
     return parser
@@ -231,10 +241,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         print(f"compare_strategies: could not read results: {exc}", file=sys.stderr)
         return 2
 
-    print(compare_strategies(
-        results, args.metric, top=args.top,
-        generated_at=datetime.now(timezone.utc),   # I/O boundary only — never in the core
-    ))
+    print(
+        compare_strategies(
+            results,
+            args.metric,
+            top=args.top,
+            generated_at=datetime.now(timezone.utc),  # I/O boundary only — never in the core
+        )
+    )
     return 0
 
 

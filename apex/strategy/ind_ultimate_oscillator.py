@@ -27,6 +27,7 @@ index `long_period`).
 
 Tested in tests/test_ind_ultimate_oscillator.py against hand-computed values.
 """
+
 from __future__ import annotations
 
 from typing import Optional, Sequence
@@ -91,16 +92,14 @@ def ultimate_oscillator(
     return out
 
 
-def _windowed_avg(
-    bp: list[float], tr: list[float], end: int, period: int
-) -> Optional[float]:
+def _windowed_avg(bp: list[float], tr: list[float], end: int, period: int) -> Optional[float]:
     """
     sum(BP) / sum(TR) over the `period` bars ending at index `end` (inclusive).
     Returns None if the true-range sum is zero (a perfectly flat window).
     """
     start = end - period + 1
-    tr_sum = sum(tr[start: end + 1])
+    tr_sum = sum(tr[start : end + 1])
     if tr_sum == 0:
         return None
-    bp_sum = sum(bp[start: end + 1])
+    bp_sum = sum(bp[start : end + 1])
     return bp_sum / tr_sum

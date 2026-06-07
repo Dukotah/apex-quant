@@ -3,6 +3,7 @@ Tests for apex.risk.position_sizing — advisory position-size calculators.
 
 All expected values are hand-computed. Money/quantity math is Decimal.
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -30,6 +31,7 @@ FUTURE = Symbol(
 # round_quantity
 # --------------------------------------------------------------------------
 
+
 def test_round_quantity_floors_whole_units():
     assert round_quantity(Decimal("3.99"), STOCK) == Decimal("3")
 
@@ -46,6 +48,7 @@ def test_round_quantity_zero_and_negative_fail_closed():
 # --------------------------------------------------------------------------
 # fixed_fractional_size
 # --------------------------------------------------------------------------
+
 
 def test_fixed_fractional_known_value():
     # equity 100_000, risk 1% = $1000. entry 100, stop 95 -> per-unit risk $5.
@@ -121,21 +124,31 @@ def test_fixed_fractional_bad_inputs_fail_closed():
     base = dict(entry_price=Decimal("100"), stop_price=Decimal("95"), symbol=STOCK)
     assert fixed_fractional_size(equity=Decimal("0"), **base) == Decimal("0")
     assert fixed_fractional_size(equity=Decimal("-1"), **base) == Decimal("0")
-    assert fixed_fractional_size(equity=Decimal("100000"), entry_price=Decimal("0"),
-                                 stop_price=Decimal("95"), symbol=STOCK) == Decimal("0")
+    assert fixed_fractional_size(
+        equity=Decimal("100000"), entry_price=Decimal("0"), stop_price=Decimal("95"), symbol=STOCK
+    ) == Decimal("0")
     # risk fraction out of (0,1]
-    assert fixed_fractional_size(equity=Decimal("100000"), entry_price=Decimal("100"),
-                                 stop_price=Decimal("95"), symbol=STOCK,
-                                 risk_fraction=Decimal("0")) == Decimal("0")
-    assert fixed_fractional_size(equity=Decimal("100000"), entry_price=Decimal("100"),
-                                 stop_price=Decimal("95"), symbol=STOCK,
-                                 risk_fraction=Decimal("1.5")) == Decimal("0")
+    assert fixed_fractional_size(
+        equity=Decimal("100000"),
+        entry_price=Decimal("100"),
+        stop_price=Decimal("95"),
+        symbol=STOCK,
+        risk_fraction=Decimal("0"),
+    ) == Decimal("0")
+    assert fixed_fractional_size(
+        equity=Decimal("100000"),
+        entry_price=Decimal("100"),
+        stop_price=Decimal("95"),
+        symbol=STOCK,
+        risk_fraction=Decimal("1.5"),
+    ) == Decimal("0")
     assert fixed_fractional_size(equity=None, **base) == Decimal("0")
 
 
 # --------------------------------------------------------------------------
 # atr_risk_size
 # --------------------------------------------------------------------------
+
 
 def test_atr_risk_known_value():
     # risk $1000; ATR 2.5 * multiple 2 = stop distance 5 -> per-unit risk $5.
@@ -178,20 +191,28 @@ def test_atr_risk_accepts_float_atr():
 
 
 def test_atr_risk_bad_inputs_fail_closed():
-    assert atr_risk_size(equity=Decimal("100000"), entry_price=Decimal("100"),
-                         atr=Decimal("0"), symbol=STOCK) == Decimal("0")
-    assert atr_risk_size(equity=Decimal("100000"), entry_price=Decimal("100"),
-                         atr=Decimal("-1"), symbol=STOCK) == Decimal("0")
-    assert atr_risk_size(equity=Decimal("100000"), entry_price=Decimal("100"),
-                         atr=Decimal("2"), symbol=STOCK,
-                         atr_multiple=Decimal("0")) == Decimal("0")
-    assert atr_risk_size(equity=Decimal("0"), entry_price=Decimal("100"),
-                         atr=Decimal("2"), symbol=STOCK) == Decimal("0")
+    assert atr_risk_size(
+        equity=Decimal("100000"), entry_price=Decimal("100"), atr=Decimal("0"), symbol=STOCK
+    ) == Decimal("0")
+    assert atr_risk_size(
+        equity=Decimal("100000"), entry_price=Decimal("100"), atr=Decimal("-1"), symbol=STOCK
+    ) == Decimal("0")
+    assert atr_risk_size(
+        equity=Decimal("100000"),
+        entry_price=Decimal("100"),
+        atr=Decimal("2"),
+        symbol=STOCK,
+        atr_multiple=Decimal("0"),
+    ) == Decimal("0")
+    assert atr_risk_size(
+        equity=Decimal("0"), entry_price=Decimal("100"), atr=Decimal("2"), symbol=STOCK
+    ) == Decimal("0")
 
 
 # --------------------------------------------------------------------------
 # volatility_target_size
 # --------------------------------------------------------------------------
+
 
 def test_volatility_target_known_value():
     # target 10% / instrument 20% = weight 0.5; equity 100k -> $50k notional.
@@ -222,13 +243,19 @@ def test_volatility_target_clamped_by_max_fraction():
 
 def test_volatility_target_higher_vol_smaller_size():
     low_vol = volatility_target_size(
-        equity=Decimal("100000"), entry_price=Decimal("100"),
-        instrument_volatility=Decimal("0.10"), symbol=STOCK,
-        target_volatility=Decimal("0.10"))
+        equity=Decimal("100000"),
+        entry_price=Decimal("100"),
+        instrument_volatility=Decimal("0.10"),
+        symbol=STOCK,
+        target_volatility=Decimal("0.10"),
+    )
     high_vol = volatility_target_size(
-        equity=Decimal("100000"), entry_price=Decimal("100"),
-        instrument_volatility=Decimal("0.40"), symbol=STOCK,
-        target_volatility=Decimal("0.10"))
+        equity=Decimal("100000"),
+        entry_price=Decimal("100"),
+        instrument_volatility=Decimal("0.40"),
+        symbol=STOCK,
+        target_volatility=Decimal("0.10"),
+    )
     assert high_vol < low_vol
 
 
@@ -246,17 +273,30 @@ def test_volatility_target_respects_multiplier_and_fractionable():
 
 
 def test_volatility_target_bad_inputs_fail_closed():
-    assert volatility_target_size(equity=Decimal("100000"), entry_price=Decimal("100"),
-                                  instrument_volatility=Decimal("0"), symbol=STOCK) == Decimal("0")
-    assert volatility_target_size(equity=Decimal("0"), entry_price=Decimal("100"),
-                                  instrument_volatility=Decimal("0.2"), symbol=STOCK) == Decimal("0")
-    assert volatility_target_size(equity=Decimal("100000"), entry_price=Decimal("0"),
-                                  instrument_volatility=Decimal("0.2"), symbol=STOCK) == Decimal("0")
+    assert volatility_target_size(
+        equity=Decimal("100000"),
+        entry_price=Decimal("100"),
+        instrument_volatility=Decimal("0"),
+        symbol=STOCK,
+    ) == Decimal("0")
+    assert volatility_target_size(
+        equity=Decimal("0"),
+        entry_price=Decimal("100"),
+        instrument_volatility=Decimal("0.2"),
+        symbol=STOCK,
+    ) == Decimal("0")
+    assert volatility_target_size(
+        equity=Decimal("100000"),
+        entry_price=Decimal("0"),
+        instrument_volatility=Decimal("0.2"),
+        symbol=STOCK,
+    ) == Decimal("0")
 
 
 # --------------------------------------------------------------------------
 # kelly_fraction
 # --------------------------------------------------------------------------
+
 
 def test_kelly_known_value():
     # p=0.6, b=2 -> 0.6 - 0.4/2 = 0.6 - 0.2 = 0.4

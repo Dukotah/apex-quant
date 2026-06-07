@@ -25,6 +25,7 @@ statistical/indicator code, so it follows the validation layer's float conventio
 
 Tested in tests/test_information_coefficient.py against hand-computed values.
 """
+
 from __future__ import annotations
 
 import math
@@ -137,18 +138,16 @@ def rank_information_coefficient(
 @dataclass(frozen=True)
 class ICReport:
     """Summary of a signal's predictive power against forward returns."""
-    ic: float | None             # Pearson IC
-    rank_ic: float | None        # Spearman (rank) IC
-    n: int                       # number of aligned (signal, forward-return) pairs
-    horizon: int                 # forward horizon used, in periods
+
+    ic: float | None  # Pearson IC
+    rank_ic: float | None  # Spearman (rank) IC
+    n: int  # number of aligned (signal, forward-return) pairs
+    horizon: int  # forward horizon used, in periods
 
     def summary(self) -> str:
         ic_s = "n/a" if self.ic is None else f"{self.ic:+.4f}"
         ric_s = "n/a" if self.rank_ic is None else f"{self.rank_ic:+.4f}"
-        return (
-            f"IC[h={self.horizon}, n={self.n}]: "
-            f"pearson={ic_s}, rank={ric_s}"
-        )
+        return f"IC[h={self.horizon}, n={self.n}]: pearson={ic_s}, rank={ric_s}"
 
 
 def ic_report(

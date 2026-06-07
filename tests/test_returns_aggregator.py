@@ -1,4 +1,5 @@
 """Tests for apex.data.returns_aggregator — pure, fast, hand-computed values."""
+
 from __future__ import annotations
 
 from datetime import date, datetime, timezone
@@ -17,6 +18,7 @@ APPROX = 1e-12
 
 
 # --------------------------------------------------------------------- compound
+
 
 def test_compound_basic_hand_computed():
     # (1.01)(0.99) - 1 = 0.9999 - 1 = -0.0001
@@ -53,11 +55,12 @@ def test_compound_rejects_nan():
 
 # --------------------------------------------------------------------- monthly
 
+
 def test_monthly_groups_and_compounds():
     daily = [
         (date(2024, 1, 5), 0.10),
-        (date(2024, 1, 20), 0.10),   # Jan: (1.1)(1.1)-1 = 0.21
-        (date(2024, 2, 3), 0.05),    # Feb: 0.05
+        (date(2024, 1, 20), 0.10),  # Jan: (1.1)(1.1)-1 = 0.21
+        (date(2024, 2, 3), 0.05),  # Feb: 0.05
     ]
     out = to_monthly(daily)
     assert [p.label for p in out] == ["2024-01", "2024-02"]
@@ -92,6 +95,7 @@ def test_monthly_spans_years():
 
 # ---------------------------------------------------------------------- yearly
 
+
 def test_yearly_compounds_full_year():
     # Three +10% periods in one year → 1.1^3 - 1 = 0.331
     daily = [
@@ -102,20 +106,21 @@ def test_yearly_compounds_full_year():
     ]
     out = to_yearly(daily)
     assert [p.label for p in out] == ["2024", "2025"]
-    assert out[0].ret == pytest.approx(1.1 ** 3 - 1, abs=APPROX)
+    assert out[0].ret == pytest.approx(1.1**3 - 1, abs=APPROX)
     assert out[0].count == 3
     assert out[1].ret == pytest.approx(-0.05, abs=APPROX)
 
 
 # ---------------------------------------------------------------------- weekly
 
+
 def test_weekly_iso_week_grouping():
     # 2024-01-01 is a Monday → ISO 2024-W01. 2024-01-07 is Sunday, still W01.
     # 2024-01-08 is Monday → W02.
     daily = [
         (date(2024, 1, 1), 0.01),
-        (date(2024, 1, 7), 0.02),    # same ISO week W01
-        (date(2024, 1, 8), 0.03),    # ISO week W02
+        (date(2024, 1, 7), 0.02),  # same ISO week W01
+        (date(2024, 1, 8), 0.03),  # ISO week W02
     ]
     out = to_weekly(daily)
     assert [p.label for p in out] == ["2024-W01", "2024-W02"]
@@ -136,10 +141,11 @@ def test_weekly_iso_year_boundary():
     assert len(out) == 1
     assert out[0].label == "2025-W01"
     assert out[0].count == 3
-    assert out[0].ret == pytest.approx(1.01 ** 3 - 1, abs=APPROX)
+    assert out[0].ret == pytest.approx(1.01**3 - 1, abs=APPROX)
 
 
 # ----------------------------------------------------------------- edge cases
+
 
 def test_empty_input_returns_empty():
     assert to_weekly([]) == []
@@ -157,7 +163,7 @@ def test_accepts_datetime_and_iso_string_dates():
     assert len(out) == 1
     assert out[0].label == "2024-01"
     assert out[0].count == 3
-    assert out[0].ret == pytest.approx(1.1 ** 3 - 1, abs=APPROX)
+    assert out[0].ret == pytest.approx(1.1**3 - 1, abs=APPROX)
 
 
 def test_period_return_is_frozen():

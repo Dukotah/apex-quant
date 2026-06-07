@@ -1,4 +1,5 @@
 """Tests for apex.strategy.ind_aroon — hand-computed Aroon values + edge cases."""
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -64,8 +65,8 @@ def test_recency_tie_break_picks_most_recent():
 
 
 def test_oscillator_equals_up_minus_down():
-    highs = [1.0, 2.0, 3.0, 4.0, 5.0]   # up: newest high → 100
-    lows = [5.0, 4.0, 3.0, 2.0, 1.0]    # down: newest low → 100
+    highs = [1.0, 2.0, 3.0, 4.0, 5.0]  # up: newest high → 100
+    lows = [5.0, 4.0, 3.0, 2.0, 1.0]  # down: newest low → 100
     up, down, osc = aroon(highs, lows, period=4)
     assert up[4] == pytest.approx(100.0)
     assert down[4] == pytest.approx(100.0)

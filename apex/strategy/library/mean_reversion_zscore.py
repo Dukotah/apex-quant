@@ -50,6 +50,7 @@ Indicator reuse: ATR comes from apex.strategy.indicators; the z-score is a priva
 calculation in this module (no parallel ind_* imports). Stats use float to match
 the indicator layer's convention; the suggested stop is returned as Decimal.
 """
+
 from __future__ import annotations
 
 import statistics
@@ -129,7 +130,7 @@ class MeanReversionZScoreStrategy(BaseStrategy):
         """
         if len(closes) < self.lookback:
             return None
-        window = closes[-self.lookback:]
+        window = closes[-self.lookback :]
         mean = statistics.fmean(window)
         sd = statistics.pstdev(window)
         if sd <= 0.0:

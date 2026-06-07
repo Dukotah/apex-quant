@@ -1,4 +1,5 @@
 """Tests for apex.data.returns_builder — simple/log return construction."""
+
 from __future__ import annotations
 
 import math
@@ -35,6 +36,7 @@ def _bar(close: str, day: int = 1) -> Bar:
 
 # --------------------------------------------------------------- simple returns
 
+
 def test_simple_returns_hand_computed():
     # closes: 100 -> 110 -> 99
     # r1 = 110/100 - 1 = 0.10 ; r2 = 99/110 - 1 = -0.10
@@ -52,6 +54,7 @@ def test_simple_returns_flat_series_is_zeros():
 
 
 # ------------------------------------------------------------------ log returns
+
 
 def test_log_returns_hand_computed():
     # ln(110/100) and ln(99/110)
@@ -75,6 +78,7 @@ def test_log_and_simple_agree_for_tiny_moves():
 
 # ----------------------------------------------------------- insufficient data
 
+
 @pytest.mark.parametrize("series", [[], [42.0]])
 def test_empty_for_fewer_than_two_prices(series):
     assert simple_returns(series) == []
@@ -82,6 +86,7 @@ def test_empty_for_fewer_than_two_prices(series):
 
 
 # ---------------------------------------------------------------- input shapes
+
 
 def test_accepts_decimal_prices_exactly():
     out = simple_returns([Decimal("100"), Decimal("110")])
@@ -100,6 +105,7 @@ def test_to_closes_coerces_to_float():
 
 
 # ------------------------------------------------------------------ from bars
+
 
 def test_returns_from_bars_simple():
     bars = [_bar("100", 1), _bar("110", 2), _bar("99", 3)]
@@ -122,6 +128,7 @@ def test_bars_used_in_given_order_not_sorted():
 
 
 # ------------------------------------------------------------- failure modes
+
 
 def test_zero_price_rejected():
     with pytest.raises(ValueError):

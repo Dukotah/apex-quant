@@ -4,6 +4,7 @@ metric from stored backtest results. The pure core (rank_strategies /
 compare_strategies) is tested with hand-checked values and edge cases; the JSON
 loader is tested via a tmp file.
 """
+
 from __future__ import annotations
 
 import json
@@ -24,6 +25,7 @@ UTC = timezone.utc
 
 # ----------------------------------------------------------------- pure core
 
+
 def test_zero_side_effects_on_import():
     # Importing the module (done at top) must not have created files or state.
     # Re-importing is a no-op; this just asserts the public surface exists.
@@ -33,9 +35,9 @@ def test_zero_side_effects_on_import():
 
 def test_ranks_higher_total_return_first():
     results = {
-        "flat": [100.0, 100.0],          # 0% return
-        "winner": [100.0, 130.0],        # +30%
-        "loser": [100.0, 90.0],          # -10%
+        "flat": [100.0, 100.0],  # 0% return
+        "winner": [100.0, 130.0],  # +30%
+        "loser": [100.0, 90.0],  # -10%
     }
     ranked = rank_strategies(results, "total_return")
     assert [s.name for s in ranked] == ["winner", "flat", "loser"]
@@ -47,14 +49,14 @@ def test_ranks_higher_total_return_first():
 
 def test_max_drawdown_is_lower_is_better():
     results = {
-        "smooth": [100.0, 101.0, 102.0],         # 0 drawdown
-        "bumpy": [100.0, 80.0, 110.0],           # 20% drawdown
+        "smooth": [100.0, 101.0, 102.0],  # 0 drawdown
+        "bumpy": [100.0, 80.0, 110.0],  # 20% drawdown
     }
     ranked = rank_strategies(results, "max_drawdown")
     # Lower drawdown ranks first.
     assert [s.name for s in ranked] == ["smooth", "bumpy"]
     assert ranked[0].value == pytest.approx(0.0)
-    assert ranked[1].value == pytest.approx(0.20)   # (100-80)/100
+    assert ranked[1].value == pytest.approx(0.20)  # (100-80)/100
 
 
 def test_too_short_curve_is_unscored_and_sorts_last():
@@ -75,7 +77,7 @@ def test_too_short_curve_is_unscored_and_sorts_last():
 def test_ties_break_alphabetically():
     results = {
         "bravo": [100.0, 110.0],
-        "alpha": [100.0, 110.0],   # identical curve -> identical metric
+        "alpha": [100.0, 110.0],  # identical curve -> identical metric
     }
     ranked = rank_strategies(results, "total_return")
     assert [s.name for s in ranked] == ["alpha", "bravo"]
@@ -103,6 +105,7 @@ def test_sharpe_matches_metrics_module():
 
 
 # ----------------------------------------------------------------- rendering
+
 
 def test_compare_output_is_deterministic_with_injected_clock():
     results = {"winner": [100.0, 130.0], "loser": [100.0, 90.0]}
@@ -137,6 +140,7 @@ def test_compare_unscored_shows_na():
 
 # ----------------------------------------------------------------- I/O wrapper
 
+
 def test_load_results_roundtrip(tmp_path):
     p = tmp_path / "results.json"
     data = {"alpha": [100.0, 110.0], "beta": [100, 90]}
@@ -162,6 +166,7 @@ def test_load_results_rejects_bad_curve(tmp_path):
 
 
 # ----------------------------------------------------------------- CLI parser
+
 
 def test_parser_defaults_and_choices():
     parser = build_parser()

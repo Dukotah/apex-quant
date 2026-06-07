@@ -28,6 +28,7 @@ Design invariants:
     garbage or infinite number.
   - No I/O. No mutation of the inputs.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -121,6 +122,7 @@ class LeverageSnapshot:
     flags whether gross leverage exceeds 1.0x (more market exposure than
     capital).
     """
+
     equity: Decimal
     gross_exposure: Decimal
     net_exposure: Decimal
@@ -199,5 +201,5 @@ def leverage_from_portfolio(portfolio: object) -> LeverageSnapshot:
     `.equity` (Decimal). Read-only — it never mutates the portfolio.
     """
     positions = portfolio.open_positions.values()  # type: ignore[attr-defined]
-    equity = portfolio.equity                       # type: ignore[attr-defined]
+    equity = portfolio.equity  # type: ignore[attr-defined]
     return compute_leverage(positions, equity)

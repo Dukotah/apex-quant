@@ -34,6 +34,7 @@ Warmup:
 Deterministic: same input → same output, always. No I/O, no wall-clock, no
 randomness. Tested in tests/test_ind_adx.py against hand-computed values.
 """
+
 from __future__ import annotations
 
 from typing import Optional, Sequence
@@ -82,9 +83,9 @@ def directional_indicators(
         )
 
     # Wilder seed = simple sum of the first `period` values (indices 1..period).
-    sm_plus_dm = sum(plus_dm[1: period + 1])
-    sm_minus_dm = sum(minus_dm[1: period + 1])
-    sm_tr = sum(true_range[1: period + 1])
+    sm_plus_dm = sum(plus_dm[1 : period + 1])
+    sm_minus_dm = sum(minus_dm[1 : period + 1])
+    sm_tr = sum(true_range[1 : period + 1])
     plus_di[period] = _di(sm_plus_dm, sm_tr)
     minus_di[period] = _di(sm_minus_dm, sm_tr)
 
@@ -112,9 +113,7 @@ def _dx(plus: float, minus: float) -> float:
     return 100.0 * abs(plus - minus) / total
 
 
-def adx(
-    high: Sequence, low: Sequence, close: Sequence, period: int = 14
-) -> list[Optional[float]]:
+def adx(high: Sequence, low: Sequence, close: Sequence, period: int = 14) -> list[Optional[float]]:
     """
     Average Directional Index (Wilder). Measures TREND STRENGTH (not direction):
     higher = stronger trend, regardless of up/down. Same length as input, None

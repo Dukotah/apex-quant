@@ -25,6 +25,7 @@ CONTRACT (same as apex.strategy.indicators):
 
 Tested in tests/test_ind_zlema.py against hand-computed values.
 """
+
 from __future__ import annotations
 
 from typing import Optional, Sequence

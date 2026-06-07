@@ -27,6 +27,7 @@ CONTRACT (mirrors apex.strategy.indicators):
 
 Tested in tests/test_regime.py against hand-computed values and edge cases.
 """
+
 from __future__ import annotations
 
 import math
@@ -37,10 +38,11 @@ from typing import Optional, Sequence
 
 class VolatilityRegime(str, Enum):
     """The volatility band the market is currently in."""
+
     LOW = "low"
     NORMAL = "normal"
     HIGH = "high"
-    UNKNOWN = "unknown"   # not enough history to classify
+    UNKNOWN = "unknown"  # not enough history to classify
 
 
 def _to_floats(data: Sequence) -> list[float]:
@@ -105,6 +107,7 @@ class RegimeResult:
                    [0, 1], or None when UNKNOWN.
     `volatility` — the current realized-vol value (float), or None when UNKNOWN.
     """
+
     regime: VolatilityRegime
     percentile: Optional[float]
     volatility: Optional[float]
@@ -175,7 +178,7 @@ class VolatilityRegimeClassifier:
         out: list[float] = []
         w = self.vol_window
         for end in range(w, len(rets) + 1):
-            window = rets[end - w:end]
+            window = rets[end - w : end]
             mean = sum(window) / w
             variance = sum((r - mean) ** 2 for r in window) / w
             out.append(math.sqrt(variance))
@@ -194,7 +197,7 @@ class VolatilityRegimeClassifier:
 
         vol_series = self._vol_series(values)
         # The comparison distribution is the trailing `lookback` vol samples.
-        distribution = vol_series[-self.lookback:]
+        distribution = vol_series[-self.lookback :]
         current = distribution[-1]
 
         percentile = _percentile_rank(current, distribution)

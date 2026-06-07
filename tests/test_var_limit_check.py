@@ -4,6 +4,7 @@ Tests for apex.risk.var_limit_check — pure VaR-vs-limit guardrail.
 Hand-computed values plus the fail-closed edge cases that the risk layer cares
 about. Imported by full path so no package __init__ edits are needed.
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -18,6 +19,7 @@ from apex.risk.var_limit_check import (
 # --------------------------------------------------------------------------
 # check_var_limit — the core verdict
 # --------------------------------------------------------------------------
+
 
 def test_within_limit_strict_pass():
     # VaR 2% against a 3% budget -> within, utilization 2/3.
@@ -66,6 +68,7 @@ def test_float_inputs_are_coerced_via_str():
 # --------------------------------------------------------------------------
 # Fail-closed behaviour
 # --------------------------------------------------------------------------
+
 
 def test_none_var_estimate_fails_closed():
     res = check_var_limit(None, Decimal("0.03"))
@@ -121,6 +124,7 @@ def test_invalid_var_echoed_as_none_even_with_bad_limit():
 # var_fraction_of_equity
 # --------------------------------------------------------------------------
 
+
 def test_var_fraction_basic():
     # $300 VaR on $10,000 equity -> 0.03 fraction.
     frac = var_fraction_of_equity(Decimal("300"), Decimal("10000"))
@@ -149,6 +153,7 @@ def test_var_fraction_none_inputs_are_none():
 # --------------------------------------------------------------------------
 # check_var_dollars_limit — convenience wrapper
 # --------------------------------------------------------------------------
+
 
 def test_dollars_within_limit():
     # $200 VaR on $10k = 2% <= 3% budget.

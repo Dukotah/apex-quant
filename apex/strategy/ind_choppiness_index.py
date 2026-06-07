@@ -35,6 +35,7 @@ CONTRACT (mirrors apex.strategy.indicators):
 
 All functions tested in tests/test_ind_choppiness_index.py.
 """
+
 from __future__ import annotations
 
 import math
@@ -45,9 +46,7 @@ def _to_floats(data: Sequence) -> list[float]:
     return [float(x) for x in data]
 
 
-def true_ranges(
-    high: Sequence, low: Sequence, close: Sequence
-) -> list[Optional[float]]:
+def true_ranges(high: Sequence, low: Sequence, close: Sequence) -> list[Optional[float]]:
     """
     Per-bar Wilder true range, same length as the input.
 
@@ -107,11 +106,11 @@ def choppiness_index(
     # which are exactly `period` consecutive valid true ranges).
     for i in range(period, n):
         start = i - period + 1
-        window_trs = trs[start: i + 1]
+        window_trs = trs[start : i + 1]
         # All true ranges in the window are valid (start >= 1 always here).
         atr_sum = math.fsum(window_trs)  # type: ignore[arg-type]
-        max_high = max(highs[start: i + 1])
-        min_low = min(lows[start: i + 1])
+        max_high = max(highs[start : i + 1])
+        min_low = min(lows[start : i + 1])
         price_range = max_high - min_low
         if price_range <= 0.0 or atr_sum <= 0.0:
             # Flat / degenerate window — CHOP undefined. Fail closed.

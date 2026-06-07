@@ -4,6 +4,7 @@ tests for apex.strategy.ind_vortex — Vortex Indicator (VI+, VI-).
 Hand-computed values plus edge cases (warmup, insufficient data, validation,
 flat market, Decimal inputs, determinism).
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -145,8 +146,8 @@ def test_sliding_window_matches_recompute():
         )
     for idx in range(period, n):
         lo = idx - period + 1
-        s_tr = sum(tr[lo: idx + 1])
-        exp_plus = sum(vm_plus[lo: idx + 1]) / s_tr
-        exp_minus = sum(vm_minus[lo: idx + 1]) / s_tr
+        s_tr = sum(tr[lo : idx + 1])
+        exp_plus = sum(vm_plus[lo : idx + 1]) / s_tr
+        exp_minus = sum(vm_minus[lo : idx + 1]) / s_tr
         assert _approx(vip[idx], exp_plus)
         assert _approx(vim[idx], exp_minus)

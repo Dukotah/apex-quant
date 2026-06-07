@@ -4,6 +4,7 @@ Benchmark-relative metrics are only useful if they're exactly right; these lock
 the math against known cases: a 2x-scaled clone (beta 2, alpha ~0, captures 2),
 an identical series (IR/TE 0), and the documented degenerate edge cases.
 """
+
 from __future__ import annotations
 
 import math

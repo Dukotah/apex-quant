@@ -2,6 +2,7 @@
 Tests for apex.risk.drawdown_throttle — the pure piecewise-linear sizing
 throttle. Hand-computed known values plus edge / degenerate cases.
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -21,6 +22,7 @@ _ZERO = Decimal("0")
 # ---------------------------------------------------------------------------
 # drawdown_from_equity
 # ---------------------------------------------------------------------------
+
 
 def test_drawdown_at_peak_is_zero():
     assert drawdown_from_equity(100, 100) == _ZERO
@@ -49,6 +51,7 @@ def test_drawdown_total_loss():
 # throttle_factor — disabled / boundaries
 # ---------------------------------------------------------------------------
 
+
 def test_disabled_when_start_none():
     assert throttle_factor(Decimal("0.50"), start=None) == _ONE
 
@@ -64,13 +67,17 @@ def test_full_size_exactly_at_start():
 
 def test_floor_at_and_beyond_full():
     f = throttle_factor(
-        Decimal("0.30"), start=Decimal("0.10"),
-        full=Decimal("0.30"), floor=Decimal("0.40"),
+        Decimal("0.30"),
+        start=Decimal("0.10"),
+        full=Decimal("0.30"),
+        floor=Decimal("0.40"),
     )
     assert f == Decimal("0.40")
     deeper = throttle_factor(
-        Decimal("0.99"), start=Decimal("0.10"),
-        full=Decimal("0.30"), floor=Decimal("0.40"),
+        Decimal("0.99"),
+        start=Decimal("0.10"),
+        full=Decimal("0.30"),
+        floor=Decimal("0.40"),
     )
     assert deeper == Decimal("0.40")
 
@@ -79,13 +86,16 @@ def test_floor_at_and_beyond_full():
 # throttle_factor — linear ramp (hand-computed)
 # ---------------------------------------------------------------------------
 
+
 def test_ramp_midpoint():
     # start=0.10, full=0.30, floor=0.40.
     # At drawdown 0.20 (halfway through ramp): frac=0.5,
     # multiplier = 1 - 0.5*(1-0.40) = 1 - 0.30 = 0.70.
     f = throttle_factor(
-        Decimal("0.20"), start=Decimal("0.10"),
-        full=Decimal("0.30"), floor=Decimal("0.40"),
+        Decimal("0.20"),
+        start=Decimal("0.10"),
+        full=Decimal("0.30"),
+        floor=Decimal("0.40"),
     )
     assert f == Decimal("0.70")
 
@@ -93,8 +103,10 @@ def test_ramp_midpoint():
 def test_ramp_quarter():
     # drawdown 0.15 -> frac=0.25, mult = 1 - 0.25*0.60 = 1 - 0.15 = 0.85.
     f = throttle_factor(
-        Decimal("0.15"), start=Decimal("0.10"),
-        full=Decimal("0.30"), floor=Decimal("0.40"),
+        Decimal("0.15"),
+        start=Decimal("0.10"),
+        full=Decimal("0.30"),
+        floor=Decimal("0.40"),
     )
     assert f == Decimal("0.85")
 
@@ -115,18 +127,23 @@ def test_ramp_is_monotonic_non_increasing():
 # throttle_factor — degenerate / fail-safe configs
 # ---------------------------------------------------------------------------
 
+
 def test_degenerate_full_le_start_collapses_to_floor():
     # full <= start has no valid ramp: past start it must de-risk to floor,
     # never amplify.
     f = throttle_factor(
-        Decimal("0.20"), start=Decimal("0.30"),
-        full=Decimal("0.20"), floor=Decimal("0.50"),
+        Decimal("0.20"),
+        start=Decimal("0.30"),
+        full=Decimal("0.20"),
+        floor=Decimal("0.50"),
     )
     # drawdown 0.20 <= start 0.30 -> still full size.
     assert f == _ONE
     f2 = throttle_factor(
-        Decimal("0.35"), start=Decimal("0.30"),
-        full=Decimal("0.20"), floor=Decimal("0.50"),
+        Decimal("0.35"),
+        start=Decimal("0.30"),
+        full=Decimal("0.20"),
+        floor=Decimal("0.50"),
     )
     # drawdown 0.35 > start -> degenerate ramp collapses to floor.
     assert f2 == Decimal("0.50")
@@ -139,22 +156,28 @@ def test_negative_drawdown_treated_as_zero():
 def test_floor_clamped_above_one():
     # A floor > 1 must never amplify; clamp to 1.
     f = throttle_factor(
-        Decimal("0.99"), start=Decimal("0.10"),
-        full=Decimal("0.30"), floor=Decimal("1.5"),
+        Decimal("0.99"),
+        start=Decimal("0.10"),
+        full=Decimal("0.30"),
+        floor=Decimal("1.5"),
     )
     assert f == _ONE
 
 
 def test_floor_clamped_at_or_below_zero():
     f = throttle_factor(
-        Decimal("0.99"), start=Decimal("0.10"),
-        full=Decimal("0.30"), floor=Decimal("-0.2"),
+        Decimal("0.99"),
+        start=Decimal("0.10"),
+        full=Decimal("0.30"),
+        floor=Decimal("-0.2"),
     )
     assert f == _ZERO
     # And the ramp toward a zero floor stays within bounds.
     mid = throttle_factor(
-        Decimal("0.20"), start=Decimal("0.10"),
-        full=Decimal("0.30"), floor=_ZERO,
+        Decimal("0.20"),
+        start=Decimal("0.10"),
+        full=Decimal("0.30"),
+        floor=_ZERO,
     )
     # frac=0.5 -> 1 - 0.5*(1-0) = 0.5
     assert mid == Decimal("0.5")
@@ -177,6 +200,7 @@ def test_accepts_float_and_str_inputs():
 # equity_throttle_factor — end-to-end kernel
 # ---------------------------------------------------------------------------
 
+
 def test_equity_kernel_disabled():
     assert equity_throttle_factor(50, 100, start=None) == _ONE
 
@@ -189,16 +213,24 @@ def test_equity_kernel_matches_throttle():
     # equity 80, peak 100 -> drawdown 0.20.
     # start=0.10, full=0.30, floor=0.40 -> 0.70 (see test_ramp_midpoint).
     f = equity_throttle_factor(
-        80, 100, start=Decimal("0.10"),
-        full=Decimal("0.30"), floor=Decimal("0.40"),
+        80,
+        100,
+        start=Decimal("0.10"),
+        full=Decimal("0.30"),
+        floor=Decimal("0.40"),
     )
     assert f == Decimal("0.70")
 
 
 def test_equity_kernel_above_peak_full_size():
-    assert equity_throttle_factor(
-        120, 100, start=Decimal("0.10"),
-    ) == _ONE
+    assert (
+        equity_throttle_factor(
+            120,
+            100,
+            start=Decimal("0.10"),
+        )
+        == _ONE
+    )
 
 
 def test_returns_decimal_type():

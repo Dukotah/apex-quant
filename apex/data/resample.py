@@ -34,6 +34,7 @@ Input is validated up front (ascending timestamps, single symbol); bad input
 fails loud with ``ValueError`` rather than silently producing garbage. An empty
 input yields an empty output.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -152,8 +153,7 @@ def resample_bars(
             )
         if prev_ts is not None and bar.timestamp <= prev_ts:
             raise ValueError(
-                f"bars must be strictly ascending by timestamp; "
-                f"{bar.timestamp} follows {prev_ts}"
+                f"bars must be strictly ascending by timestamp; {bar.timestamp} follows {prev_ts}"
             )
         prev_ts = bar.timestamp
 

@@ -1,4 +1,5 @@
 """Tests for apex.data.trading_calendar — hand-computed known values + edges."""
+
 from __future__ import annotations
 
 from datetime import date, datetime, timezone
@@ -15,6 +16,7 @@ from apex.data.trading_calendar import (
 
 # --------------------------------------------------------------------- weekends
 
+
 def test_saturday_and_sunday_are_not_trading_days():
     # 2026-06-06 is a Saturday, 2026-06-07 a Sunday.
     assert is_trading_day(date(2026, 6, 6)) is False
@@ -28,17 +30,18 @@ def test_ordinary_weekday_is_a_trading_day():
 
 # --------------------------------------------------------------------- holidays
 
+
 def test_fixed_and_floating_holidays_2026():
     # Hand-verified 2026 NYSE full-day closures.
     expected = {
-        date(2026, 1, 1),    # New Year's Day (Thu)
-        date(2026, 1, 19),   # MLK Day (3rd Mon Jan)
-        date(2026, 2, 16),   # Presidents' Day (3rd Mon Feb)
-        date(2026, 4, 3),    # Good Friday (Easter is 2026-04-05)
-        date(2026, 5, 25),   # Memorial Day (last Mon May)
-        date(2026, 6, 19),   # Juneteenth (Fri)
-        date(2026, 7, 3),    # Independence Day observed (Jul 4 is Sat → Fri)
-        date(2026, 9, 7),    # Labor Day (1st Mon Sep)
+        date(2026, 1, 1),  # New Year's Day (Thu)
+        date(2026, 1, 19),  # MLK Day (3rd Mon Jan)
+        date(2026, 2, 16),  # Presidents' Day (3rd Mon Feb)
+        date(2026, 4, 3),  # Good Friday (Easter is 2026-04-05)
+        date(2026, 5, 25),  # Memorial Day (last Mon May)
+        date(2026, 6, 19),  # Juneteenth (Fri)
+        date(2026, 7, 3),  # Independence Day observed (Jul 4 is Sat → Fri)
+        date(2026, 9, 7),  # Labor Day (1st Mon Sep)
         date(2026, 11, 26),  # Thanksgiving (4th Thu Nov)
         date(2026, 12, 25),  # Christmas (Fri)
     }
@@ -83,6 +86,7 @@ def test_new_year_falling_on_sunday_observed_monday():
 
 # --------------------------------------------------------- next / prev trading day
 
+
 def test_next_trading_day_skips_weekend():
     # Friday 2026-06-12 → Monday 2026-06-15.
     assert next_trading_day(date(2026, 6, 12)) == date(2026, 6, 15)
@@ -116,6 +120,7 @@ def test_long_weekend_around_memorial_day_2026():
 
 # --------------------------------------------------------------------- extras
 
+
 def test_extra_holidays_make_a_weekday_closed():
     d = date(2026, 6, 8)  # an ordinary Monday
     assert is_trading_day(d) is True
@@ -125,6 +130,7 @@ def test_extra_holidays_make_a_weekday_closed():
 
 
 # ---------------------------------------------------------- datetime acceptance
+
 
 def test_accepts_datetime_and_ignores_time_and_tz():
     dt = datetime(2026, 6, 6, 23, 59, tzinfo=timezone.utc)  # a Saturday
@@ -142,12 +148,16 @@ def test_rejects_bad_type():
 
 # ----------------------------------------------------------- trading_days_between
 
+
 def test_trading_days_between_one_week():
     # Mon 2026-06-08 .. Sun 2026-06-14 → Mon-Fri only.
     got = trading_days_between(date(2026, 6, 8), date(2026, 6, 14))
     assert got == [
-        date(2026, 6, 8), date(2026, 6, 9), date(2026, 6, 10),
-        date(2026, 6, 11), date(2026, 6, 12),
+        date(2026, 6, 8),
+        date(2026, 6, 9),
+        date(2026, 6, 10),
+        date(2026, 6, 11),
+        date(2026, 6, 12),
     ]
 
 
@@ -155,8 +165,10 @@ def test_trading_days_between_skips_holiday():
     # Week containing Thanksgiving 2026 (Thu 11-26).
     got = trading_days_between(date(2026, 11, 23), date(2026, 11, 27))
     assert got == [
-        date(2026, 11, 23), date(2026, 11, 24),
-        date(2026, 11, 25), date(2026, 11, 27),
+        date(2026, 11, 23),
+        date(2026, 11, 24),
+        date(2026, 11, 25),
+        date(2026, 11, 27),
     ]
 
 

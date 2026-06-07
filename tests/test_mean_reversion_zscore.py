@@ -8,6 +8,7 @@ Covers: hand-computed z-score entry, hysteresis exit, position-awareness
 percentage fallback during ATR warmup, warmup/flat-window guards, and ctor
 validation. Pure and fast.
 """
+
 from __future__ import annotations
 
 import statistics
@@ -64,6 +65,7 @@ def _feed(strat: MeanReversionZScoreStrategy, closes, ctx=None):
 
 # ---- z-score math --------------------------------------------------------
 
+
 def test_hand_computed_zscore_triggers_entry():
     # lookback=5: first 4 closes = 100, last close = a sharp drop.
     # Pick values so z <= -2.0 cleanly.
@@ -105,6 +107,7 @@ def test_flat_window_no_signal():
 
 
 # ---- position awareness / delta logic ------------------------------------
+
 
 def test_no_buy_when_already_long():
     # Oversold AND already holding → no pyramiding, no signal.
@@ -163,11 +166,17 @@ def test_no_context_treated_as_flat():
 
 # ---- stop loss -----------------------------------------------------------
 
+
 def test_percentage_stop_during_atr_warmup():
     # lookback small so we enter before atr_period+1 bars exist → pct fallback.
     strat = MeanReversionZScoreStrategy(
-        "s", [SYM], lookback=5, entry_z=-2.0, exit_z=-0.5,
-        atr_period=14, stop_loss_pct=Decimal("0.05"),
+        "s",
+        [SYM],
+        lookback=5,
+        entry_z=-2.0,
+        exit_z=-0.5,
+        atr_period=14,
+        stop_loss_pct=Decimal("0.05"),
     )
     sigs = _feed(strat, [100.0, 100.0, 100.0, 100.0, 95.0], ctx=_ctx(None))
     assert len(sigs) == 1
@@ -180,8 +189,14 @@ def test_atr_stop_when_atr_available():
     # Enough bars for ATR (atr_period=3 → need 4+ bars). Keep flat then drop to
     # trigger entry once ATR exists.
     strat = MeanReversionZScoreStrategy(
-        "s", [SYM], lookback=4, entry_z=-1.5, exit_z=-0.5,
-        atr_period=3, atr_mult=Decimal("2.0"), stop_loss_pct=Decimal("0.05"),
+        "s",
+        [SYM],
+        lookback=4,
+        entry_z=-1.5,
+        exit_z=-0.5,
+        atr_period=3,
+        atr_mult=Decimal("2.0"),
+        stop_loss_pct=Decimal("0.05"),
     )
     ctx = _ctx(None)
     # Build OHLC with real ranges so ATR > 0, ending on an oversold close.
@@ -190,7 +205,7 @@ def test_atr_stop_when_atr_available():
         (100.0, 101.0, 99.0),
         (100.0, 101.0, 99.0),
         (100.0, 101.0, 99.0),
-        (94.0, 100.0, 93.0),   # big down bar → oversold + wide true range
+        (94.0, 100.0, 93.0),  # big down bar → oversold + wide true range
     ]
     sigs = []
     for i, (c, h, lo) in enumerate(bars):
@@ -214,12 +229,18 @@ def test_stop_never_none_on_buy():
 
 # ---- untracked symbol & validation ---------------------------------------
 
+
 def test_untracked_symbol_ignored():
     strat = MeanReversionZScoreStrategy("s", [SYM], lookback=5)
     other = Symbol(ticker="ZZZ", asset_class=AssetClass.EQUITY)
     bar = Bar(
-        symbol=other, timestamp=T0, open=Decimal("1"), high=Decimal("1"),
-        low=Decimal("1"), close=Decimal("1"), volume=Decimal("1"),
+        symbol=other,
+        timestamp=T0,
+        open=Decimal("1"),
+        high=Decimal("1"),
+        low=Decimal("1"),
+        close=Decimal("1"),
+        volume=Decimal("1"),
     )
     assert strat.on_bar(bar) == []
 

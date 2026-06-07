@@ -18,6 +18,7 @@ Pure stdlib (random + statistics) — runs on the free CI runner. The metric is
 injected as a callable, so this works with anything in apex.validation.metrics
 or any user-supplied function of a return series.
 """
+
 from __future__ import annotations
 
 import random
@@ -32,15 +33,16 @@ Metric = Callable[[Sequence[float]], float]
 @dataclass(frozen=True)
 class BootstrapCI:
     """A bootstrap confidence interval for a metric of a return series."""
-    point_estimate: float   # the metric computed on the original (unresampled) data
-    lower: float            # lower confidence bound (alpha/2 percentile)
-    upper: float            # upper confidence bound (1 - alpha/2 percentile)
-    median: float           # median of the bootstrap distribution
-    mean: float             # mean of the bootstrap distribution
-    std_error: float        # standard error = stdev of the bootstrap distribution
-    confidence: float       # confidence level used (e.g. 0.95)
-    iterations: int         # number of bootstrap resamples actually run
-    n: int                  # size of the input return series
+
+    point_estimate: float  # the metric computed on the original (unresampled) data
+    lower: float  # lower confidence bound (alpha/2 percentile)
+    upper: float  # upper confidence bound (1 - alpha/2 percentile)
+    median: float  # median of the bootstrap distribution
+    mean: float  # mean of the bootstrap distribution
+    std_error: float  # standard error = stdev of the bootstrap distribution
+    confidence: float  # confidence level used (e.g. 0.95)
+    iterations: int  # number of bootstrap resamples actually run
+    n: int  # size of the input return series
 
     def contains(self, value: float) -> bool:
         """True if `value` falls inside the (inclusive) confidence interval."""

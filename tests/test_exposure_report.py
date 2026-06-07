@@ -15,6 +15,7 @@ Coverage:
   - Empty input => zero exposures, empty breakdown, leverage None handling.
   - leverage property == gross_pct.
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -44,6 +45,7 @@ def _pos(symbol: Symbol, qty: str, price: str) -> Position:
 # ---------------------------------------------------------------------------
 # Single position
 # ---------------------------------------------------------------------------
+
 
 def test_single_long():
     # 10 shares @ $100 = $1000 long notional; equity $10,000.
@@ -84,6 +86,7 @@ def test_single_short_signs():
 # Mixed long/short book
 # ---------------------------------------------------------------------------
 
+
 def test_long_short_book():
     # AAPL: +10 @ 100 = +1000 long
     # TSLA: -5  @ 200 = -1000 short
@@ -91,11 +94,11 @@ def test_long_short_book():
     rep = build_exposure_report(positions, Decimal("10000"))
     assert rep.long == Decimal("1000")
     assert rep.short == Decimal("1000")
-    assert rep.gross == Decimal("2000")     # 1000 + 1000
-    assert rep.net == Decimal("0")          # 1000 - 1000 (market neutral)
+    assert rep.gross == Decimal("2000")  # 1000 + 1000
+    assert rep.net == Decimal("0")  # 1000 - 1000 (market neutral)
     assert rep.gross_pct == Decimal("0.2")
     assert rep.net_pct == Decimal("0")
-    assert rep.leverage == Decimal("0.2")   # gross / equity
+    assert rep.leverage == Decimal("0.2")  # gross / equity
     # Per-symbol breakdown ordered by ticker: AAPL before TSLA.
     assert list(rep.by_symbol.keys()) == ["AAPL", "TSLA"]
 
@@ -112,6 +115,7 @@ def test_contract_multiplier_flows_through():
 # ---------------------------------------------------------------------------
 # Input forms & filtering
 # ---------------------------------------------------------------------------
+
 
 def test_mapping_input_matches_iterable():
     positions = [_pos(AAPL, "10", "100"), _pos(TSLA, "-5", "200")]
@@ -132,12 +136,13 @@ def test_zero_quantity_excluded():
     )
     assert "AAPL" not in rep.by_symbol
     assert rep.num_positions == 1
-    assert rep.gross == Decimal("150")   # only TSLA 3 * 50
+    assert rep.gross == Decimal("150")  # only TSLA 3 * 50
 
 
 # ---------------------------------------------------------------------------
 # Edge cases — fail gracefully
 # ---------------------------------------------------------------------------
+
 
 def test_empty_positions():
     rep = build_exposure_report([], Decimal("10000"))
@@ -147,7 +152,7 @@ def test_empty_positions():
     assert rep.short == Decimal("0")
     assert rep.by_symbol == {}
     assert rep.num_positions == 0
-    assert rep.gross_pct == Decimal("0")   # 0 / 10000
+    assert rep.gross_pct == Decimal("0")  # 0 / 10000
 
 
 def test_non_positive_equity_yields_none_pct():

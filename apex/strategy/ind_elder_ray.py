@@ -20,6 +20,7 @@ convention of apex/strategy/indicators.py. Money math stays Decimal elsewhere.
 
 Tested in tests/test_ind_elder_ray.py against hand-computed values.
 """
+
 from __future__ import annotations
 
 from typing import Optional, Sequence

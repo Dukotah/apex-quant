@@ -10,6 +10,7 @@ Strategy:
   - Insufficient data → UNKNOWN with None percentile/vol and risk-off.
   - Determinism and Decimal-input acceptance.
 """
+
 from __future__ import annotations
 
 import math
@@ -27,6 +28,7 @@ from apex.strategy.regime import (
 # ---------------------------------------------------------------------------
 # realized_volatility — hand-computed
 # ---------------------------------------------------------------------------
+
 
 def test_realized_vol_insufficient_data_returns_none():
     # window=3 needs 3 returns => 4 closes. Only 3 closes here.
@@ -70,6 +72,7 @@ def test_realized_vol_rejects_nonpositive_window():
 # Classifier — construction validation
 # ---------------------------------------------------------------------------
 
+
 def test_classifier_rejects_bad_params():
     with pytest.raises(ValueError):
         VolatilityRegimeClassifier(vol_window=0)
@@ -92,6 +95,7 @@ def test_min_closes_property():
 # Insufficient data → UNKNOWN
 # ---------------------------------------------------------------------------
 
+
 def test_insufficient_data_returns_unknown():
     clf = VolatilityRegimeClassifier(vol_window=5, lookback=10)  # needs 15
     result = clf.classify([100.0] * 14)
@@ -110,6 +114,7 @@ def test_empty_input_returns_unknown():
 # ---------------------------------------------------------------------------
 # LOW vs HIGH classification on engineered series
 # ---------------------------------------------------------------------------
+
 
 def _series_with_quiet_tail(n_history: int, quiet_len: int) -> list[float]:
     """
@@ -173,6 +178,7 @@ def test_high_vol_series_classifies_high():
 # Percentile / boundary behavior — controlled distribution
 # ---------------------------------------------------------------------------
 
+
 def test_percentile_and_boundaries_with_known_distribution():
     """
     Construct closes whose per-step realized vol is a clean increasing ramp so
@@ -235,6 +241,7 @@ def test_low_pct_boundary_is_strict_below():
 # ---------------------------------------------------------------------------
 # Determinism & Decimal acceptance
 # ---------------------------------------------------------------------------
+
 
 def test_deterministic_repeated_calls():
     clf = VolatilityRegimeClassifier(vol_window=5, lookback=20)

@@ -19,6 +19,7 @@ accounting): we work in float internally; output is a list the SAME LENGTH as
 the input with ``None`` during the warmup period — never garbage for
 insufficient data. Deterministic: same input → same output, always.
 """
+
 from __future__ import annotations
 
 import math
@@ -46,7 +47,7 @@ def wma(data: Sequence, period: int) -> list[Optional[float]]:
         return out
     denom = period * (period + 1) / 2.0
     for i in range(period - 1, n):
-        window = values[i - period + 1: i + 1]
+        window = values[i - period + 1 : i + 1]
         weighted = 0.0
         for w, x in enumerate(window, start=1):
             weighted += w * x

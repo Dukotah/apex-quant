@@ -6,6 +6,7 @@ its first `period` inputs, then alpha = 2/(period+1)). A linear price ramp is a
 useful oracle: a lag-reduced average of a straight line should land exactly on
 the line once warmed up.
 """
+
 from __future__ import annotations
 
 from decimal import Decimal

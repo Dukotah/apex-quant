@@ -35,6 +35,7 @@ The Supertrend line is the lower band while up, the upper band while down.
 
 Tested in tests/test_ind_supertrend.py against hand-computed values.
 """
+
 from __future__ import annotations
 
 from typing import Optional, Sequence

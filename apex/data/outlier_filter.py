@@ -33,6 +33,7 @@ Determinism & purity (golden rules):
   - Within the warmup window the filter has no reliable scale yet, so bars pass
     through untouched (fail *open* on data cleaning — we never invent volatility).
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -46,6 +47,7 @@ Method = Literal["atr", "mad"]
 @dataclass(frozen=True)
 class RejectedBar:
     """A bar the filter dropped, with enough context to log or audit the decision."""
+
     bar: Bar
     reason: str
 
@@ -58,6 +60,7 @@ class RejectedBar:
 @dataclass(frozen=True)
 class FilterResult:
     """Outcome of :func:`filter_outliers`: the kept bars and the dropped ones."""
+
     cleaned: list[Bar]
     rejected: list[RejectedBar]
 

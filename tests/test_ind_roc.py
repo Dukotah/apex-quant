@@ -1,4 +1,5 @@
 """Tests for apex.strategy.ind_roc — ROC and price Momentum."""
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -10,6 +11,7 @@ from apex.strategy.ind_roc import momentum, roc
 # --------------------------------------------------------------------------- #
 # roc
 # --------------------------------------------------------------------------- #
+
 
 def test_roc_warmup_is_none():
     # period=3 needs 3+1 values; first `period` positions are None.
@@ -46,8 +48,8 @@ def test_roc_negative_change():
 def test_roc_zero_base_is_none():
     # Base price of 0 -> division undefined -> fail closed with None.
     out = roc([0.0, 5.0, 10.0], period=1)
-    assert out[0] is None      # warmup
-    assert out[1] is None      # base is values[0] == 0.0
+    assert out[0] is None  # warmup
+    assert out[1] is None  # base is values[0] == 0.0
     assert out[2] == pytest.approx(100.0)  # 10/5 - 1
 
 
@@ -77,6 +79,7 @@ def test_roc_length_preserved():
 # momentum
 # --------------------------------------------------------------------------- #
 
+
 def test_momentum_warmup_is_none():
     out = momentum([10.0, 11.0, 12.0, 13.0], period=2)
     assert out[:2] == [None, None]
@@ -97,8 +100,8 @@ def test_momentum_period_three():
     data = [5.0, 7.0, 9.0, 11.0, 8.0]
     out = momentum(data, period=3)
     assert out[:3] == [None, None, None]
-    assert out[3] == pytest.approx(11.0 - 5.0)   # 6.0
-    assert out[4] == pytest.approx(8.0 - 7.0)    # 1.0
+    assert out[3] == pytest.approx(11.0 - 5.0)  # 6.0
+    assert out[4] == pytest.approx(8.0 - 7.0)  # 1.0
 
 
 def test_momentum_handles_zero_base():

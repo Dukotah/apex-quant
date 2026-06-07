@@ -1,4 +1,5 @@
 """Tests for apex.data.anchored_vwap — anchored & rolling VWAP over Bar series."""
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -32,6 +33,7 @@ def make_bar(i: int, o, h, lo, c, v) -> Bar:
 
 # --------------------------------------------------------------- price hooks
 
+
 def test_typical_price_is_hlc_over_3():
     bar = make_bar(0, 10, 12, 9, 11, 100)
     # (12 + 9 + 11) / 3 = 32/3
@@ -45,6 +47,7 @@ def test_close_price_hook():
 
 # ------------------------------------------------------------- rolling_vwap
 
+
 def test_rolling_vwap_known_value_close_price():
     # Two bars, close prices 10 & 20, volumes 100 & 300.
     bars = [
@@ -57,7 +60,7 @@ def test_rolling_vwap_known_value_close_price():
 
 def test_rolling_vwap_uses_only_last_window():
     bars = [
-        make_bar(0, 1, 1, 1, 1, 1000),   # excluded by window=2
+        make_bar(0, 1, 1, 1, 1, 1000),  # excluded by window=2
         make_bar(1, 10, 10, 10, 10, 100),
         make_bar(2, 20, 20, 20, 20, 300),
     ]
@@ -85,7 +88,7 @@ def test_rolling_vwap_zero_volume_window_returns_none():
 
 def test_rolling_vwap_skips_zero_volume_bars():
     bars = [
-        make_bar(0, 10, 10, 10, 10, 0),     # zero vol → ignored
+        make_bar(0, 10, 10, 10, 10, 0),  # zero vol → ignored
         make_bar(1, 20, 20, 20, 20, 300),
     ]
     # only the second bar contributes → VWAP == 20
@@ -93,6 +96,7 @@ def test_rolling_vwap_skips_zero_volume_bars():
 
 
 # ------------------------------------------------------------ anchored_vwap
+
 
 def test_anchored_vwap_from_start():
     bars = [
@@ -105,7 +109,7 @@ def test_anchored_vwap_from_start():
 
 def test_anchored_vwap_mid_anchor():
     bars = [
-        make_bar(0, 1, 1, 1, 1, 9999),       # before anchor → excluded
+        make_bar(0, 1, 1, 1, 1, 9999),  # before anchor → excluded
         make_bar(1, 10, 10, 10, 10, 100),
         make_bar(2, 20, 20, 20, 20, 300),
     ]
@@ -140,6 +144,7 @@ def test_anchored_vwap_default_typical_price():
 
 # --------------------------------------------------------- rolling_vwap_series
 
+
 def test_rolling_vwap_series_alignment_and_values():
     bars = [
         make_bar(0, 10, 10, 10, 10, 100),
@@ -165,6 +170,7 @@ def test_rolling_vwap_series_empty():
 
 # -------------------------------------------------------- anchored_vwap_series
 
+
 def test_anchored_vwap_series_running_cumulative():
     bars = [
         make_bar(0, 10, 10, 10, 10, 100),
@@ -173,8 +179,8 @@ def test_anchored_vwap_series_running_cumulative():
     ]
     series = anchored_vwap_series(bars, 0, price_fn=close_price)
     assert len(series) == 3
-    assert series[0] == Decimal("10")     # 1000/100
-    assert series[1] == Decimal("17.5")   # 7000/400
+    assert series[0] == Decimal("10")  # 1000/100
+    assert series[1] == Decimal("17.5")  # 7000/400
     # (7000 + 30*100)/(400+100) = 10000/500 = 20
     assert series[2] == Decimal("20")
 
@@ -213,11 +219,11 @@ def test_anchored_vwap_series_empty():
 
 def test_anchored_vwap_series_zero_volume_leading_none():
     bars = [
-        make_bar(0, 10, 10, 10, 10, 0),    # zero vol → still None
+        make_bar(0, 10, 10, 10, 10, 0),  # zero vol → still None
         make_bar(1, 20, 20, 20, 20, 100),
     ]
     series = anchored_vwap_series(bars, 0, price_fn=close_price)
-    assert series[0] is None              # no volume accumulated yet
+    assert series[0] is None  # no volume accumulated yet
     assert series[1] == Decimal("20")
 
 

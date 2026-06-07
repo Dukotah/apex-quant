@@ -7,6 +7,7 @@ Behavioral guarantees locked in:
   - Turnover scales capacity inversely (more turnover => less capacity).
   - Degenerate / insufficient inputs fail closed (capacity 0.0).
 """
+
 from __future__ import annotations
 
 import math

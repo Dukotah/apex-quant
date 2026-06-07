@@ -1,4 +1,5 @@
 """Tests for apex.strategy.ind_kama (Kaufman Adaptive Moving Average)."""
+
 from __future__ import annotations
 
 from decimal import Decimal

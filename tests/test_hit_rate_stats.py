@@ -1,4 +1,5 @@
 """Tests for apex.validation.hit_rate_stats — hand-computed values + edges."""
+
 from __future__ import annotations
 
 import math
@@ -85,9 +86,18 @@ def test_compute_bundle_counts():
 def test_empty_input_fails_closed():
     s = compute_hit_rate_stats([])
     assert s == HitRateStats(
-        trades=0, wins=0, losses=0, scratches=0,
-        win_rate=0.0, loss_rate=0.0, avg_win=0.0, avg_loss=0.0,
-        payoff_ratio=0.0, expectancy=0.0, max_win_streak=0, max_loss_streak=0,
+        trades=0,
+        wins=0,
+        losses=0,
+        scratches=0,
+        win_rate=0.0,
+        loss_rate=0.0,
+        avg_win=0.0,
+        avg_loss=0.0,
+        payoff_ratio=0.0,
+        expectancy=0.0,
+        max_win_streak=0,
+        max_loss_streak=0,
     )
     assert win_rate([]) == 0.0
     assert loss_rate([]) == 0.0

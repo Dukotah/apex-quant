@@ -23,6 +23,7 @@ Covered:
   - restart safety: long with no recorded entry skips the time stop (no bogus exit),
   - unknown symbol ignored, determinism.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -42,8 +43,7 @@ def _bar(sym: Symbol, t: datetime, close: float, high: float = None, low: float 
     c = Decimal(str(close))
     h = Decimal(str(high)) if high is not None else c
     lo = Decimal(str(low)) if low is not None else c
-    return Bar(symbol=sym, timestamp=t, open=c, high=h, low=lo, close=c,
-               volume=Decimal("1000"))
+    return Bar(symbol=sym, timestamp=t, open=c, high=h, low=lo, close=c, volume=Decimal("1000"))
 
 
 class _Harness:
@@ -52,6 +52,7 @@ class _Harness:
     portfolio before each bar, then applies emitted signals as IMMEDIATE fills so the
     next bar sees the updated holding (mirrors engine fill-before-dispatch ordering).
     """
+
     def __init__(self, strat: VolatilityBreakoutStrategy):
         self.strat = strat
         self.ctx = StrategyContext()
@@ -61,9 +62,9 @@ class _Harness:
         self.i = 0
 
     def _refresh(self):
-        self.ctx.sync_state(positions={
-            k: SimpleNamespace(quantity=q) for k, q in self.held.items() if q > 0
-        })
+        self.ctx.sync_state(
+            positions={k: SimpleNamespace(quantity=q) for k, q in self.held.items() if q > 0}
+        )
 
     def step(self, sym: Symbol, close: float, high: float = None, low: float = None):
         self._refresh()
@@ -82,19 +83,24 @@ class _Harness:
 
 # ---- constructor validation -------------------------------------------------
 
-@pytest.mark.parametrize("kwargs", [
-    {"atr_period": 0},
-    {"k": 0},
-    {"k": -1.0},
-    {"stop_atr_mult": 0},
-    {"stop_loss_pct": Decimal("0")},
-])
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"atr_period": 0},
+        {"k": 0},
+        {"k": -1.0},
+        {"stop_atr_mult": 0},
+        {"stop_loss_pct": Decimal("0")},
+    ],
+)
 def test_constructor_validation(kwargs):
     with pytest.raises(ValueError):
         VolatilityBreakoutStrategy("s", [SYM], **kwargs)
 
 
 # ---- warmup -----------------------------------------------------------------
+
 
 def test_no_signal_during_atr_warmup():
     # atr_period=2 needs 3 bars before ATR exists; first two bars must be silent.
@@ -105,6 +111,7 @@ def test_no_signal_during_atr_warmup():
 
 
 # ---- hand-computed breakout entry ------------------------------------------
+
 
 def test_hand_computed_breakout_entry():
     """
@@ -147,9 +154,9 @@ def test_larger_k_suppresses_marginal_breakout():
 
 # ---- stop attachment --------------------------------------------------------
 
+
 def test_buy_has_atr_based_stop():
-    h = _Harness(VolatilityBreakoutStrategy("s", [SYM], atr_period=2, k=1.0,
-                                            stop_atr_mult=2.0))
+    h = _Harness(VolatilityBreakoutStrategy("s", [SYM], atr_period=2, k=1.0, stop_atr_mult=2.0))
     sigs = h.feed(SYM, [100.0, 102.0, 101.0, 110.0])
     buy = next(s for s in sigs if s.side == OrderSide.BUY)
     # stop = entry_close - 2*ATR = 110 - 2*5.25 = 99.5
@@ -182,10 +189,14 @@ def test_percentage_stop_fallback_used_when_atr_degenerate():
 
 # ---- position awareness -----------------------------------------------------
 
+
 def test_no_pyramiding_while_held():
     # Enter on bar 3, then keep ripping higher: must NOT emit further BUYs.
-    h = _Harness(VolatilityBreakoutStrategy("s", [SYM], atr_period=2, k=1.0,
-                                            max_hold_bars=0, exit_atr_mult=0))
+    h = _Harness(
+        VolatilityBreakoutStrategy(
+            "s", [SYM], atr_period=2, k=1.0, max_hold_bars=0, exit_atr_mult=0
+        )
+    )
     sigs = h.feed(SYM, [100.0, 102.0, 101.0, 110.0, 120.0, 130.0, 140.0])
     buys = [s for s in sigs if s.side == OrderSide.BUY]
     assert len(buys) == 1
@@ -194,8 +205,11 @@ def test_no_pyramiding_while_held():
 def test_time_stop_exit():
     # max_hold_bars=2, trailing disabled. Enter on bar 3 (idx 4, 1-based),
     # exit 2 bars later regardless of price.
-    h = _Harness(VolatilityBreakoutStrategy("s", [SYM], atr_period=2, k=1.0,
-                                            max_hold_bars=2, exit_atr_mult=0))
+    h = _Harness(
+        VolatilityBreakoutStrategy(
+            "s", [SYM], atr_period=2, k=1.0, max_hold_bars=2, exit_atr_mult=0
+        )
+    )
     sigs = h.feed(SYM, [100.0, 102.0, 101.0, 110.0, 111.0, 112.0, 113.0])
     sells = [s for s in sigs if s.side == OrderSide.SELL]
     assert len(sells) == 1
@@ -213,8 +227,11 @@ def test_atr_trailing_exit():
       Bar close=108: peak=112, ATR=3.8125, trail_level=112-1.0*3.8125=108.1875;
       close 108 <= 108.1875 -> EXIT.
     """
-    h = _Harness(VolatilityBreakoutStrategy("s", [SYM], atr_period=2, k=1.0,
-                                            max_hold_bars=0, exit_atr_mult=1.0))
+    h = _Harness(
+        VolatilityBreakoutStrategy(
+            "s", [SYM], atr_period=2, k=1.0, max_hold_bars=0, exit_atr_mult=1.0
+        )
+    )
     sigs = h.feed(SYM, [100.0, 102.0, 101.0, 110.0, 112.0, 108.0])
     sides = [s.side for s in sigs]
     assert OrderSide.BUY in sides and OrderSide.SELL in sides
@@ -230,8 +247,9 @@ def test_restart_long_without_entry_skips_time_stop():
     entry index (fresh process). The time stop must be SKIPPED (no bogus immediate
     exit); only the ATR trail can exit. Here price holds, so we stay long.
     """
-    strat = VolatilityBreakoutStrategy("s", [SYM], atr_period=2, k=1.0,
-                                       max_hold_bars=1, exit_atr_mult=2.0)
+    strat = VolatilityBreakoutStrategy(
+        "s", [SYM], atr_period=2, k=1.0, max_hold_bars=1, exit_atr_mult=2.0
+    )
     ctx = StrategyContext()
     strat.bind_context(ctx)
     ctx.sync_state(positions={"BRK": SimpleNamespace(quantity=Decimal("1"))})
@@ -245,6 +263,7 @@ def test_restart_long_without_entry_skips_time_stop():
 
 # ---- misc -------------------------------------------------------------------
 
+
 def test_ignores_unknown_symbol():
     h = _Harness(VolatilityBreakoutStrategy("s", [SYM], atr_period=2, k=1.0))
     other = Symbol("NOPE", AssetClass.ETF)
@@ -253,11 +272,18 @@ def test_ignores_unknown_symbol():
 
 def test_deterministic():
     closes = [100.0, 102.0, 101.0, 110.0, 115.0, 90.0, 120.0, 121.0]
-    h1 = _Harness(VolatilityBreakoutStrategy("s", [SYM], atr_period=2, k=1.0,
-                                             max_hold_bars=3, exit_atr_mult=2.0))
-    h2 = _Harness(VolatilityBreakoutStrategy("s", [SYM], atr_period=2, k=1.0,
-                                             max_hold_bars=3, exit_atr_mult=2.0))
+    h1 = _Harness(
+        VolatilityBreakoutStrategy(
+            "s", [SYM], atr_period=2, k=1.0, max_hold_bars=3, exit_atr_mult=2.0
+        )
+    )
+    h2 = _Harness(
+        VolatilityBreakoutStrategy(
+            "s", [SYM], atr_period=2, k=1.0, max_hold_bars=3, exit_atr_mult=2.0
+        )
+    )
     s1 = h1.feed(SYM, closes)
     s2 = h2.feed(SYM, closes)
-    assert [(s.side, s.strength, s.reason) for s in s1] == \
-           [(s.side, s.strength, s.reason) for s in s2]
+    assert [(s.side, s.strength, s.reason) for s in s1] == [
+        (s.side, s.strength, s.reason) for s in s2
+    ]

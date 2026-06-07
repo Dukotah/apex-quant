@@ -30,6 +30,7 @@ detection deliberately flags only spacing that is a clean integer multiple of
 the cadence (i.e. one or more whole bars are missing between two otherwise
 on-grid bars), which is the unambiguous signal. See ``_expected_cadence``.
 """
+
 from __future__ import annotations
 
 import re
@@ -72,6 +73,7 @@ class QualityReport:
     is the per-bar spacing gap detection used (``None`` when it could not be
     inferred, e.g. fewer than one bar or an unrecognized timeframe).
     """
+
     bar_count: int
     expected_cadence: Optional[timedelta]
     gaps: List[datetime] = field(default_factory=list)
@@ -217,11 +219,7 @@ def data_quality_report(
                     gaps.append(ts)
 
         # --- extreme jump vs the previous in-order close ---
-        if (
-            prev_close is not None
-            and prev_close != 0
-            and (prev_ts is None or ts >= prev_ts)
-        ):
+        if prev_close is not None and prev_close != 0 and (prev_ts is None or ts >= prev_ts):
             move = abs(bar.close - prev_close) / abs(prev_close)
             if move > jump_threshold:
                 extreme_jumps.append(ts)

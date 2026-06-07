@@ -15,6 +15,7 @@ Covers:
 Math is checked against hand-reasoned properties of the resampler, not just
 "runs without error".
 """
+
 from __future__ import annotations
 
 import random
@@ -31,11 +32,46 @@ from apex.validation.block_bootstrap import (
 # A deterministic, mildly autocorrelated-looking series. 40 points so the
 # n >= 30 style thresholds elsewhere don't matter and resamples are stable.
 SERIES = [
-    0.01, -0.02, 0.015, 0.005, -0.01, 0.02, -0.005, 0.012,
-    -0.018, 0.008, 0.003, -0.007, 0.011, -0.013, 0.006, 0.009,
-    -0.004, 0.014, -0.011, 0.002, 0.017, -0.009, 0.004, -0.016,
-    0.013, 0.001, -0.006, 0.019, -0.003, 0.007, -0.012, 0.010,
-    0.000, -0.008, 0.016, -0.014, 0.005, 0.011, -0.002, 0.018,
+    0.01,
+    -0.02,
+    0.015,
+    0.005,
+    -0.01,
+    0.02,
+    -0.005,
+    0.012,
+    -0.018,
+    0.008,
+    0.003,
+    -0.007,
+    0.011,
+    -0.013,
+    0.006,
+    0.009,
+    -0.004,
+    0.014,
+    -0.011,
+    0.002,
+    0.017,
+    -0.009,
+    0.004,
+    -0.016,
+    0.013,
+    0.001,
+    -0.006,
+    0.019,
+    -0.003,
+    0.007,
+    -0.012,
+    0.010,
+    0.000,
+    -0.008,
+    0.016,
+    -0.014,
+    0.005,
+    0.011,
+    -0.002,
+    0.018,
 ]
 
 

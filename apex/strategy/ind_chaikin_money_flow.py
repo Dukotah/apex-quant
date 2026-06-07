@@ -23,6 +23,7 @@ Definitions (standard Chaikin):
 
 Tested in tests/test_ind_chaikin_money_flow.py against hand-computed values.
 """
+
 from __future__ import annotations
 
 from typing import Optional, Sequence
@@ -32,9 +33,7 @@ def _to_floats(data: Sequence) -> list[float]:
     return [float(x) for x in data]
 
 
-def money_flow_multiplier(
-    high: Sequence, low: Sequence, close: Sequence
-) -> list[float]:
+def money_flow_multiplier(high: Sequence, low: Sequence, close: Sequence) -> list[float]:
     """
     Per-bar Money Flow Multiplier in [-1, +1].
 

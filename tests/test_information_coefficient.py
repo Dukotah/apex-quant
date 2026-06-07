@@ -2,6 +2,7 @@
 
 Hand-computed known values plus edge cases. Pure and fast.
 """
+
 from __future__ import annotations
 
 import math
@@ -176,7 +177,7 @@ def test_ic_report_basic():
 
 def test_ic_report_truncates_signal_to_forward_returns():
     prices = [100.0, 110.0, 99.0, 148.5]  # 3 forward returns
-    signal = [1.0, -1.0, 5.0, 7.0, 9.0]   # longer; trailing entries dropped
+    signal = [1.0, -1.0, 5.0, 7.0, 9.0]  # longer; trailing entries dropped
     report = ic_report(signal, prices, horizon=1)
     assert report.n == 3
 

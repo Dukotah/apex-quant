@@ -4,6 +4,7 @@ Tests for apex.strategy.ind_elder_ray — Elder Ray bull/bear power.
 Full-path imports only (no package __init__ dependency). Hand-computed values
 plus edge cases. Pure and fast.
 """
+
 from __future__ import annotations
 
 import math
@@ -26,6 +27,7 @@ def _approx(a, b, tol=1e-9):
 # EMA seed sanity (the consensus-of-value line under everything)
 # ---------------------------------------------------------------------------
 
+
 def test_ema_warmup_and_seed():
     closes = [10.0, 12.0, 14.0]
     out = ema(closes, 3)
@@ -45,6 +47,7 @@ def test_ema_smoothing_step():
 # ---------------------------------------------------------------------------
 # bull_power / bear_power with a hand-computed EMA
 # ---------------------------------------------------------------------------
+
 
 def test_bull_bear_hand_computed():
     # period=3. Build so the EMA is easy to compute by hand.
@@ -82,6 +85,7 @@ def test_bear_power_can_be_negative():
 # elder_ray composite equals the individual legs
 # ---------------------------------------------------------------------------
 
+
 def test_elder_ray_matches_individual_legs():
     close = [10.0, 12.0, 14.0, 16.0, 13.0]
     high = [11.0, 13.0, 15.0, 18.0, 14.0]
@@ -108,6 +112,7 @@ def test_output_length_matches_input():
 # ---------------------------------------------------------------------------
 # Edge cases: insufficient data, empty, validation, Decimal-coercible input
 # ---------------------------------------------------------------------------
+
 
 def test_insufficient_data_all_none():
     close = [10.0, 11.0]

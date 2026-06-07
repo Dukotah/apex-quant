@@ -1,4 +1,5 @@
 """Tests for apex.strategy.ind_supertrend (Supertrend indicator)."""
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -11,6 +12,7 @@ from apex.strategy.indicators import atr
 # ---------------------------------------------------------------------------
 # Output shape & warmup contract
 # ---------------------------------------------------------------------------
+
 
 def test_output_same_length_and_warmup_none():
     n = 30
@@ -52,6 +54,7 @@ def test_empty_input():
 # Validation / fail-closed
 # ---------------------------------------------------------------------------
 
+
 def test_bad_period_raises():
     with pytest.raises(ValueError):
         supertrend([1.0], [1.0], [1.0], period=0)
@@ -70,6 +73,7 @@ def test_mismatched_lengths_raise():
 # ---------------------------------------------------------------------------
 # Hand-computed known values (period=1, easy ATR)
 # ---------------------------------------------------------------------------
+
 
 def test_hand_computed_uptrend_seed_and_line():
     # period=1 => ATR is just the prior-aware true range, simple to reason about.
@@ -130,6 +134,7 @@ def test_downtrend_flips_from_up():
 # Decimal inputs accepted (converted internally), determinism
 # ---------------------------------------------------------------------------
 
+
 def test_accepts_decimal_inputs():
     highs = [Decimal("10"), Decimal("11"), Decimal("12")]
     lows = [Decimal("9"), Decimal("10"), Decimal("11")]
@@ -151,6 +156,7 @@ def test_deterministic():
 # ---------------------------------------------------------------------------
 # supertrend_flips helper
 # ---------------------------------------------------------------------------
+
 
 def test_flips_basic():
     direction = [None, None, 1, 1, -1, -1, 1, None]

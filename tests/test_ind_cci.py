@@ -1,4 +1,5 @@
 """Tests for apex.strategy.ind_cci — hand-computed CCI values plus edge cases."""
+
 from __future__ import annotations
 
 from decimal import Decimal

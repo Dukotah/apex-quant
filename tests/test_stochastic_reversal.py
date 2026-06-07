@@ -18,6 +18,7 @@ Covered:
   - unknown symbols ignored,
   - determinism.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -61,9 +62,9 @@ class _Harness:
         self.i = 0
 
     def _refresh(self):
-        self.ctx.sync_state(positions={
-            k: SimpleNamespace(quantity=q) for k, q in self.held.items() if q > 0
-        })
+        self.ctx.sync_state(
+            positions={k: SimpleNamespace(quantity=q) for k, q in self.held.items() if q > 0}
+        )
 
     def step(self, sym: Symbol, hlc: tuple[float, float, float]):
         self._refresh()
@@ -82,6 +83,7 @@ class _Harness:
 
 
 # ---- constructor validation ----------------------------------------------
+
 
 def test_bad_levels_rejected():
     with pytest.raises(ValueError):
@@ -106,6 +108,7 @@ def test_bad_atr_mult_rejected():
 
 
 # ---- oscillator math (hand-computed) -------------------------------------
+
 
 def test_stochastic_known_values():
     st = StochasticReversalStrategy("s", [SYM], k_period=3, d_period=2)
@@ -134,6 +137,7 @@ def test_flat_range_maps_to_neutral_50():
 
 # ---- warmup --------------------------------------------------------------
 
+
 def test_no_signal_during_warmup():
     h = _Harness(StochasticReversalStrategy("s", [SYM], k_period=3, d_period=2))
     # Two bars: oscillator not yet computable -> no signals, no crash.
@@ -142,21 +146,31 @@ def test_no_signal_during_warmup():
 
 # ---- entry ---------------------------------------------------------------
 
+
 def test_entry_on_oversold_cross_with_stop():
     """
     Build a path that dips so %K & %D go oversold, then %K crosses up through %D.
     Expect exactly one BUY carrying a suggested stop strictly below price.
     """
-    h = _Harness(StochasticReversalStrategy(
-        "s", [SYM], k_period=3, d_period=2, oversold=30, overbought=80,
-        atr_period=3, atr_mult=2.0))
+    h = _Harness(
+        StochasticReversalStrategy(
+            "s",
+            [SYM],
+            k_period=3,
+            d_period=2,
+            oversold=30,
+            overbought=80,
+            atr_period=3,
+            atr_mult=2.0,
+        )
+    )
     # Decline into oversold, then a bounce that lifts %K above %D from the bottom.
     bars = [
         (20, 18, 19),
         (19, 17, 18),
         (18, 16, 17),
-        (17, 15, 15.5),   # near range lows -> oversold
-        (16, 14, 14.5),   # deeper -> %K & %D oversold
+        (17, 15, 15.5),  # near range lows -> oversold
+        (16, 14, 14.5),  # deeper -> %K & %D oversold
         (16.5, 14, 16.2),  # snaps up toward the top of the window -> %K crosses up
     ]
     sigs = h.feed(SYM, bars)
@@ -177,16 +191,17 @@ def buy_price(bars):
 def test_no_entry_when_cross_not_oversold():
     """A %K-over-%D cross that happens with both lines well above oversold must NOT
     trigger an entry (this is a reversal-from-oversold candidate)."""
-    h = _Harness(StochasticReversalStrategy(
-        "s", [SYM], k_period=3, d_period=2, oversold=20, overbought=95))
+    h = _Harness(
+        StochasticReversalStrategy("s", [SYM], k_period=3, d_period=2, oversold=20, overbought=95)
+    )
     # Price oscillates near the TOP of its range: %K/%D stay high, never oversold.
     bars = [
         (10, 0, 9),
         (10, 0, 9.2),
         (10, 0, 8.5),
-        (10, 0, 9.5),   # bounce up but %K ~ high, not oversold
+        (10, 0, 9.5),  # bounce up but %K ~ high, not oversold
         (10, 0, 8.8),
-        (10, 0, 9.7),   # another up-cross, still not oversold
+        (10, 0, 9.7),  # another up-cross, still not oversold
     ]
     sigs = h.feed(SYM, bars)
     assert all(s.side != OrderSide.BUY for s in sigs)
@@ -196,9 +211,19 @@ def test_no_entry_when_cross_not_oversold():
 def test_atr_fallback_to_pct_stop_during_warmup():
     """When ATR has not warmed up, the BUY must still carry a stop = pct fallback."""
     pct = Decimal("0.05")
-    h = _Harness(StochasticReversalStrategy(
-        "s", [SYM], k_period=3, d_period=2, oversold=30, overbought=80,
-        atr_period=50, atr_mult=2.0, stop_loss_pct=pct))  # atr_period huge -> warmup
+    h = _Harness(
+        StochasticReversalStrategy(
+            "s",
+            [SYM],
+            k_period=3,
+            d_period=2,
+            oversold=30,
+            overbought=80,
+            atr_period=50,
+            atr_mult=2.0,
+            stop_loss_pct=pct,
+        )
+    )  # atr_period huge -> warmup
     bars = [
         (20, 18, 19),
         (19, 17, 18),
@@ -215,18 +240,28 @@ def test_atr_fallback_to_pct_stop_during_warmup():
 
 # ---- exit ----------------------------------------------------------------
 
+
 def test_exit_on_overbought():
-    h = _Harness(StochasticReversalStrategy(
-        "s", [SYM], k_period=3, d_period=2, oversold=30, overbought=80,
-        atr_period=3, atr_mult=2.0))
+    h = _Harness(
+        StochasticReversalStrategy(
+            "s",
+            [SYM],
+            k_period=3,
+            d_period=2,
+            oversold=30,
+            overbought=80,
+            atr_period=3,
+            atr_mult=2.0,
+        )
+    )
     bars = [
         (20, 18, 19),
         (19, 17, 18),
         (18, 16, 17),
         (17, 15, 15.5),
         (16, 14, 14.5),
-        (16.5, 14, 16.2),   # entry
-        (20, 16, 19.8),     # rallies hard -> %K overbought -> exit
+        (16.5, 14, 16.2),  # entry
+        (20, 16, 19.8),  # rallies hard -> %K overbought -> exit
         (22, 18, 21.9),
     ]
     sides = [s.side for s in h.feed(SYM, bars)]
@@ -241,8 +276,7 @@ def test_cold_start_exit_when_already_overbought():
     overbought on the very first computable bar — no fresh cross witnessed. A
     position-aware exit must still SELL because the exit is a persistent STATE.
     """
-    st = StochasticReversalStrategy(
-        "s", [SYM], k_period=3, d_period=2, oversold=20, overbought=70)
+    st = StochasticReversalStrategy("s", [SYM], k_period=3, d_period=2, oversold=20, overbought=70)
     ctx = StrategyContext()
     st.bind_context(ctx)
     ctx.sync_state(positions={"X": SimpleNamespace(quantity=Decimal("1"))})
@@ -260,24 +294,34 @@ def test_cold_start_exit_when_already_overbought():
 
 def test_no_pyramiding_while_held():
     """While held, repeated oversold crosses must NOT add to the position."""
-    h = _Harness(StochasticReversalStrategy(
-        "s", [SYM], k_period=3, d_period=2, oversold=30, overbought=95,
-        atr_period=3, atr_mult=2.0))
+    h = _Harness(
+        StochasticReversalStrategy(
+            "s",
+            [SYM],
+            k_period=3,
+            d_period=2,
+            oversold=30,
+            overbought=95,
+            atr_period=3,
+            atr_mult=2.0,
+        )
+    )
     bars = [
         (20, 18, 19),
         (19, 17, 18),
         (18, 16, 17),
         (17, 15, 15.5),
         (16, 14, 14.5),
-        (16.5, 14, 16.2),   # entry
-        (16, 14, 14.6),     # dip again (would be another oversold cross setup)
-        (16.5, 14, 16.3),   # would-be second cross while held -> ignored
+        (16.5, 14, 16.2),  # entry
+        (16, 14, 14.6),  # dip again (would be another oversold cross setup)
+        (16.5, 14, 16.3),  # would-be second cross while held -> ignored
     ]
     buys = [s for s in h.feed(SYM, bars) if s.side == OrderSide.BUY]
     assert len(buys) == 1
 
 
 # ---- misc ----------------------------------------------------------------
+
 
 def test_ignores_unknown_symbol():
     h = _Harness(StochasticReversalStrategy("s", [SYM], k_period=3, d_period=2))
@@ -287,14 +331,23 @@ def test_ignores_unknown_symbol():
 
 def test_deterministic():
     bars = [
-        (20, 18, 19), (19, 17, 18), (18, 16, 17), (17, 15, 15.5),
-        (16, 14, 14.5), (16.5, 14, 16.2), (20, 16, 19.8), (22, 18, 21.9),
+        (20, 18, 19),
+        (19, 17, 18),
+        (18, 16, 17),
+        (17, 15, 15.5),
+        (16, 14, 14.5),
+        (16.5, 14, 16.2),
+        (20, 16, 19.8),
+        (22, 18, 21.9),
     ]
-    h1 = _Harness(StochasticReversalStrategy(
-        "s", [SYM], k_period=3, d_period=2, oversold=30, overbought=80))
-    h2 = _Harness(StochasticReversalStrategy(
-        "s", [SYM], k_period=3, d_period=2, oversold=30, overbought=80))
+    h1 = _Harness(
+        StochasticReversalStrategy("s", [SYM], k_period=3, d_period=2, oversold=30, overbought=80)
+    )
+    h2 = _Harness(
+        StochasticReversalStrategy("s", [SYM], k_period=3, d_period=2, oversold=30, overbought=80)
+    )
     s1 = h1.feed(SYM, bars)
     s2 = h2.feed(SYM, bars)
-    assert [(s.side, s.strength, s.suggested_stop_loss) for s in s1] == \
-           [(s.side, s.strength, s.suggested_stop_loss) for s in s2]
+    assert [(s.side, s.strength, s.suggested_stop_loss) for s in s1] == [
+        (s.side, s.strength, s.suggested_stop_loss) for s in s2
+    ]

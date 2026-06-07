@@ -6,6 +6,7 @@ Hand-computed checks for the per-trade transaction cost model.
 Run with:
     .venv/Scripts/python.exe -m pytest tests/test_cost_model.py -q
 """
+
 from __future__ import annotations
 
 import math
@@ -22,6 +23,7 @@ from apex.validation.cost_model import (
 # ---------------------------------------------------------------------------
 # Constants / construction
 # ---------------------------------------------------------------------------
+
 
 def test_bps_constant() -> None:
     assert BPS_PER_UNIT == 10_000.0
@@ -53,14 +55,15 @@ def test_negative_frictions_rejected(kwargs: dict) -> None:
 # Currency cost (cost_per_trade)
 # ---------------------------------------------------------------------------
 
+
 def test_cost_per_trade_hand_computed() -> None:
     # 5 bps commission rate, 10 bps slippage, 2 bps half-spread => 17 bps total
     # plus a $1 flat fee, on a $10,000 trade.
     model = CostModel(
         commission_per_trade=1.0,
-        commission_rate=0.0005,   # 5 bps
-        slippage_bps=10.0,        # 10 bps
-        half_spread_bps=2.0,      # 2 bps
+        commission_rate=0.0005,  # 5 bps
+        slippage_bps=10.0,  # 10 bps
+        half_spread_bps=2.0,  # 2 bps
     )
     # variable fraction = 0.0005 + 0.0010 + 0.0002 = 0.0017
     # variable cost = 0.0017 * 10_000 = 17.0; plus flat 1.0 => 18.0
@@ -81,6 +84,7 @@ def test_cost_per_trade_flat_only_independent_of_notional() -> None:
 # ---------------------------------------------------------------------------
 # Fractional cost (cost_fraction)
 # ---------------------------------------------------------------------------
+
 
 def test_cost_fraction_pure_bps_independent_of_notional() -> None:
     # No flat fee => fraction = sum of bps fractions, regardless of size.
@@ -109,14 +113,13 @@ def test_cost_fraction_zero_notional_drops_only_flat_fee() -> None:
 def test_cost_fraction_matches_cost_per_trade_ratio() -> None:
     model = CostModel(commission_per_trade=1.0, slippage_bps=7.0)
     notional = 25_000.0
-    assert model.cost_fraction(notional) == pytest.approx(
-        model.cost_per_trade(notional) / notional
-    )
+    assert model.cost_fraction(notional) == pytest.approx(model.cost_per_trade(notional) / notional)
 
 
 # ---------------------------------------------------------------------------
 # Round trip
 # ---------------------------------------------------------------------------
+
 
 def test_round_trip_is_double_one_way() -> None:
     model = CostModel(slippage_bps=10.0, half_spread_bps=5.0)  # 15 bps one way
@@ -137,6 +140,7 @@ def test_round_trip_default_notional_zero() -> None:
 # Net return adjustment
 # ---------------------------------------------------------------------------
 
+
 def test_net_trade_return_subtracts_round_trip() -> None:
     model = CostModel(slippage_bps=10.0, half_spread_bps=5.0)  # 15 bps one way
     # round trip = 30 bps = 0.0030
@@ -156,6 +160,7 @@ def test_net_trade_return_free_model_is_identity() -> None:
 # ---------------------------------------------------------------------------
 # apply_costs (series)
 # ---------------------------------------------------------------------------
+
 
 def test_apply_costs_empty() -> None:
     assert apply_costs([], CostModel(slippage_bps=10.0)) == []
@@ -187,6 +192,4 @@ def test_apply_costs_none_notionals_assumes_zero() -> None:
     # Pure bps model: omitting notionals matches passing zeros.
     model = CostModel(half_spread_bps=10.0)
     gross = [0.01, 0.03]
-    assert apply_costs(gross, model) == pytest.approx(
-        apply_costs(gross, model, [0.0, 0.0])
-    )
+    assert apply_costs(gross, model) == pytest.approx(apply_costs(gross, model, [0.0, 0.0]))

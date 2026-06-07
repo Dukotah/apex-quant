@@ -51,6 +51,7 @@ capital to it before it clears the gates and the mandatory 30-day paper gate.
 
 Deterministic, no I/O, stdlib + existing apex modules only.
 """
+
 from __future__ import annotations
 
 from decimal import Decimal

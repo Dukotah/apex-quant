@@ -25,6 +25,7 @@ for profit factor only when there is profit and no loss, matching metrics.py),
 never garbage or a divide-by-zero. Tested in tests/test_trade_analyzer.py
 against hand-computed values.
 """
+
 from __future__ import annotations
 
 import math

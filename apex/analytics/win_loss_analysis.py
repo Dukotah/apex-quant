@@ -23,6 +23,7 @@ that are undefined for too-few points return ``None`` (not garbage), and an empt
 series yields an all-empty / all-``None`` summary rather than raising. Tested in
 tests/test_win_loss_analysis.py against hand-computed values.
 """
+
 from __future__ import annotations
 
 import math

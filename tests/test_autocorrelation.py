@@ -1,4 +1,5 @@
 """Tests for apex.validation.autocorrelation — hand-computed values + edges."""
+
 from __future__ import annotations
 
 import math

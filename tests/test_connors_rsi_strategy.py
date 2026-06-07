@@ -10,6 +10,7 @@ Pure, fast, deterministic. Covers:
   - long-only: never emits a naked short
   - off-universe symbols are ignored
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -27,8 +28,13 @@ OTHER = Symbol(ticker="NOPE", asset_class=AssetClass.EQUITY)
 T0 = datetime(2026, 1, 1, tzinfo=timezone.utc)
 
 
-def _bar(close: float, i: int, high: Optional[float] = None,
-         low: Optional[float] = None, symbol: Symbol = SYM) -> Bar:
+def _bar(
+    close: float,
+    i: int,
+    high: Optional[float] = None,
+    low: Optional[float] = None,
+    symbol: Symbol = SYM,
+) -> Bar:
     c = Decimal(str(close))
     h = Decimal(str(high)) if high is not None else c
     lo = Decimal(str(low)) if low is not None else c
@@ -57,9 +63,12 @@ def _ctx_holding(qty: float) -> StrategyContext:
     return ctx
 
 
-def _feed(strat: ConnorsRSIStrategy, closes: List[float],
-          highs: Optional[List[float]] = None,
-          lows: Optional[List[float]] = None) -> List:
+def _feed(
+    strat: ConnorsRSIStrategy,
+    closes: List[float],
+    highs: Optional[List[float]] = None,
+    lows: Optional[List[float]] = None,
+) -> List:
     """Feed a price path; return the signals from the LAST bar only."""
     sigs: List = []
     for i, c in enumerate(closes):
@@ -70,6 +79,7 @@ def _feed(strat: ConnorsRSIStrategy, closes: List[float],
 
 
 # ---- private helpers -------------------------------------------------------
+
 
 def test_streak_series_hand_computed():
     s = ConnorsRSIStrategy("t", [SYM])
@@ -108,6 +118,7 @@ def test_percent_rank_insufficient_data_returns_none():
 
 # ---- warmup ----------------------------------------------------------------
 
+
 def test_warmup_returns_no_signals():
     s = ConnorsRSIStrategy("t", [SYM], rsi_period=3, rank_window=20)
     s.bind_context(_ctx_holding(0))
@@ -118,10 +129,15 @@ def test_warmup_returns_no_signals():
 
 # ---- entry -----------------------------------------------------------------
 
+
 def test_deep_decline_fires_buy_with_stop():
     s = ConnorsRSIStrategy(
-        "t", [SYM], rsi_period=3, streak_rsi_period=2,
-        rank_window=15, entry_threshold=10.0,
+        "t",
+        [SYM],
+        rsi_period=3,
+        streak_rsi_period=2,
+        rank_window=15,
+        entry_threshold=10.0,
     )
     s.bind_context(_ctx_holding(0))
     # Strictly monotonic decline: price RSI -> ~0, streak RSI -> ~0, and the last
@@ -142,7 +158,11 @@ def test_deep_decline_fires_buy_with_stop():
 
 def test_no_entry_when_not_oversold():
     s = ConnorsRSIStrategy(
-        "t", [SYM], rsi_period=3, rank_window=15, entry_threshold=10.0,
+        "t",
+        [SYM],
+        rsi_period=3,
+        rank_window=15,
+        entry_threshold=10.0,
     )
     s.bind_context(_ctx_holding(0))
     # Strictly rising path -> composite high (not oversold) -> no BUY.
@@ -154,8 +174,14 @@ def test_no_entry_when_not_oversold():
 def test_atr_stop_used_after_warmup_else_pct_fallback():
     # With atr_period large relative to bars, ATR is None -> pct fallback.
     s_pct = ConnorsRSIStrategy(
-        "t", [SYM], rsi_period=3, streak_rsi_period=2, rank_window=15,
-        entry_threshold=10.0, atr_period=50, stop_loss_pct=Decimal("0.05"),
+        "t",
+        [SYM],
+        rsi_period=3,
+        streak_rsi_period=2,
+        rank_window=15,
+        entry_threshold=10.0,
+        atr_period=50,
+        stop_loss_pct=Decimal("0.05"),
     )
     s_pct.bind_context(_ctx_holding(0))
     closes = [100.0 - i for i in range(25)]
@@ -168,8 +194,14 @@ def test_atr_stop_used_after_warmup_else_pct_fallback():
     # With a small atr_period and a wide H-L range, the ATR stop should be used
     # (different from the pct fallback) and still positive/below entry.
     s_atr = ConnorsRSIStrategy(
-        "t", [SYM], rsi_period=3, streak_rsi_period=2, rank_window=15,
-        entry_threshold=10.0, atr_period=5, atr_mult=Decimal("2.0"),
+        "t",
+        [SYM],
+        rsi_period=3,
+        streak_rsi_period=2,
+        rank_window=15,
+        entry_threshold=10.0,
+        atr_period=5,
+        atr_mult=Decimal("2.0"),
         stop_loss_pct=Decimal("0.05"),
     )
     s_atr.bind_context(_ctx_holding(0))
@@ -184,9 +216,14 @@ def test_atr_stop_used_after_warmup_else_pct_fallback():
 
 # ---- position awareness ----------------------------------------------------
 
+
 def test_held_and_oversold_does_not_pyramid():
     s = ConnorsRSIStrategy(
-        "t", [SYM], rsi_period=3, streak_rsi_period=2, rank_window=15,
+        "t",
+        [SYM],
+        rsi_period=3,
+        streak_rsi_period=2,
+        rank_window=15,
         entry_threshold=10.0,
     )
     s.bind_context(_ctx_holding(10))  # already long
@@ -197,8 +234,13 @@ def test_held_and_oversold_does_not_pyramid():
 
 def test_held_and_recovered_exits():
     s = ConnorsRSIStrategy(
-        "t", [SYM], rsi_period=3, streak_rsi_period=2, rank_window=15,
-        entry_threshold=10.0, exit_threshold=70.0,
+        "t",
+        [SYM],
+        rsi_period=3,
+        streak_rsi_period=2,
+        rank_window=15,
+        entry_threshold=10.0,
+        exit_threshold=70.0,
     )
     s.bind_context(_ctx_holding(10))  # already long
     # Strong rally -> price RSI high (>=70) -> SELL exit.
@@ -212,7 +254,11 @@ def test_held_and_recovered_exits():
 
 def test_flat_and_recovered_does_nothing():
     s = ConnorsRSIStrategy(
-        "t", [SYM], rsi_period=3, rank_window=15, exit_threshold=70.0,
+        "t",
+        [SYM],
+        rsi_period=3,
+        rank_window=15,
+        exit_threshold=70.0,
     )
     s.bind_context(_ctx_holding(0))  # flat
     closes = [100.0 + i for i in range(25)]  # recovered but we hold nothing
@@ -224,9 +270,33 @@ def test_long_only_never_shorts():
     s = ConnorsRSIStrategy("t", [SYM], rsi_period=3, rank_window=15)
     s.bind_context(_ctx_holding(0))
     # Feed a long noisy path; assert no BUY/SELL is ever a short open.
-    closes = [100.0, 98.0, 101.0, 97.0, 103.0, 95.0, 99.0, 104.0,
-              96.0, 100.0, 92.0, 105.0, 90.0, 101.0, 88.0, 102.0,
-              94.0, 99.0, 91.0, 100.0, 93.0, 98.0, 95.0, 97.0, 96.0]
+    closes = [
+        100.0,
+        98.0,
+        101.0,
+        97.0,
+        103.0,
+        95.0,
+        99.0,
+        104.0,
+        96.0,
+        100.0,
+        92.0,
+        105.0,
+        90.0,
+        101.0,
+        88.0,
+        102.0,
+        94.0,
+        99.0,
+        91.0,
+        100.0,
+        93.0,
+        98.0,
+        95.0,
+        97.0,
+        96.0,
+    ]
     for i, c in enumerate(closes):
         held = s._held(SYM)
         for sig in s.on_bar(_bar(c, i)):
@@ -237,10 +307,15 @@ def test_long_only_never_shorts():
 
 # ---- restart / idempotency -------------------------------------------------
 
+
 def test_idempotent_when_already_long():
     """Re-dispatching the same oversold bar while long yields nothing both times."""
     s = ConnorsRSIStrategy(
-        "t", [SYM], rsi_period=3, rank_window=15, entry_threshold=10.0,
+        "t",
+        [SYM],
+        rsi_period=3,
+        rank_window=15,
+        entry_threshold=10.0,
     )
     s.bind_context(_ctx_holding(5))
     closes = [100.0 - i for i in range(25)]
@@ -253,6 +328,7 @@ def test_idempotent_when_already_long():
 
 # ---- universe filtering ----------------------------------------------------
 
+
 def test_off_universe_symbol_ignored():
     s = ConnorsRSIStrategy("t", [SYM], rsi_period=3, rank_window=15)
     s.bind_context(_ctx_holding(0))
@@ -261,6 +337,7 @@ def test_off_universe_symbol_ignored():
 
 
 # ---- validation ------------------------------------------------------------
+
 
 def test_invalid_params_raise():
     with pytest.raises(ValueError):

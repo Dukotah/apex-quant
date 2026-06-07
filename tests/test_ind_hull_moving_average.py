@@ -1,4 +1,5 @@
 """Tests for apex.strategy.ind_hull_moving_average."""
+
 from __future__ import annotations
 
 import math
@@ -68,7 +69,7 @@ def _wma_ref(values, period):
     n = len(values)
     out = [None] * n
     for i in range(period - 1, n):
-        window = values[i - period + 1: i + 1]
+        window = values[i - period + 1 : i + 1]
         out[i] = sum((w + 1) * x for w, x in enumerate(window)) / denom
     return out
 

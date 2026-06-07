@@ -21,6 +21,7 @@ measured in periods (index distance), so they are ints.
 All functions are pure and deterministic given their inputs. Tested in
 tests/test_drawdown_analysis.py against hand-computed values.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -49,6 +50,7 @@ class DrawdownPeriod:
             (recovery_index - trough_index), or None if never recovered.
         recovered: True if the curve fully regained the peak within the sample.
     """
+
     peak_index: int
     trough_index: int
     recovery_index: int | None
@@ -258,14 +260,15 @@ def average_recovery_time(equity_curve: Sequence[float]) -> float | None:
 @dataclass(frozen=True)
 class DrawdownAnalysis:
     """Roll-up of the drawdown-duration story for an equity curve."""
+
     num_drawdowns: int
-    max_drawdown_depth: float           # deepest episode (positive fraction)
-    average_drawdown_depth: float       # mean episode depth
-    max_drawdown_duration: int          # longest underwater stretch (periods)
-    average_drawdown_duration: float    # mean underwater stretch (periods)
-    max_recovery_time: int | None       # longest trough→recovery (periods)
-    average_recovery_time: float | None # mean trough→recovery (periods)
-    currently_underwater: bool          # ends below its prior high-water mark
+    max_drawdown_depth: float  # deepest episode (positive fraction)
+    average_drawdown_depth: float  # mean episode depth
+    max_drawdown_duration: int  # longest underwater stretch (periods)
+    average_drawdown_duration: float  # mean underwater stretch (periods)
+    max_recovery_time: int | None  # longest trough→recovery (periods)
+    average_recovery_time: float | None  # mean trough→recovery (periods)
+    currently_underwater: bool  # ends below its prior high-water mark
     periods: tuple[DrawdownPeriod, ...]
 
     def summary(self) -> str:

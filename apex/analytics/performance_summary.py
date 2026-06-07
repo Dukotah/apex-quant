@@ -14,6 +14,7 @@ float, not Decimal (these are reporting statistics, not money math).
 Pure and deterministic given its inputs. No I/O. Tested in
 tests/test_performance_summary.py against hand-computed values.
 """
+
 from __future__ import annotations
 
 from typing import Dict, Sequence

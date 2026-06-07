@@ -1,4 +1,5 @@
 """Tests for apex.data.frequency_inference — bar cadence inference."""
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -22,6 +23,7 @@ def _series(step: timedelta, n: int) -> list[datetime]:
 
 
 # ----------------------------------------------------------- timedelta_to_timeframe
+
 
 def test_timedelta_renders_canonical_units():
     assert timedelta_to_timeframe(timedelta(minutes=1)) == "1Min"
@@ -57,6 +59,7 @@ def test_timedelta_sub_second_returns_none():
 
 # ----------------------------------------------------------------- consecutive_gaps
 
+
 def test_gaps_basic():
     ts = _series(timedelta(minutes=1), 4)
     assert consecutive_gaps(ts) == [timedelta(minutes=1)] * 3
@@ -79,6 +82,7 @@ def test_gaps_insufficient_data():
 
 # ------------------------------------------------------------------------ modal_gap
 
+
 def test_modal_gap_picks_most_common():
     # gaps: 1min, 1min, 5min (one weekend-like hole) → modal is 1min.
     ts = [_ts(minutes=0), _ts(minutes=1), _ts(minutes=2), _ts(minutes=7)]
@@ -97,6 +101,7 @@ def test_modal_gap_none_when_insufficient():
 
 
 # -------------------------------------------------------------------- infer_timeframe
+
 
 def test_infer_one_minute():
     assert infer_timeframe(_series(timedelta(minutes=1), 10)) == "1Min"

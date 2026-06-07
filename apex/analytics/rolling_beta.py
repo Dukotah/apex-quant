@@ -20,6 +20,7 @@ insufficient or degenerate data return None rather than garbage.
 
 Tested in tests/test_rolling_beta.py against hand-computed values.
 """
+
 from __future__ import annotations
 
 import statistics

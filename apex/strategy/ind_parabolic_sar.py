@@ -27,6 +27,7 @@ We work in float internally to match the indicator layer's convention
 
 Tested in tests/test_ind_parabolic_sar.py against hand-computed values.
 """
+
 from __future__ import annotations
 
 from typing import Optional, Sequence
@@ -111,8 +112,8 @@ def parabolic_sar(
             if lows[i] < sar:
                 # Trend flips to down ("stop and reverse").
                 long = False
-                sar = ep                 # new SAR = prior extreme point
-                ep = lows[i]             # new EP = current low
+                sar = ep  # new SAR = prior extreme point
+                ep = lows[i]  # new EP = current low
                 af = af_start
             else:
                 # Trend continues; extend EP / accelerate if a new high made.

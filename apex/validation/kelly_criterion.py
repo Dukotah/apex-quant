@@ -23,6 +23,7 @@ garbage — fail closed, never hand back a number you can't trust.
 
 Tested in tests/test_kelly_criterion.py against hand-computed values.
 """
+
 from __future__ import annotations
 
 import statistics
@@ -44,10 +45,11 @@ class KellyResult:
     [0, 1] for the recommendation — a negative Kelly means "no edge, don't bet,"
     and we never recommend leverage (> 1) from this layer.
     """
-    full_kelly: float            # raw f* (can be negative if no edge; unclamped)
-    kelly_fraction: float        # the multiplier applied (e.g. 0.5 = half-Kelly)
-    fractional_kelly: float      # recommended fraction to deploy, clamped [0, 1]
-    edge: bool                   # True if full_kelly > 0 (a real positive edge)
+
+    full_kelly: float  # raw f* (can be negative if no edge; unclamped)
+    kelly_fraction: float  # the multiplier applied (e.g. 0.5 = half-Kelly)
+    fractional_kelly: float  # recommended fraction to deploy, clamped [0, 1]
+    edge: bool  # True if full_kelly > 0 (a real positive edge)
 
     def summary(self) -> str:
         verdict = "EDGE" if self.edge else "NO EDGE"

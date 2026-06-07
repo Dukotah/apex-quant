@@ -30,6 +30,7 @@ This is metric/statistical code, so it follows the float convention of
 apex/validation/metrics.py (NOT Decimal). Pure, deterministic, stdlib-only.
 Tested in tests/test_turnover_metrics.py against hand-computed values.
 """
+
 from __future__ import annotations
 
 import math
@@ -128,12 +129,12 @@ def implied_holding_period(weight_vectors: Sequence[WeightVector]) -> float:
 class TurnoverReport:
     """Summary of a strategy's trading intensity over a weight-vector history."""
 
-    n_periods: int                    # number of rebalance transitions observed
-    average_turnover: float           # mean one-way turnover per period
-    annualized_turnover: float        # scaled to periods_per_year
-    implied_holding_period: float     # 1 / average_turnover, in periods
-    max_turnover: float               # busiest single rebalance
-    min_turnover: float               # quietest single rebalance
+    n_periods: int  # number of rebalance transitions observed
+    average_turnover: float  # mean one-way turnover per period
+    annualized_turnover: float  # scaled to periods_per_year
+    implied_holding_period: float  # 1 / average_turnover, in periods
+    max_turnover: float  # busiest single rebalance
+    min_turnover: float  # quietest single rebalance
 
     def summary(self) -> str:
         hp = (

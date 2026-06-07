@@ -28,6 +28,7 @@ Design invariants:
   - Fractional vs whole-unit rounding mirrors the RiskManager: fractionable
     instruments quantize to 1e-4, others floor to whole units.
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -36,7 +37,7 @@ from typing import Optional
 from apex.core.models import Symbol
 
 _ZERO = Decimal("0")
-_QUANTUM = Decimal("0.0001")   # fractional sizing precision (mirrors RiskManager)
+_QUANTUM = Decimal("0.0001")  # fractional sizing precision (mirrors RiskManager)
 
 
 def _to_decimal(value) -> Optional[Decimal]:

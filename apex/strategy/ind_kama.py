@@ -30,6 +30,7 @@ The series is seeded at index `period` with the SMA of the first `period` values
 
 Tested in tests/test_ind_kama.py against hand-computed values.
 """
+
 from __future__ import annotations
 
 from typing import Optional, Sequence
@@ -62,7 +63,7 @@ def efficiency_ratio(data: Sequence, period: int = 10) -> list[Optional[float]]:
         abs_changes[i] = abs(values[i] - values[i - 1])
 
     # Rolling sum of the last `period` absolute changes (the "volatility").
-    volatility = sum(abs_changes[1: period + 1])
+    volatility = sum(abs_changes[1 : period + 1])
     for i in range(period, n):
         if i > period:
             volatility += abs_changes[i] - abs_changes[i - period]

@@ -25,6 +25,7 @@ denominator is zero; we return 0.0 (the close equals the single price level).
 
 Tested in tests/test_ind_williams_r.py against hand-computed values.
 """
+
 from __future__ import annotations
 
 from typing import Optional, Sequence
@@ -52,8 +53,8 @@ def williams_r(
         return out
 
     for i in range(period - 1, n):
-        window_high = max(highs[i - period + 1: i + 1])
-        window_low = min(lows[i - period + 1: i + 1])
+        window_high = max(highs[i - period + 1 : i + 1])
+        window_low = min(lows[i - period + 1 : i + 1])
         span = window_high - window_low
         if span == 0:
             # Flat range: high == low across the window; close sits on that level.

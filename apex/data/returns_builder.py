@@ -27,6 +27,7 @@ authoritative ``Decimal`` source.
 This module is pure: no I/O, no clock, no randomness. It is fully unit-testable
 offline against hand-computed values.
 """
+
 from __future__ import annotations
 
 import math

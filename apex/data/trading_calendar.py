@@ -33,6 +33,7 @@ This is a date layer, not a money layer — it deals in ``datetime.date`` and
 plain ints, so (unlike the OHLCV models) there is no ``Decimal`` here. It is
 pure: no I/O, no clock, no randomness.
 """
+
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta
@@ -44,6 +45,7 @@ _SUNDAY = 6
 
 
 # ----------------------------------------------------------------- observance
+
 
 def _observed(holiday: date) -> date:
     """
@@ -105,6 +107,7 @@ def _good_friday(year: int) -> date:
 
 # ---------------------------------------------------------------- holiday set
 
+
 def holidays_for_year(year: int) -> frozenset[date]:
     """
     The set of *observed* full-day US-equity market holidays in ``year``.
@@ -128,16 +131,16 @@ def holidays_for_year(year: int) -> frozenset[date]:
     year's New Year observance when it spills forward — see ``is_trading_day``.
     """
     days = {
-        _observed(date(year, 1, 1)),                # New Year's Day
-        _nth_weekday(year, 1, 0, 3),                # MLK Day (3rd Mon Jan)
-        _nth_weekday(year, 2, 0, 3),                # Presidents' Day (3rd Mon Feb)
-        _good_friday(year),                         # Good Friday
-        _last_weekday(year, 5, 0),                  # Memorial Day (last Mon May)
-        _observed(date(year, 6, 19)),               # Juneteenth
-        _observed(date(year, 7, 4)),                # Independence Day
-        _nth_weekday(year, 9, 0, 1),                # Labor Day (1st Mon Sep)
-        _nth_weekday(year, 11, 3, 4),               # Thanksgiving (4th Thu Nov)
-        _observed(date(year, 12, 25)),              # Christmas
+        _observed(date(year, 1, 1)),  # New Year's Day
+        _nth_weekday(year, 1, 0, 3),  # MLK Day (3rd Mon Jan)
+        _nth_weekday(year, 2, 0, 3),  # Presidents' Day (3rd Mon Feb)
+        _good_friday(year),  # Good Friday
+        _last_weekday(year, 5, 0),  # Memorial Day (last Mon May)
+        _observed(date(year, 6, 19)),  # Juneteenth
+        _observed(date(year, 7, 4)),  # Independence Day
+        _nth_weekday(year, 9, 0, 1),  # Labor Day (1st Mon Sep)
+        _nth_weekday(year, 11, 3, 4),  # Thanksgiving (4th Thu Nov)
+        _observed(date(year, 12, 25)),  # Christmas
     }
     return frozenset(days)
 
@@ -160,6 +163,7 @@ def _normalize_extra(extra_holidays: Optional[Iterable[date | datetime]]) -> fro
 
 # ------------------------------------------------------------------- public API
 
+
 def is_trading_day(
     day: date | datetime,
     *,
@@ -173,7 +177,7 @@ def is_trading_day(
     deterministic — never consults a clock.
     """
     d = _as_date(day)
-    if d.weekday() >= _SATURDAY:          # Saturday(5) or Sunday(6)
+    if d.weekday() >= _SATURDAY:  # Saturday(5) or Sunday(6)
         return False
     if d in _normalize_extra(extra_holidays):
         return False
@@ -181,7 +185,7 @@ def is_trading_day(
     # spill onto Dec 31 (when Jan 1 of *this* year falls on a Saturday).
     if d in holidays_for_year(d.year):
         return False
-    if _observed(date(d.year + 1, 1, 1)) == d:   # Dec 31 New Year observance
+    if _observed(date(d.year + 1, 1, 1)) == d:  # Dec 31 New Year observance
         return False
     return True
 

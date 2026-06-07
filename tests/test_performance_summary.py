@@ -1,4 +1,5 @@
 """Tests for apex.analytics.performance_summary."""
+
 from __future__ import annotations
 
 import math

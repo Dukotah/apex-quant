@@ -1,4 +1,5 @@
 """Tests for apex.validation.turnover_metrics — hand-computed values + edges."""
+
 from __future__ import annotations
 
 import math
@@ -14,6 +15,7 @@ from apex.validation.turnover_metrics import (
 )
 
 # --- one_way_turnover -------------------------------------------------------
+
 
 def test_one_way_turnover_no_change_is_zero():
     w = {"A": 0.5, "B": 0.5}
@@ -53,6 +55,7 @@ def test_one_way_turnover_handles_shorts():
 
 # --- turnover_series --------------------------------------------------------
 
+
 def test_turnover_series_length_is_n_minus_one():
     vectors = [{"A": 1.0}, {"A": 0.5, "B": 0.5}, {"A": 1.0}]
     series = turnover_series(vectors)
@@ -68,6 +71,7 @@ def test_turnover_series_insufficient_data():
 
 
 # --- average / annualized ---------------------------------------------------
+
 
 def test_average_turnover_known():
     vectors = [{"A": 1.0}, {"A": 0.8, "B": 0.2}, {"A": 1.0}]
@@ -86,6 +90,7 @@ def test_annualized_turnover_scales():
 
 # --- implied_holding_period -------------------------------------------------
 
+
 def test_implied_holding_period_known():
     # avg turnover 0.25 -> holding period 4 periods.
     vectors = [{"A": 1.0}, {"A": 0.75, "B": 0.25}]
@@ -103,12 +108,13 @@ def test_implied_holding_period_insufficient_is_inf():
 
 # --- turnover_report --------------------------------------------------------
 
+
 def test_turnover_report_known_values():
     vectors = [
         {"A": 1.0},
-        {"A": 0.8, "B": 0.2},   # turnover 0.2
-        {"A": 1.0},             # turnover 0.2
-        {"A": 0.6, "B": 0.4},   # turnover 0.4
+        {"A": 0.8, "B": 0.2},  # turnover 0.2
+        {"A": 1.0},  # turnover 0.2
+        {"A": 0.6, "B": 0.4},  # turnover 0.4
     ]
     rep = turnover_report(vectors, periods_per_year=252)
     assert isinstance(rep, TurnoverReport)
@@ -151,6 +157,7 @@ def test_turnover_report_summary_handles_inf_holding_period():
 
 
 # --- determinism ------------------------------------------------------------
+
 
 def test_deterministic():
     vectors = [{"A": 0.5, "B": 0.5}, {"A": 0.3, "B": 0.7}, {"A": 0.6, "B": 0.4}]

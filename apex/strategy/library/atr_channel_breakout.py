@@ -48,6 +48,7 @@ DETERMINISM / PURITY
   the only math implemented locally (privately, below). Indicator math runs in
   float to match the indicators layer; all emitted prices/stops are Decimal.
 """
+
 from __future__ import annotations
 
 from decimal import Decimal

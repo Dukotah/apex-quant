@@ -1,4 +1,5 @@
 """Tests for apex.risk.concentration_metrics (pure, hand-computed values)."""
+
 from __future__ import annotations
 
 import math
@@ -19,6 +20,7 @@ def _close(a, b, tol=1e-12):
 # ----------------------------------------------------------------------
 # normalize_weights
 # ----------------------------------------------------------------------
+
 
 def test_normalize_basic():
     out = normalize_weights([1.0, 1.0, 2.0])
@@ -46,6 +48,7 @@ def test_normalize_zero_total_returns_none():
 # ----------------------------------------------------------------------
 # herfindahl_index
 # ----------------------------------------------------------------------
+
 
 def test_hhi_single_position_is_one():
     assert herfindahl_index([100.0]) == 1.0
@@ -76,6 +79,7 @@ def test_hhi_empty_and_zero_return_none():
 # effective_number_of_positions
 # ----------------------------------------------------------------------
 
+
 def test_effective_n_equal_weight_equals_count():
     assert _close(effective_number_of_positions([1.0, 1.0, 1.0, 1.0]), 4.0)
 
@@ -96,6 +100,7 @@ def test_effective_n_empty_returns_none():
 # ----------------------------------------------------------------------
 # top_n_concentration
 # ----------------------------------------------------------------------
+
 
 def test_top_n_picks_largest():
     # normalized: 0.5, 0.3, 0.2 ; top 2 = 0.8
@@ -128,6 +133,7 @@ def test_top_n_empty_returns_none():
 # max_weight
 # ----------------------------------------------------------------------
 
+
 def test_max_weight_matches_top_1():
     w = [4.0, 1.0, 5.0]
     assert max_weight(w) == top_n_concentration(w, 1)
@@ -141,6 +147,7 @@ def test_max_weight_empty_returns_none():
 # ----------------------------------------------------------------------
 # cross-check: effective_n == 1 / hhi exactly
 # ----------------------------------------------------------------------
+
 
 def test_effective_n_is_reciprocal_of_hhi():
     w = [10.0, 3.0, 2.0, 1.0, 1.0]

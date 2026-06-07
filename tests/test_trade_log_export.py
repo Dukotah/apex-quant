@@ -6,6 +6,7 @@ bulk of the coverage uses hand-built dict rows with hand-computed expected
 output. The DB-backed helpers are exercised against a real temp StateStore
 (the same seeding pattern as tests/test_report.py).
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -22,6 +23,7 @@ UTC = timezone.utc
 
 
 # --------------------------------------------------------------------- pure core
+
 
 def test_header_only_for_empty_rows():
     out = rows_to_csv([])
@@ -54,8 +56,7 @@ def test_custom_field_selection_and_order():
 
 def test_missing_field_becomes_empty_cell():
     # Row lacks 'orders' and 'positions' -> empty cells, never a KeyError.
-    row = {"ts": "t", "mode": "paper", "equity": 1, "num_positions": 0,
-           "fills": 0, "halted": 0}
+    row = {"ts": "t", "mode": "paper", "equity": 1, "num_positions": 0, "fills": 0, "halted": 0}
     out = rows_to_csv([row])
     data_line = out.split("\r\n")[1]
     # fields: ts,mode,equity,num_positions,orders,fills,halted,positions
@@ -92,15 +93,20 @@ def test_deterministic_repeatable():
 
 # ----------------------------------------------------------------- DB-backed I/O
 
+
 def _seed(store, equities, mode="paper", orders=0, fills=0):
     from scripts.run_once import RunReport
 
     base = datetime(2024, 1, 1, tzinfo=UTC)
     for i, eq in enumerate(equities):
         store.save_run(
-            RunReport(timestamp=base + timedelta(days=i), mode=mode,
-                      equity=float(eq), num_positions=0,
-                      orders_submitted=orders),
+            RunReport(
+                timestamp=base + timedelta(days=i),
+                mode=mode,
+                equity=float(eq),
+                num_positions=0,
+                orders_submitted=orders,
+            ),
             {},
         )
 

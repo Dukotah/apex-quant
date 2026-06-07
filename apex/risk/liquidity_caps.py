@@ -21,6 +21,7 @@ cap (trade nothing) rather than an unbounded one.
 Pure and deterministic: no I/O, no wall-clock, no randomness. Given the same
 volume history and parameters it always returns the same cap.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -48,6 +49,7 @@ class LiquidityCapConfig:
             Below this the data is considered insufficient and the cap is ZERO
             (fail closed — trade nothing rather than guess).
     """
+
     participation_pct: Decimal = Decimal("0.10")
     adv_window: int = 20
     min_observations: int = 5

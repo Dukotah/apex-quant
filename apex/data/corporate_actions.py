@@ -32,6 +32,7 @@ whether to skip-and-count or abort. Insufficient data (empty series, no actions,
 or actions outside the series window) degrades gracefully: the series is returned
 unchanged rather than garbage.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
@@ -45,6 +46,7 @@ from apex.core.models import Bar
 
 class CorporateActionType(str, Enum):
     """The two corporate actions that distort raw price history."""
+
     SPLIT = "split"
     DIVIDEND = "dividend"
 
@@ -68,6 +70,7 @@ class CorporateAction:
     For convenience a split may instead be given as ``new`` and ``old`` share
     counts via :meth:`split`; both paths produce the same frozen record.
     """
+
     action_type: CorporateActionType
     effective_date: datetime
     value: Decimal
@@ -91,10 +94,15 @@ class CorporateAction:
     @classmethod
     def dividend(cls, effective_date: object, amount: object) -> "CorporateAction":
         """Build a DIVIDEND action from a cash-per-share ``amount``."""
-        return cls(CorporateActionType.DIVIDEND, _to_utc(effective_date), _to_decimal(amount, field="dividend"))
+        return cls(
+            CorporateActionType.DIVIDEND,
+            _to_utc(effective_date),
+            _to_decimal(amount, field="dividend"),
+        )
 
 
 # --------------------------------------------------------------------- scalars
+
 
 def _to_decimal(value: object, *, field: str = "value") -> Decimal:
     """Coerce to ``Decimal`` via ``str()`` first (no float artifacts). Fails loud."""
@@ -117,17 +125,18 @@ def _to_utc(value: object) -> datetime:
         if not text:
             raise ValueError("effective_date is missing/empty")
         if text[-1] in ("Z", "z"):
-            text = text[:-1] + "+00:00"   # 3.11-safe Zulu handling
+            text = text[:-1] + "+00:00"  # 3.11-safe Zulu handling
         try:
             dt = datetime.fromisoformat(text)
         except ValueError as exc:
             raise ValueError(f"unparseable effective_date {value!r}: {exc}") from exc
     if dt.tzinfo is None:
-        return dt.replace(tzinfo=timezone.utc)   # naive → assume UTC
-    return dt.astimezone(timezone.utc)            # aware → convert to UTC
+        return dt.replace(tzinfo=timezone.utc)  # naive → assume UTC
+    return dt.astimezone(timezone.utc)  # aware → convert to UTC
 
 
 # ------------------------------------------------------------------- adjustment
+
 
 def _scale_bar(bar: Bar, price_factor: Decimal, volume_factor: Decimal) -> Bar:
     """Return a copy of ``bar`` with prices and volume scaled by the given factors."""
@@ -175,7 +184,7 @@ def _apply_dividend(bars: List[Bar], effective_date: datetime, amount: Decimal) 
     out: List[Bar] = []
     for bar in bars:
         if bar.timestamp < effective_date:
-            out.append(_scale_bar(bar, price_factor, Decimal("1")))   # volume unchanged
+            out.append(_scale_bar(bar, price_factor, Decimal("1")))  # volume unchanged
         else:
             out.append(bar)
     return out

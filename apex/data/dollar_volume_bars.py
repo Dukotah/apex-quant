@@ -45,6 +45,7 @@ Insufficient / leftover data (handled gracefully, never garbage):
 All money/price/volume math is ``Decimal`` — this is the data layer and follows
 the Decimal-for-money golden rule (mirrors ``normalizer`` / ``historical_feed``).
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -58,8 +59,8 @@ from apex.core.models import Bar, Symbol
 class BarMetric(str, Enum):
     """Which traded-activity quantum the threshold is measured in."""
 
-    VOLUME = "volume"             # cumulative share/contract volume
-    DOLLAR_VOLUME = "dollar"      # cumulative close*volume (notional)
+    VOLUME = "volume"  # cumulative share/contract volume
+    DOLLAR_VOLUME = "dollar"  # cumulative close*volume (notional)
 
 
 def _to_threshold(value: object, *, field: str = "threshold") -> Decimal:
@@ -87,9 +88,9 @@ class _Accumulator:
     low: Decimal
     close: Decimal
     volume: Decimal
-    timestamp: object        # datetime of the last contributing bar
+    timestamp: object  # datetime of the last contributing bar
     symbol: Symbol
-    running: Decimal         # running total in the chosen metric
+    running: Decimal  # running total in the chosen metric
 
     @classmethod
     def start(cls, bar: Bar, contribution: Decimal) -> "_Accumulator":

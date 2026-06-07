@@ -18,6 +18,7 @@ writes to the state DB. The CSV-building core (``rows_to_csv``) is pure and
 deterministic — it takes already-fetched audit rows and a list of fields, so it
 is fully testable without a database, a clock, or any I/O.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -41,6 +42,7 @@ DEFAULT_FIELDS: tuple[str, ...] = (
 
 
 # --------------------------------------------------------------------- pure core
+
 
 def _cell(row: Mapping[str, object], field: str) -> str:
     """
@@ -90,6 +92,7 @@ def rows_to_csv(
 
 
 # ----------------------------------------------------------------- I/O boundary
+
 
 def _load_rows(db_path: str, mode: Optional[str]) -> List[Mapping[str, object]]:
     """

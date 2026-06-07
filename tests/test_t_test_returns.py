@@ -1,4 +1,5 @@
 """Tests for apex.validation.t_test_returns — one-sided one-sample t-test."""
+
 from __future__ import annotations
 
 import math
@@ -92,7 +93,7 @@ def test_significance_threshold_is_respected():
     assert strict is not None and loose is not None
     assert strict.p_value == loose.p_value  # same underlying test
     # Looser threshold can only ever be >= as permissive.
-    assert (loose.significant or not strict.significant)
+    assert loose.significant or not strict.significant
 
 
 def test_result_is_frozen_and_has_summary():

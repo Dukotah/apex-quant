@@ -32,6 +32,7 @@ CONTRACT (mirrors apex.strategy.indicators exactly):
 
 Standard error needs `period - 2` degrees of freedom, so `period` must be >= 3.
 """
+
 from __future__ import annotations
 
 from typing import Optional, Sequence
@@ -46,7 +47,7 @@ def _sma(values: list[Optional[float]], period: int) -> list[Optional[float]]:
     n = len(values)
     out: list[Optional[float]] = [None] * n
     for i in range(period - 1, n):
-        window = values[i - period + 1: i + 1]
+        window = values[i - period + 1 : i + 1]
         if any(v is None for v in window):
             continue
         out[i] = sum(window) / period  # type: ignore[arg-type]
@@ -85,7 +86,7 @@ def linear_regression_endpoint(
     last_x = period - 1
 
     for i in range(period - 1, n):
-        window = values[i - period + 1: i + 1]
+        window = values[i - period + 1 : i + 1]
         mean_y = sum(window) / period
         # Slope b = Sxy / Sxx; intercept a = mean_y - b*mean_x.
         sxy = sum((xs[k] - mean_x) * (window[k] - mean_y) for k in range(period))

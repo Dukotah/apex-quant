@@ -1,4 +1,5 @@
 """Tests for apex.risk.liquidity_caps (advisory liquidity sizing)."""
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -35,6 +36,7 @@ def _crypto() -> Symbol:
 # --------------------------------------------------------------------------
 # average_daily_volume
 # --------------------------------------------------------------------------
+
 
 def test_adv_simple_mean():
     vols = [D("100"), D("200"), D("300"), D("400"), D("500")]
@@ -78,15 +80,16 @@ def test_adv_window_shorter_than_min_with_enough_total():
 # liquidity_cap_quantity
 # --------------------------------------------------------------------------
 
+
 def test_cap_basic_participation():
-    vols = [D("1000")] * 20            # ADV = 1000
+    vols = [D("1000")] * 20  # ADV = 1000
     cfg = LiquidityCapConfig(participation_pct=D("0.10"), adv_window=20, min_observations=5)
     # 1000 * 0.10 = 100
     assert liquidity_cap_quantity(vols, cfg) == D("100")
 
 
 def test_cap_whole_units_for_non_fractionable():
-    vols = [D("1000")] * 20            # ADV = 1000
+    vols = [D("1000")] * 20  # ADV = 1000
     cfg = LiquidityCapConfig(participation_pct=D("0.0333"), adv_window=20, min_observations=5)
     # 1000 * 0.0333 = 33.3 -> floored to 33 whole shares
     assert liquidity_cap_quantity(vols, cfg, symbol=_equity()) == D("33")
@@ -99,7 +102,7 @@ def test_cap_fractional_kept_for_fractionable():
 
 
 def test_cap_insufficient_data_fails_closed_to_zero():
-    vols = [D("1000"), D("1000")]     # below min_observations
+    vols = [D("1000"), D("1000")]  # below min_observations
     assert liquidity_cap_quantity(vols) == D("0")
 
 
@@ -131,23 +134,24 @@ def test_cap_default_config_values():
 # apply_liquidity_cap
 # --------------------------------------------------------------------------
 
+
 def test_apply_shrinks_above_cap():
-    vols = [D("1000")] * 20            # cap = 100
+    vols = [D("1000")] * 20  # cap = 100
     assert apply_liquidity_cap(D("250"), vols) == D("100")
 
 
 def test_apply_keeps_below_cap():
-    vols = [D("1000")] * 20            # cap = 100
+    vols = [D("1000")] * 20  # cap = 100
     assert apply_liquidity_cap(D("40"), vols) == D("40")
 
 
 def test_apply_at_cap_boundary():
-    vols = [D("1000")] * 20            # cap = 100
+    vols = [D("1000")] * 20  # cap = 100
     assert apply_liquidity_cap(D("100"), vols) == D("100")
 
 
 def test_apply_illiquid_data_fails_closed_to_zero():
-    vols = [D("1000")]                # insufficient -> cap 0
+    vols = [D("1000")]  # insufficient -> cap 0
     assert apply_liquidity_cap(D("50"), vols) == D("0")
 
 

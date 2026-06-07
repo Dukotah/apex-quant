@@ -51,6 +51,7 @@ randomness, no I/O. Statistical math uses float to match indicators.py /
 validation/metrics.py; the suggested stop and signal strength are Decimal
 because they cross the event boundary toward money/risk logic.
 """
+
 from __future__ import annotations
 
 import math
@@ -158,7 +159,7 @@ class TimeSeriesMomentumBlend(BaseStrategy):
             # rolling_return needs lookback+1 closes; skip horizons not yet warm.
             if len(closes) < lookback + 1:
                 continue
-            window = closes[-(lookback + 1):]
+            window = closes[-(lookback + 1) :]
             ret = ind.rolling_return(window, lookback)[-1]
             if ret is None:
                 continue

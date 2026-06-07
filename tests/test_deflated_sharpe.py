@@ -8,6 +8,7 @@ cover the headline properties: strong low-noise edge → high PSR, pure noise �
 ambiguous, DSR shrinks as the number of trials grows. Determinism is verified
 explicitly (same inputs → same output).
 """
+
 from __future__ import annotations
 
 import math
@@ -59,7 +60,7 @@ def test_sample_sharpe_basic() -> None:
 
 
 def test_sample_sharpe_degenerate() -> None:
-    assert sample_sharpe([0.5]) == 0.0          # too few points
+    assert sample_sharpe([0.5]) == 0.0  # too few points
     assert sample_sharpe([]) == 0.0
     assert sample_sharpe([0.3, 0.3, 0.3]) == 0.0  # no variance
 
@@ -129,8 +130,8 @@ def test_psr_pure_noise_is_ambiguous() -> None:
 
 def test_psr_grows_with_sample_length() -> None:
     """Same per-period edge, more data → higher confidence."""
-    short = [-0.5, 1.5] * 5    # n=10
-    long = [-0.5, 1.5] * 100   # n=200
+    short = [-0.5, 1.5] * 5  # n=10
+    long = [-0.5, 1.5] * 100  # n=200
     assert sample_sharpe(short) == pytest.approx(sample_sharpe(long), abs=1e-12)
     assert probabilistic_sharpe_ratio(long, 0.0) > probabilistic_sharpe_ratio(short, 0.0)
 

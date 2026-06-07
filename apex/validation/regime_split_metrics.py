@@ -18,6 +18,7 @@ Deliberately dependency-light: stdlib + the existing metrics module, so it runs
 on the free CI runner. All functions are pure and deterministic given inputs.
 Tested in tests/test_regime_split_metrics.py against hand-computed values.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -29,17 +30,18 @@ from apex.validation import metrics
 @dataclass(frozen=True)
 class RegimeMetrics:
     """Performance metrics computed within a single regime bucket."""
+
     regime: Hashable
-    n_periods: int              # number of return observations in this regime
-    fraction: float             # share of all aligned periods this regime covers
-    total_return: float         # compounded return of this regime's periods only
+    n_periods: int  # number of return observations in this regime
+    fraction: float  # share of all aligned periods this regime covers
+    total_return: float  # compounded return of this regime's periods only
     annualized_return: float
     sharpe_ratio: float
     sortino_ratio: float
-    max_drawdown: float         # on the regime-only compounded equity curve
-    win_rate: float             # fraction of positive periods
-    profit_factor: float        # gross gains / gross losses across periods
-    mean_return: float          # arithmetic mean per-period return
+    max_drawdown: float  # on the regime-only compounded equity curve
+    win_rate: float  # fraction of positive periods
+    profit_factor: float  # gross gains / gross losses across periods
+    mean_return: float  # arithmetic mean per-period return
 
     def summary(self) -> str:
         return (

@@ -3,6 +3,7 @@
 Hand-computed against the existing apex.strategy.indicators.ema (which seeds with
 the SMA of the first `period` values, then smooths with alpha = 2/(period+1)).
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -34,10 +35,10 @@ def test_trix_known_values_period2():
     assert len(out) == len(data)
     # First valid triple-ema is at index 3, so TRIX is None through index 3.
     assert all(out[i] is None for i in range(4))
-    assert _approx(out[4], 3.5 / 2.5 - 1.0)        # 0.4
-    assert _approx(out[5], 4.5 / 3.5 - 1.0)        # 0.285714...
-    assert _approx(out[6], 5.5 / 4.5 - 1.0)        # 0.222222...
-    assert _approx(out[7], 6.5 / 5.5 - 1.0)        # 0.181818...
+    assert _approx(out[4], 3.5 / 2.5 - 1.0)  # 0.4
+    assert _approx(out[5], 4.5 / 3.5 - 1.0)  # 0.285714...
+    assert _approx(out[6], 5.5 / 4.5 - 1.0)  # 0.222222...
+    assert _approx(out[7], 6.5 / 5.5 - 1.0)  # 0.181818...
 
 
 def test_insufficient_data_returns_all_none():
@@ -110,7 +111,7 @@ def test_trix_signal_too_short_for_signal_period():
     data = [float(x) for x in range(12)]
     line, sig = trix_signal(data, 3, 50)
     assert any(v is not None for v in line)  # TRIX line exists
-    assert sig == [None] * len(data)         # but signal can't form
+    assert sig == [None] * len(data)  # but signal can't form
 
 
 def test_zero_prior_triple_ema_is_none():

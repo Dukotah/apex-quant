@@ -17,6 +17,7 @@ Follows the same CONTRACT as apex.strategy.indicators:
 
 Tested in tests/test_ind_mfi.py against hand-computed values.
 """
+
 from __future__ import annotations
 
 from typing import Optional, Sequence
@@ -26,9 +27,7 @@ def _to_floats(data: Sequence) -> list[float]:
     return [float(x) for x in data]
 
 
-def typical_price(
-    high: Sequence, low: Sequence, close: Sequence
-) -> list[float]:
+def typical_price(high: Sequence, low: Sequence, close: Sequence) -> list[float]:
     """Typical price per bar: (high + low + close) / 3."""
     highs, lows, closes = _to_floats(high), _to_floats(low), _to_floats(close)
     n = len(closes)
@@ -85,8 +84,8 @@ def mfi(
         # Unchanged typical price contributes to neither.
 
     # First MFI uses the `period` changes spanning indices 1..period.
-    pos_sum = sum(positive[1: period + 1])
-    neg_sum = sum(negative[1: period + 1])
+    pos_sum = sum(positive[1 : period + 1])
+    neg_sum = sum(negative[1 : period + 1])
     out[period] = _mfi_from_sums(pos_sum, neg_sum)
 
     # Slide the window one bar at a time.

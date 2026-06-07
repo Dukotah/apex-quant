@@ -4,6 +4,7 @@ Tests for apex.data.rolling_zscore.
 Hand-computed known values plus edge cases (insufficient data, flat windows,
 population vs sample std, bad arguments).
 """
+
 from __future__ import annotations
 
 import math
@@ -86,6 +87,7 @@ def test_accepts_ints() -> None:
 
 # ----------------------------------------------------------------- latest_zscore
 
+
 def test_latest_matches_last_rolling() -> None:
     series = [1.0, 2.0, 3.0, 4.0, 5.0]
     full = rolling_zscore(series, window=3, ddof=1)
@@ -101,6 +103,7 @@ def test_latest_flat_is_none() -> None:
 
 
 # ----------------------------------------------------------------- bad arguments
+
 
 @pytest.mark.parametrize("bad", [0, -1, 2.5, "3", True])
 def test_invalid_window_raises(bad: object) -> None:

@@ -3,6 +3,7 @@
 Hand-computed known values plus edge cases (empty, single-point, constant
 series, insufficient-data windows). Pure and fast.
 """
+
 from __future__ import annotations
 
 import math
@@ -67,7 +68,7 @@ def test_skew_known_value():
     # skew = m3 / sd^3
     data = [0.0, 0.0, 0.0, 1.0]
     sd = math.sqrt(0.1875)
-    expected = 0.09375 / (sd ** 3)
+    expected = 0.09375 / (sd**3)
     assert skewness(data) == pytest.approx(expected)
     # right-tailed -> positive skew
     assert skewness(data) > 0

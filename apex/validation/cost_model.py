@@ -26,6 +26,7 @@ money path lives in apex/execution/simulated.py; this module is the offline
 All functions are pure and deterministic given their inputs. Tested in
 tests/test_cost_model.py against hand-computed values.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -122,9 +123,7 @@ class CostModel:
         right answer without a divide-by-zero (never NaN/garbage).
         """
         abs_notional = abs(notional)
-        flat_fraction = (
-            0.0 if abs_notional == 0.0 else self.commission_per_trade / abs_notional
-        )
+        flat_fraction = 0.0 if abs_notional == 0.0 else self.commission_per_trade / abs_notional
         return self.variable_fraction() + flat_fraction
 
     def round_trip_cost_fraction(self, notional: float = 0.0) -> float:
@@ -180,10 +179,7 @@ def apply_costs(
     if notionals is None:
         return [net_trade_return(r, model) for r in gross_trade_returns]
     if len(notionals) != n:
-        raise ValueError(
-            f"notionals length {len(notionals)} != trade returns length {n}"
-        )
+        raise ValueError(f"notionals length {len(notionals)} != trade returns length {n}")
     return [
-        net_trade_return(r, model, notional)
-        for r, notional in zip(gross_trade_returns, notionals)
+        net_trade_return(r, model, notional) for r, notional in zip(gross_trade_returns, notionals)
     ]

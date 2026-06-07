@@ -15,6 +15,7 @@ leans only on stdlib (math + statistics). Pure and deterministic: same inputs
 always produce the same matrix. Insufficient-data pairs degrade gracefully to a
 correlation of None rather than emitting garbage.
 """
+
 from __future__ import annotations
 
 import math
@@ -109,9 +110,7 @@ def correlation_matrix(
                 corr = pairwise_correlation(series1, series1, min_periods)
                 value: Optional[float] = None if corr is None else 1.0
             else:
-                value = pairwise_correlation(
-                    series1, returns_by_symbol[s2], min_periods
-                )
+                value = pairwise_correlation(series1, returns_by_symbol[s2], min_periods)
             matrix[s1][s2] = value
             matrix[s2][s1] = value  # mirror for symmetry
 
@@ -137,7 +136,7 @@ def average_correlation(
 
     for i, s1 in enumerate(symbols):
         row = matrix[s1]
-        for s2 in symbols[i + 1:]:
+        for s2 in symbols[i + 1 :]:
             value = row.get(s2)
             if value is None:
                 continue
@@ -169,7 +168,7 @@ def most_correlated_pair(
 
     for i, s1 in enumerate(symbols):
         row = matrix[s1]
-        for s2 in symbols[i + 1:]:
+        for s2 in symbols[i + 1 :]:
             value = row.get(s2)
             if value is None:
                 continue

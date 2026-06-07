@@ -34,6 +34,7 @@ Decimal vs float: every comparison here is on prices/volumes, which are
 touches a price comparison — so the check is exact. The single ratio used for
 the optional gap test is computed in ``Decimal`` as well.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -47,14 +48,14 @@ from apex.core.models import Bar
 class Violation(str, Enum):
     """The kinds of OHLC defect this module detects."""
 
-    HIGH_NOT_MAX = "high_not_max"            # high < one of open/low/close
-    LOW_NOT_MIN = "low_not_min"              # low > one of open/high/close
-    HIGH_LT_LOW = "high_lt_low"             # high < low (Bar normally blocks this)
+    HIGH_NOT_MAX = "high_not_max"  # high < one of open/low/close
+    LOW_NOT_MIN = "low_not_min"  # low > one of open/high/close
+    HIGH_LT_LOW = "high_lt_low"  # high < low (Bar normally blocks this)
     NON_POSITIVE_PRICE = "non_positive_price"  # an O/H/L/C <= 0
-    NEGATIVE_VOLUME = "negative_volume"      # volume < 0
+    NEGATIVE_VOLUME = "negative_volume"  # volume < 0
     ZERO_VOLUME_WITH_RANGE = "zero_volume_with_range"  # vol == 0 but high != low
     NON_INCREASING_TIME = "non_increasing_time"  # ts <= previous ts (same symbol)
-    EXCESSIVE_GAP = "excessive_gap"          # |open-prev_close|/prev_close too large
+    EXCESSIVE_GAP = "excessive_gap"  # |open-prev_close|/prev_close too large
 
 
 @dataclass(frozen=True)
@@ -106,6 +107,7 @@ class OHLCReport:
 
 # --------------------------------------------------------------------- single bar
 
+
 def check_bar(bar: Bar, index: int = 0) -> List[OHLCViolation]:
     """
     Validate the intra-bar OHLC relationships of a single ``Bar``.
@@ -123,47 +125,74 @@ def check_bar(bar: Bar, index: int = 0) -> List[OHLCViolation]:
     o, h, lo, c, v = bar.open, bar.high, bar.low, bar.close, bar.volume
 
     if h < lo:
-        out.append(OHLCViolation(
-            index, Violation.HIGH_LT_LOW, bar,
-            f"high {h} < low {lo}",
-        ))
+        out.append(
+            OHLCViolation(
+                index,
+                Violation.HIGH_LT_LOW,
+                bar,
+                f"high {h} < low {lo}",
+            )
+        )
 
     # high must dominate open/close/low; low must be dominated by open/close/high.
     above_high = [name for name, p in (("open", o), ("close", c), ("low", lo)) if p > h]
     if above_high:
-        out.append(OHLCViolation(
-            index, Violation.HIGH_NOT_MAX, bar,
-            f"high {h} is below {', '.join(above_high)}",
-        ))
+        out.append(
+            OHLCViolation(
+                index,
+                Violation.HIGH_NOT_MAX,
+                bar,
+                f"high {h} is below {', '.join(above_high)}",
+            )
+        )
     below_low = [name for name, p in (("open", o), ("close", c), ("high", h)) if p < lo]
     if below_low:
-        out.append(OHLCViolation(
-            index, Violation.LOW_NOT_MIN, bar,
-            f"low {lo} is above {', '.join(below_low)}",
-        ))
+        out.append(
+            OHLCViolation(
+                index,
+                Violation.LOW_NOT_MIN,
+                bar,
+                f"low {lo} is above {', '.join(below_low)}",
+            )
+        )
 
-    non_positive = [name for name, p in (("open", o), ("high", h), ("low", lo), ("close", c)) if p <= 0]
+    non_positive = [
+        name for name, p in (("open", o), ("high", h), ("low", lo), ("close", c)) if p <= 0
+    ]
     if non_positive:
-        out.append(OHLCViolation(
-            index, Violation.NON_POSITIVE_PRICE, bar,
-            f"non-positive price(s): {', '.join(non_positive)}",
-        ))
+        out.append(
+            OHLCViolation(
+                index,
+                Violation.NON_POSITIVE_PRICE,
+                bar,
+                f"non-positive price(s): {', '.join(non_positive)}",
+            )
+        )
 
     if v < 0:
-        out.append(OHLCViolation(
-            index, Violation.NEGATIVE_VOLUME, bar,
-            f"negative volume {v}",
-        ))
+        out.append(
+            OHLCViolation(
+                index,
+                Violation.NEGATIVE_VOLUME,
+                bar,
+                f"negative volume {v}",
+            )
+        )
     elif v == 0 and h != lo:
-        out.append(OHLCViolation(
-            index, Violation.ZERO_VOLUME_WITH_RANGE, bar,
-            f"zero volume but price range {lo}..{h}",
-        ))
+        out.append(
+            OHLCViolation(
+                index,
+                Violation.ZERO_VOLUME_WITH_RANGE,
+                bar,
+                f"zero volume but price range {lo}..{h}",
+            )
+        )
 
     return out
 
 
 # --------------------------------------------------------------------- series
+
 
 def _gap_ratio(prev_close: Decimal, open_: Decimal) -> Optional[Decimal]:
     """
@@ -221,19 +250,27 @@ def check_series(
         prev = prev_by_ticker.get(ticker)
         if prev is not None:
             if bar.timestamp <= prev.timestamp:
-                violations.append(OHLCViolation(
-                    index, Violation.NON_INCREASING_TIME, bar,
-                    f"timestamp {bar.timestamp.isoformat()} <= previous "
-                    f"{prev.timestamp.isoformat()} for {ticker}",
-                ))
+                violations.append(
+                    OHLCViolation(
+                        index,
+                        Violation.NON_INCREASING_TIME,
+                        bar,
+                        f"timestamp {bar.timestamp.isoformat()} <= previous "
+                        f"{prev.timestamp.isoformat()} for {ticker}",
+                    )
+                )
             if gap_threshold is not None:
                 ratio = _gap_ratio(prev.close, bar.open)
                 if ratio is not None and ratio > gap_threshold:
-                    violations.append(OHLCViolation(
-                        index, Violation.EXCESSIVE_GAP, bar,
-                        f"open {bar.open} gaps {ratio:.4f} from prev close "
-                        f"{prev.close} (> {gap_threshold})",
-                    ))
+                    violations.append(
+                        OHLCViolation(
+                            index,
+                            Violation.EXCESSIVE_GAP,
+                            bar,
+                            f"open {bar.open} gaps {ratio:.4f} from prev close "
+                            f"{prev.close} (> {gap_threshold})",
+                        )
+                    )
         prev_by_ticker[ticker] = bar
 
     return OHLCReport(checked=len(bars), violations=tuple(violations))

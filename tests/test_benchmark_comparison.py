@@ -3,6 +3,7 @@
 Hand-computed reference values plus edge cases (insufficient data, zero
 benchmark variance, no up/down periods, length mismatch).
 """
+
 from __future__ import annotations
 
 import math
@@ -23,6 +24,7 @@ TOL = 1e-12
 # --------------------------------------------------------------------------
 # beta
 # --------------------------------------------------------------------------
+
 
 def test_beta_perfectly_scaled_is_exact_factor():
     # s = 2 * b  =>  beta == 2.0 exactly (cov/var = 2 * var / var).
@@ -57,6 +59,7 @@ def test_beta_zero_benchmark_variance_fails_closed():
 # alpha
 # --------------------------------------------------------------------------
 
+
 def test_alpha_zero_when_strategy_equals_benchmark():
     # Identical series: beta == 1, ann returns equal => alpha == 0.
     r = [0.01, -0.005, 0.02, 0.0]
@@ -78,6 +81,7 @@ def test_alpha_insufficient_data_returns_zero():
 # --------------------------------------------------------------------------
 # capture ratios
 # --------------------------------------------------------------------------
+
 
 def test_up_capture_known_value():
     # b up periods: 0.01 and 0.03 ; s on those: 0.02 and 0.06
@@ -112,6 +116,7 @@ def test_capture_no_qualifying_periods_returns_zero():
 # tracking error
 # --------------------------------------------------------------------------
 
+
 def test_tracking_error_zero_when_identical():
     r = [0.01, -0.02, 0.03]
     assert tracking_error(r, r) == 0.0
@@ -137,6 +142,7 @@ def test_tracking_error_insufficient_data_returns_zero():
 # --------------------------------------------------------------------------
 # benchmark_comparison (the digest)
 # --------------------------------------------------------------------------
+
 
 def test_comparison_structure_and_keys():
     s = [0.01, -0.005, 0.02, 0.0, 0.01]

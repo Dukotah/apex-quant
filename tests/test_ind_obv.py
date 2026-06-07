@@ -1,4 +1,5 @@
 """Tests for apex.strategy.ind_obv — On-Balance Volume."""
+
 from __future__ import annotations
 
 from decimal import Decimal

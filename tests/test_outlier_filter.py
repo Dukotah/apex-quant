@@ -8,6 +8,7 @@ pass; the scale is computed over accepted bars only (so a spike cannot widen its
 own band); both ATR and MAD methods agree on the obvious cases; empty in → empty
 out; and bad parameters fail loud. Pure/offline: no I/O, no clock, no randomness.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -53,6 +54,7 @@ def _smooth_series(n: int, start: float = 400.0, step: float = 0.25) -> list[Bar
 
 # --------------------------------------------------------------- empty / shape
 
+
 def test_empty_input_returns_empty():
     result = filter_outliers([])
     assert isinstance(result, FilterResult)
@@ -70,6 +72,7 @@ def test_result_preserves_order_and_objects_for_clean_series():
 
 
 # ------------------------------------------------------------------- warmup
+
 
 def test_warmup_bars_always_pass_even_if_spiked():
     # Spike lands inside the warmup window → must pass through untouched.
@@ -93,6 +96,7 @@ def test_bars_pass_until_window_of_accepted_bars_exists():
 
 
 # --------------------------------------------------------------- core rejection
+
 
 @pytest.mark.parametrize("method", ["atr", "mad"])
 def test_single_spike_rejected_normal_bars_pass(method):
@@ -162,6 +166,7 @@ def test_threshold_controls_strictness():
 
 # --------------------------------------------------------------- flat window
 
+
 def test_flat_window_zero_scale_accepts_everything():
     # A perfectly flat series has zero volatility → no meaningful band → accept,
     # even a later jump (no scale to compare against). Must not divide-by-zero
@@ -174,6 +179,7 @@ def test_flat_window_zero_scale_accepts_everything():
 
 
 # --------------------------------------------------------------- determinism
+
 
 def test_deterministic_repeated_runs():
     bars = _smooth_series(50)
@@ -196,6 +202,7 @@ def test_rejected_bar_timestamp_property():
 
 # --------------------------------------------------------------- bad params
 
+
 @pytest.mark.parametrize(
     "kwargs",
     [
@@ -213,6 +220,7 @@ def test_bad_parameters_raise(kwargs):
 
 
 # --------------------------------------------------------------- bars unmutated
+
 
 def test_input_bars_not_mutated():
     bars = _smooth_series(40)

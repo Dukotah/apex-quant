@@ -22,6 +22,7 @@ Design / conventions:
 All functions are tested in tests/test_rolling_correlation.py against
 hand-computed values.
 """
+
 from __future__ import annotations
 
 import math

@@ -20,6 +20,7 @@ Design (Golden Rule 12): the whole judgement lives in the PURE, deterministic
 I/O, no clock) and returns a sorted list of ``Issue``s. ``main()`` is the only
 place that reads real env/keys, lazily, and turns them into that snapshot.
 """
+
 from __future__ import annotations
 
 import json
@@ -33,6 +34,7 @@ from typing import List, Optional, Sequence
 
 class Severity(str, Enum):
     """How bad an issue is. ERROR = do not deploy; WARNING = look before you leap."""
+
     ERROR = "error"
     WARNING = "warning"
     INFO = "info"
@@ -45,6 +47,7 @@ _FAILING = (Severity.ERROR,)
 @dataclass(frozen=True)
 class Issue:
     """One audit finding. ``code`` is a stable machine id; ``message`` is human-facing."""
+
     severity: Severity
     code: str
     message: str
@@ -69,8 +72,9 @@ class ConfigFacts:
     is present and its length cross this boundary, so the core literally cannot
     leak a key. ``main()`` builds this from the real (frozen) AppConfig.
     """
-    mode: str                                  # "backtest" | "paper" | "live" | other
-    broker: str                                # "simulated" | "alpaca" | "ibkr" | other
+
+    mode: str  # "backtest" | "paper" | "live" | other
+    broker: str  # "simulated" | "alpaca" | "ibkr" | other
     initial_capital: Decimal = Decimal("0")
 
     alpaca_key_present: bool = False
@@ -93,7 +97,7 @@ class ConfigFacts:
 # Recognised enum values (kept local so the core has ZERO apex imports / side effects).
 _KNOWN_MODES = ("backtest", "paper", "live")
 _KNOWN_BROKERS = ("simulated", "alpaca", "ibkr")
-_REAL_BROKERS = ("alpaca", "ibkr")   # brokers that actually need credentials
+_REAL_BROKERS = ("alpaca", "ibkr")  # brokers that actually need credentials
 
 
 def audit_config(facts: ConfigFacts) -> List[Issue]:
@@ -121,22 +125,47 @@ def audit_config(facts: ConfigFacts) -> List[Issue]:
 def _audit_mode_broker(f: ConfigFacts) -> List[Issue]:
     out: List[Issue] = []
     if f.mode not in _KNOWN_MODES:
-        out.append(Issue(Severity.ERROR, "mode.unknown",
-                         f"APEX_MODE '{f.mode}' is not one of {_KNOWN_MODES}."))
+        out.append(
+            Issue(
+                Severity.ERROR,
+                "mode.unknown",
+                f"APEX_MODE '{f.mode}' is not one of {_KNOWN_MODES}.",
+            )
+        )
     if f.broker not in _KNOWN_BROKERS:
-        out.append(Issue(Severity.ERROR, "broker.unknown",
-                         f"APEX_BROKER '{f.broker}' is not one of {_KNOWN_BROKERS}."))
+        out.append(
+            Issue(
+                Severity.ERROR,
+                "broker.unknown",
+                f"APEX_BROKER '{f.broker}' is not one of {_KNOWN_BROKERS}.",
+            )
+        )
 
     # The headline safety trap (Golden Rule 15): live money against a fake broker.
     if f.mode == "live" and f.broker == "simulated":
-        out.append(Issue(Severity.ERROR, "mode.live_simulated",
-                         "LIVE mode requires a real broker, not 'simulated'."))
+        out.append(
+            Issue(
+                Severity.ERROR,
+                "mode.live_simulated",
+                "LIVE mode requires a real broker, not 'simulated'.",
+            )
+        )
     if f.mode == "live":
-        out.append(Issue(Severity.WARNING, "mode.live",
-                         "LIVE mode uses REAL money — confirm the 30-day paper gate passed."))
+        out.append(
+            Issue(
+                Severity.WARNING,
+                "mode.live",
+                "LIVE mode uses REAL money — confirm the 30-day paper gate passed.",
+            )
+        )
     if f.mode == "backtest" and f.broker in _REAL_BROKERS:
-        out.append(Issue(Severity.INFO, "mode.backtest_real_broker",
-                         f"backtest mode ignores the '{f.broker}' broker (simulated fills are used)."))
+        out.append(
+            Issue(
+                Severity.INFO,
+                "mode.backtest_real_broker",
+                f"backtest mode ignores the '{f.broker}' broker (simulated fills are used).",
+            )
+        )
     return out
 
 
@@ -149,18 +178,36 @@ def _audit_credentials(f: ConfigFacts) -> List[Issue]:
 
     sev = Severity.ERROR if f.mode == "live" else Severity.WARNING
     if not f.alpaca_key_present:
-        out.append(Issue(sev, "creds.key_missing",
-                         f"ALPACA_API_KEY is not set but {f.mode} mode needs it."))
+        out.append(
+            Issue(
+                sev, "creds.key_missing", f"ALPACA_API_KEY is not set but {f.mode} mode needs it."
+            )
+        )
     elif f.alpaca_key_len < MIN_SECRET_LEN:
-        out.append(Issue(Severity.WARNING, "creds.key_short",
-                         f"ALPACA_API_KEY looks too short ({f.alpaca_key_len} chars) — placeholder?"))
+        out.append(
+            Issue(
+                Severity.WARNING,
+                "creds.key_short",
+                f"ALPACA_API_KEY looks too short ({f.alpaca_key_len} chars) — placeholder?",
+            )
+        )
 
     if not f.alpaca_secret_present:
-        out.append(Issue(sev, "creds.secret_missing",
-                         f"ALPACA_SECRET_KEY is not set but {f.mode} mode needs it."))
+        out.append(
+            Issue(
+                sev,
+                "creds.secret_missing",
+                f"ALPACA_SECRET_KEY is not set but {f.mode} mode needs it.",
+            )
+        )
     elif f.alpaca_secret_len < MIN_SECRET_LEN:
-        out.append(Issue(Severity.WARNING, "creds.secret_short",
-                         f"ALPACA_SECRET_KEY looks too short ({f.alpaca_secret_len} chars) — placeholder?"))
+        out.append(
+            Issue(
+                Severity.WARNING,
+                "creds.secret_short",
+                f"ALPACA_SECRET_KEY looks too short ({f.alpaca_secret_len} chars) — placeholder?",
+            )
+        )
     return out
 
 
@@ -179,37 +226,80 @@ def _audit_risk(f: ConfigFacts) -> List[Issue]:
     )
     for code, val in pct_caps:
         if val <= zero:
-            out.append(Issue(Severity.ERROR, code,
-                             f"{code} is {val}; must be a positive fraction (e.g. 0.16 = 16%)."))
+            out.append(
+                Issue(
+                    Severity.ERROR,
+                    code,
+                    f"{code} is {val}; must be a positive fraction (e.g. 0.16 = 16%).",
+                )
+            )
         elif val > one:
-            out.append(Issue(Severity.ERROR, code,
-                             f"{code} is {val} (> 1.0); did you mean {val / 100} ({val}%)?"))
+            out.append(
+                Issue(
+                    Severity.ERROR,
+                    code,
+                    f"{code} is {val} (> 1.0); did you mean {val / 100} ({val}%)?",
+                )
+            )
 
     if f.max_leverage < one:
-        out.append(Issue(Severity.ERROR, "risk.max_leverage",
-                         f"max_leverage is {f.max_leverage}; must be >= 1.0 (1.0 = no leverage)."))
+        out.append(
+            Issue(
+                Severity.ERROR,
+                "risk.max_leverage",
+                f"max_leverage is {f.max_leverage}; must be >= 1.0 (1.0 = no leverage).",
+            )
+        )
     elif f.max_leverage > one:
-        out.append(Issue(Severity.WARNING, "risk.max_leverage",
-                         f"max_leverage is {f.max_leverage} (> 1.0) — leverage amplifies losses."))
+        out.append(
+            Issue(
+                Severity.WARNING,
+                "risk.max_leverage",
+                f"max_leverage is {f.max_leverage} (> 1.0) — leverage amplifies losses.",
+            )
+        )
 
     if f.max_open_positions <= 0:
-        out.append(Issue(Severity.ERROR, "risk.max_open_positions",
-                         f"max_open_positions is {f.max_open_positions}; must be >= 1."))
+        out.append(
+            Issue(
+                Severity.ERROR,
+                "risk.max_open_positions",
+                f"max_open_positions is {f.max_open_positions}; must be >= 1.",
+            )
+        )
 
     # Cross-cap coherence: a single position cannot be allowed to exceed total exposure.
-    if (f.max_position_size_pct > zero and f.max_total_exposure_pct > zero
-            and f.max_position_size_pct > f.max_total_exposure_pct):
-        out.append(Issue(Severity.WARNING, "risk.position_gt_exposure",
-                         f"max_position_size_pct ({f.max_position_size_pct}) exceeds "
-                         f"max_total_exposure_pct ({f.max_total_exposure_pct})."))
+    if (
+        f.max_position_size_pct > zero
+        and f.max_total_exposure_pct > zero
+        and f.max_position_size_pct > f.max_total_exposure_pct
+    ):
+        out.append(
+            Issue(
+                Severity.WARNING,
+                "risk.position_gt_exposure",
+                f"max_position_size_pct ({f.max_position_size_pct}) exceeds "
+                f"max_total_exposure_pct ({f.max_total_exposure_pct}).",
+            )
+        )
 
     if not f.require_stop_loss:
-        out.append(Issue(Severity.WARNING, "risk.no_stop_loss",
-                         "require_stop_loss is False — Golden Rule 7 wants a mandatory stop."))
+        out.append(
+            Issue(
+                Severity.WARNING,
+                "risk.no_stop_loss",
+                "require_stop_loss is False — Golden Rule 7 wants a mandatory stop.",
+            )
+        )
 
     if f.initial_capital <= zero:
-        out.append(Issue(Severity.ERROR, "config.capital",
-                         f"initial_capital is {f.initial_capital}; must be > 0."))
+        out.append(
+            Issue(
+                Severity.ERROR,
+                "config.capital",
+                f"initial_capital is {f.initial_capital}; must be > 0.",
+            )
+        )
     return out
 
 
@@ -249,12 +339,12 @@ def render_report(facts: ConfigFacts, issues: Sequence[Issue]) -> str:
 
 def issues_to_json(issues: Sequence[Issue]) -> str:
     """Machine-readable issue list (no secrets — only codes/messages/severities)."""
-    payload = [{"severity": i.severity.value, "code": i.code, "message": i.message}
-               for i in issues]
+    payload = [{"severity": i.severity.value, "code": i.code, "message": i.message} for i in issues]
     return json.dumps(payload, indent=2)
 
 
 # ------------------------------------------------------------- env -> facts
+
 
 def _present(value: Optional[str]) -> bool:
     """A credential counts as present only if it is a non-blank string."""
@@ -290,15 +380,18 @@ def facts_from_config(config) -> ConfigFacts:  # pragma: no cover - thin adapter
 
 # --------------------------------------------------------------------- main
 
+
 def _parse_args(argv: Optional[Sequence[str]] = None):
     import argparse
+
     parser = argparse.ArgumentParser(
         prog="config_audit",
         description="Validate env/config sanity (mode, broker, keys, risk caps) "
-                    "without revealing any secret values. Read-only; no network.",
+        "without revealing any secret values. Read-only; no network.",
     )
-    parser.add_argument("--json", action="store_true",
-                        help="emit issues as JSON instead of a human report.")
+    parser.add_argument(
+        "--json", action="store_true", help="emit issues as JSON instead of a human report."
+    )
     return parser.parse_args(list(argv) if argv is not None else None)
 
 
@@ -324,6 +417,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:  # pragma: no cover - rea
     else:
         try:
             import sys
+
             sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
         except Exception:  # noqa: BLE001
             pass

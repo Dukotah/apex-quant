@@ -1,4 +1,5 @@
 """Tests for apex.data.synthetic_bars — seeded GBM bar generator."""
+
 from __future__ import annotations
 
 import math
@@ -22,6 +23,7 @@ SPY = Symbol(ticker="SPY", asset_class=AssetClass.ETF)
 
 
 # ------------------------------------------------------------------- prices
+
 
 def test_prices_match_independent_gbm_formula():
     """generate_prices reproduces the hand-derived GBM recurrence exactly."""
@@ -73,6 +75,7 @@ def test_prices_reject_bad_params():
 
 
 # -------------------------------------------------------------------- bars
+
 
 def test_bars_count_and_types():
     bars = generate_bars(SYM, 10, seed=5)
@@ -151,6 +154,7 @@ def test_bars_reject_bad_geometry_params():
 
 # ----------------------------------------------------------------- events
 
+
 def test_market_events_wrap_bars():
     events = generate_market_events(SYM, 7, seed=1, mu=0.1)
     bars = generate_bars(SYM, 7, seed=1, mu=0.1)
@@ -160,6 +164,7 @@ def test_market_events_wrap_bars():
 
 
 # ----------------------------------------------------------- multi-symbol
+
 
 def test_multi_symbol_merged_and_sorted():
     start = datetime(2020, 1, 1, tzinfo=timezone.utc)

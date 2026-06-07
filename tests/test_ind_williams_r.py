@@ -1,4 +1,5 @@
 """Tests for apex.strategy.ind_williams_r — hand-computed values + edge cases."""
+
 from __future__ import annotations
 
 from decimal import Decimal
