@@ -153,10 +153,14 @@ forbidden from touching shared files (`__init__.py`, RiskManager, Gauntlet
 orchestrator, configs, requirements) to avoid parallel-write conflicts. That
 wiring is the next pass:
 
-- **F1 — Register `TimeSeriesMomentumBlend`.** Add it to the strategy factory /
-  `apex/strategy/library/__init__.py` and any config YAML so it's selectable at
-  runtime. Then run it through the Gauntlet and tune defaults
-  (lookbacks/scale/buy_threshold/atr_mult are unvalidated priors).
+- **F1 — Register `TimeSeriesMomentumBlend`.** ✅ *Registration done:* a
+  name→class `STRATEGY_REGISTRY` (+ `available_strategies` / `get_strategy_class`
+  / `build_strategy`) now lives in `apex/strategy/library/__init__.py`, with
+  `ts_momentum_blend` and the other 10 research candidates selectable by name
+  (`tests/test_strategy_registry.py`). 🔲 *Still open:* run it through the
+  Gauntlet on real data and tune defaults (lookbacks/scale/buy_threshold/atr_mult
+  are unvalidated priors) — and it stays out of the live roster until it clears.
+  Subsumes the registration half of **F12**.
 - **F2 — Wire the gates/weighting into strategies + the allocator.** Have a
   vol-filtered strategy consume `regime.VolatilityRegimeClassifier.is_risk_on()`;
   make the (future) allocation engine (backlog §B) use `strategy/weighting.py`
