@@ -12,7 +12,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
-from apex.backtest.backtester import run_backtest
+from apex.backtest.backtester import make_slice_backtest_fn, run_backtest
 from apex.backtest.gauntlet_runner import (
     GauntletInputs,
     run_full_gauntlet,
@@ -88,8 +88,11 @@ def test_full_gauntlet_returns_graded_report():
         param_variants=[("a", factory), ("b", factory)],
         mc_iterations=100,
     )
-    # The pipeline ran all seven gates and produced a graded report.
-    assert len(report.gates) == 7
+    # The pipeline ran all eight gates (7 classic + the soft Overfitting/DSR gate)
+    # and produced a graded report.
+    assert len(report.gates) == 8
+    assert report.gates[-1].name.startswith("Gate 8 Overfitting")
+    assert report.gates[-1].is_hard_gate is False  # soft: can only WARN, never hard-fail
     assert isinstance(report.grade, Grade)
     assert isinstance(report.paper_approved, bool)
     assert isinstance(inputs, GauntletInputs)
@@ -135,7 +138,7 @@ def test_run_gauntlet_from_csv(tmp_path):
         risk_config=_full_risk(),
         mc_iterations=80,
     )
-    assert len(report.gates) == 7
+    assert len(report.gates) == 8
     assert isinstance(report.grade, Grade)
     assert inputs.num_trades >= 0
     assert len(report.render()) > 0
@@ -154,3 +157,99 @@ def test_gauntlet_is_deterministic():
     assert r1.grade == r2.grade
     assert i1.full_sharpe == i2.full_sharpe
     assert i1.num_trades == i2.num_trades
+
+
+# ---- make_slice_backtest_fn ----
+
+
+def test_make_slice_backtest_fn_returns_callable():
+    events = _trending_series(n=200)
+
+    def factory():
+        return SMACrossoverStrategy("sma", [SYM], fast_period=10, slow_period=30)
+
+    fn = make_slice_backtest_fn(events, factory, _full_risk())
+    assert callable(fn)
+
+
+def test_make_slice_backtest_fn_normal_window():
+    """Inner backtest_fn over a normal window returns a float equity curve."""
+    events = _trending_series(n=200)
+
+    def factory():
+        return SMACrossoverStrategy("sma", [SYM], fast_period=10, slow_period=30)
+
+    fn = make_slice_backtest_fn(events, factory, _full_risk())
+    # train 0-100, test 100-200
+    curve = fn(0, 100, 100, 200)
+    assert isinstance(curve, list)
+    assert all(isinstance(v, float) for v in curve)
+    # Must have at least 2 points (contract with walk-forward).
+    assert len(curve) >= 2
+
+
+def test_make_slice_backtest_fn_short_window_returns_fallback():
+    """A window of length < 2 must return the sentinel [1.0, 1.0]."""
+    events = _trending_series(n=200)
+
+    def factory():
+        return SMACrossoverStrategy("sma", [SYM], fast_period=10, slow_period=30)
+
+    fn = make_slice_backtest_fn(events, factory, _full_risk())
+    # Slice that collapses to one event (test_start == test_end - 1).
+    curve = fn(0, 50, 50, 51)
+    assert curve == [1.0, 1.0]
+
+
+def test_make_slice_backtest_fn_empty_window_returns_fallback():
+    """A window of length 0 (test_start >= test_end) returns [1.0, 1.0]."""
+    events = _trending_series(n=200)
+
+    def factory():
+        return SMACrossoverStrategy("sma", [SYM], fast_period=10, slow_period=30)
+
+    fn = make_slice_backtest_fn(events, factory, _full_risk())
+    curve = fn(0, 50, 100, 100)  # empty slice
+    assert curve == [1.0, 1.0]
+
+
+def test_make_slice_backtest_fn_uses_fresh_strategy_each_call():
+    """Each call to the returned fn must use a brand-new strategy instance."""
+    events = _trending_series(n=300)
+    call_count = []
+
+    def factory():
+        call_count.append(1)
+        return SMACrossoverStrategy("sma", [SYM], fast_period=10, slow_period=30)
+
+    fn = make_slice_backtest_fn(events, factory, _full_risk())
+    fn(0, 100, 100, 200)
+    fn(0, 150, 150, 250)
+    # factory called once per normal invocation.
+    assert len(call_count) == 2
+
+
+def test_make_slice_backtest_fn_passes_kwargs():
+    """Extra kwargs (e.g. fill_timing) are forwarded to run_backtest."""
+    events = _trending_series(n=200)
+
+    def factory():
+        return SMACrossoverStrategy("sma", [SYM], fast_period=10, slow_period=30)
+
+    fn = make_slice_backtest_fn(events, factory, _full_risk(), fill_timing="close")
+    curve = fn(0, 100, 100, 200)
+    assert len(curve) >= 2
+
+
+def test_make_slice_backtest_fn_curve_at_least_two_on_short_result():
+    """If run_backtest produces < 2 equity points, the fn still returns [1.0, 1.0]."""
+    events = _trending_series(n=50)
+
+    def factory():
+        return SMACrossoverStrategy("sma", [SYM], fast_period=10, slow_period=30)
+
+    fn = make_slice_backtest_fn(events, factory, _full_risk())
+    # Very small test window — might produce 0 or 1 equity points.
+    curve = fn(0, 2, 2, 3)
+    # Result must satisfy the two-point contract regardless.
+    assert len(curve) >= 2

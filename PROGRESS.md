@@ -2,6 +2,20 @@
 
 Running log so the owner can glance in anytime. Newest first.
 
+## 2026-06-07 — research sweep + Gauntlet hardening (Gate 8: Deflated Sharpe)
+
+- **6-agent research sweep, ~35 papers**, scored against our hard constraints. Verdict: trend +
+  value are well-founded; biggest wins are rigor/craft, not new strategies. Owner greenlit four
+  builds (Gauntlet hardening · trend craft · finish allocator · bond-carry edge) and a clear
+  "don't build" list (BAB, dual-momentum/Faber=trend, low-vol, sell-in-May, MV optimization).
+- **Shipped item 1: `apex/validation/overfitting.py` + Gate 8 (soft).** PSR / Deflated Sharpe /
+  expected-max-Sharpe / Min Track Record Length (Bailey & López de Prado), wired as a WARN-only
+  8th gate that reuses the Gate-6 sweep as its trial population. Deployed strategy stays grade A
+  (DSR≈1). **710 tests green**, lint/format clean, coverage 89%. (MCPT price-shuffle = next.)
+- **Parked (green where tested), to land in order:** allocator.py (F3.3 draft), bond_carry.py
+  (+25 tests; verify ^TNX/^IRX feed scaling first), ops/alerts.py (+34 tests; needs run_once
+  wiring), W9 coverage uplift (backtester/config/base_strategy/metrics → 100%).
+
 ## 2026-06-06 (cont.) — local dashboard + W8 finding
 
 - **Local dashboard** (`scripts/dashboard.py`, stdlib only): `python -m scripts.dashboard` →

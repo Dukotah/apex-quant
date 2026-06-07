@@ -6,6 +6,49 @@
 
 ---
 
+## Session 31 — Research sweep (35 papers) + Gauntlet hardening: the Deflated Sharpe gate (Gate 8)
+
+Ran a 6-agent literature sweep (trend enhancements / long-only second edges / risk-sizing /
+overfitting / ensembling / practical ETF signals), each scoring findings against our HARD
+constraints (long-only, no leverage/shorting, free daily data, deterministic, risk-gated).
+The convergent read: our trend edge is academically bulletproof (Moskowitz-Ooi-Pedersen TSMOM;
+Hurst-Ooi-Pedersen), value is exactly the predicted negatively-correlated complement (Asness-
+Moskowitz-Pedersen), and the **highest-value/lowest-risk wins are in rigor and craft, not new
+strategies.** Owner greenlit four: (1) Gauntlet hardening, (2) trend craft (EWMA vol + 63/200
+barbell), (3) finish the F3.3 allocator (inverse-vol + tolerance bands, NO weight optimization
+— DeMiguel 1/N), (4) a bond-carry (yield-curve slope) sleeve as the ~0-correlation diversifier.
+Explicitly ruled out (agents unanimous): BAB (needs leverage+shorting), dual-momentum/Faber GTAA
+(trend in disguise), standalone low-vol (crowded), Halloween/sell-in-May (decayed), dynamic
+commodity carry (needs paid futures data), mean-variance weight optimization (loses to 1/N OOS),
+vol-managed scaling & HMM regimes (fail/dominated OOS for a 2-sleeve long-only book).
+
+**BUILT (item 1) — `apex/validation/overfitting.py` + Gate 8.** Pure stdlib implementations of
+Bailey & López de Prado: Probabilistic Sharpe Ratio, Deflated Sharpe Ratio (PSR vs the expected
+maximum Sharpe under the null for N trials), expected-max-Sharpe (EVT), and Minimum Track Record
+Length — all on the per-period Sharpe with skew/kurtosis corrections. Wired into the runner as
+**Gate 8 (soft, WARN-only)**: it reuses the **Gate-6 parameter sweep as the trial population**
+(chosen + variants ARE the multiple tests), so no extra backtests. With <2 trials DSR collapses
+to PSR. **Deliberately soft** (Session-25 rule: don't change hard-fail/grading logic and
+invalidate documented grade-A results) — the deployed trend strategy's ~5000-bar DSR≈1.0 so it
+stays grade A; Gate 8 only flags multiple-testing/overfit risk to the operator. 36 new unit
+tests (known-value + monotonicity). Full suite **710 green**, lint+format clean, coverage 89%.
+Remaining hardening sub-item: the Monte-Carlo PERMUTATION test (price-path shuffle) — sequenced
+next within item 1 (heavier; touches the engine).
+
+**PARKED (uncommitted, green where tested), to integrate in the selected order:**
+- `apex/backtest/allocator.py` — F3.3 allocation engine draft (Sleeve/AllocationConfig with a
+  `funded` W8 gate, inverse-vol-ready blend). Needs tests + the inverse-vol/tolerance-band
+  calibration before commit (item 3).
+- `apex/strategy/library/bond_carry.py` (+25 tests, green) — BondCarryStrategy (10Y–3M slope via
+  ride-along ^TNX/^IRX, long/flat IEF↔SHV, hysteresis). NOT yet Gauntlet-validated. ⚠️ verify the
+  feed passes ^TNX/^IRX close through as raw yield-% (no /100 scaling) before validating (item 4).
+- `apex/ops/alerts.py` (+34 tests, green) — W7 actionable-only + daily-heartbeat alert policy
+  (decoupled, fake-notifier tested). Still needs the one-line wiring into `run_once._notify_cycle`
+  + a `StateStore.last_alert_date`/`record_alert_date`.
+- Coverage uplift (W9): backtester/config/base_strategy/metrics now at 100% (test-only adds).
+
+---
+
 ## Session 30 — W8 feasibility: survivorship-free data needs a PAID source (free path is a dead end)
 
 Probed whether the live-capital gate (W8, survivorship-free validation) is achievable on free

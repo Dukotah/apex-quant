@@ -210,13 +210,23 @@ def run_full_gauntlet(
     corr = metrics.correlation(full_returns, bench_returns)
     g7 = gauntlet.evaluate_gate7_benchmark(full_sharpe, bench_sharpe, corr)
 
-    gates = [g1, g2, g3, g4, g5, g6, g7]
+    # ---- Gate 8: Overfitting / Deflated Sharpe (soft). ----
+    # Reuse the Gate-6 sweep as the trial population: the chosen strategy plus every
+    # variant we backtested ARE the multiple tests the Deflated Sharpe must correct
+    # for. With no sweep this is a single trial and DSR collapses to PSR.
+    trial_sharpes = [full_sharpe, *neighbor_sharpes]
+    g8, overfit = gauntlet.evaluate_gate8_overfitting(full_returns, trial_sharpes)
+
+    gates = [g1, g2, g3, g4, g5, g6, g7, g8]
     report = gauntlet.grade_and_assemble(
         strategy_name,
         gates,
         realistic_dd=mc.realistic_max_drawdown,
         validated_sharpe=wf.stitched_sharpe,
     )
+    # Surface the overfitting numbers in the report (mutating the notes list is fine
+    # even on the frozen report — we're appending, not rebinding the attribute).
+    report.notes.append(overfit.summary())
     inputs = GauntletInputs(
         in_sample_sharpe=in_sharpe,
         out_of_sample_sharpe=oos_sharpe,

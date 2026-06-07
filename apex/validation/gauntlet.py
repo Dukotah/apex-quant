@@ -19,7 +19,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum
 
-from apex.validation import metrics
+from apex.validation import metrics, overfitting
 from apex.validation.monte_carlo import MonteCarloResult
 from apex.validation.walk_forward import WalkForwardResult
 
@@ -294,6 +294,44 @@ def evaluate_gate7_benchmark(
         GateStatus.WARN,
         f"neither beats SPY nor diversifies (corr {correlation_to_benchmark:.2f})",
         is_hard_gate=False,
+    )
+
+
+def evaluate_gate8_overfitting(
+    full_returns: list[float],
+    trial_sharpes_annual: list[float] | None = None,
+    *,
+    periods_per_year: int = 252,
+) -> tuple[GateResult, overfitting.OverfittingResult]:
+    """
+    Gate 8 — Overfitting / Deflated Sharpe (soft gate, can only WARN).
+
+    Corrects the Sharpe for HOW MANY variants were tried (selection bias), for
+    non-normality (skew/kurtosis), and for whether the history is even long enough
+    to make the claim (Minimum Track Record Length). A strong, long, single-tested
+    edge passes cleanly; a fat-tailed Sharpe cherry-picked from many trials warns.
+
+    Soft by design: it never hard-fails a strategy that already cleared gates 1-5,
+    so it cannot retroactively invalidate the deployed strategy's grade — it only
+    flags multiple-testing risk for the operator. ``trial_sharpes_annual`` should
+    include every variant tried (e.g. the Gate-6 sweep + the chosen strategy);
+    fewer than two entries makes the Deflated Sharpe collapse to the Probabilistic
+    Sharpe (no deflation possible without a trial population).
+    """
+    res = overfitting.assess(full_returns, trial_sharpes_annual, periods_per_year=periods_per_year)
+    status = GateStatus.PASS if res.passed else GateStatus.WARN
+    mtl = (
+        "inf"
+        if res.min_track_record_length == float("inf")
+        else f"{res.min_track_record_length:.0f}"
+    )
+    detail = (
+        f"DSR {res.dsr:.2f} (N_trials {res.n_trials}), PSR {res.psr:.2f}, "
+        f"MinTRL {mtl} vs {res.n_observations} obs"
+    )
+    return (
+        GateResult("Gate 8 Overfitting (DSR)", status, detail, is_hard_gate=False),
+        res,
     )
 
 
