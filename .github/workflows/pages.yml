@@ -1,0 +1,63 @@
+name: Deploy progress dashboard to GitHub Pages
+
+# Publishes a STATIC snapshot of the project dashboard (scripts/dashboard.py
+# --export) to GitHub Pages. Pages is static-only, so we render the page in CI
+# rather than running the local http.server. Read-only: never trades, never
+# mutates state. Runs on every push to main (ship → page updates) and shortly
+# after the daily trade cron (so live paper status stays fresh).
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '10 20 * * 1-5'   # ~20 min after trade.yml (19:50 UTC) — picks up fresh state
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never let two Pages deploys race; keep the latest.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build-deploy:
+    name: Render & deploy dashboard
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Render static dashboard
+        env:
+          APEX_MODE: paper
+        run: python -m scripts.dashboard --export site/index.html
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4
