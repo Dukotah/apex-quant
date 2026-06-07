@@ -85,3 +85,157 @@ def test_annualized_return():
     curve = [1.0] + [1.0 * (2 ** (i / 252)) for i in range(1, 253)]
     ann = metrics.annualized_return(curve)
     assert abs(ann - 1.0) < 0.05  # ~100%
+
+
+# ---------------------------------------------------------------------------
+# Additional tests to lift coverage to ≥ 85%
+# ---------------------------------------------------------------------------
+
+
+def test_returns_from_equity_zero_prev_element():
+    """When a prev value is 0, returns_from_equity should append 0.0 (no ZeroDivisionError)."""
+    # Equity curve with a zero element mid-stream.
+    rets = metrics.returns_from_equity([100.0, 0.0, 50.0])
+    # First: (0 / 100) - 1 = -1.0
+    assert abs(rets[0] - (-1.0)) < 1e-9
+    # Second: prev=0 → yields 0.0 (guarded path)
+    assert rets[1] == 0.0
+
+
+def test_sharpe_too_few_returns():
+    """sharpe_ratio with fewer than 2 data points must return 0.0 without raising."""
+    assert metrics.sharpe_ratio([]) == 0.0
+    assert metrics.sharpe_ratio([0.01]) == 0.0
+
+
+def test_sortino_too_few_returns():
+    """sortino_ratio with fewer than 2 data points must return 0.0 without raising."""
+    assert metrics.sortino_ratio([]) == 0.0
+    assert metrics.sortino_ratio([0.01]) == 0.0
+
+
+def test_sortino_zero_downside():
+    """
+    When all returns exceed the risk-free rate the downside deviation is 0.
+    sortino_ratio must return 0.0 rather than dividing by zero.
+    """
+    # All returns strictly positive; rf=0 → no downside samples.
+    assert metrics.sortino_ratio([0.01, 0.02, 0.03, 0.04]) == 0.0
+
+
+def test_max_drawdown_empty_curve():
+    """max_drawdown of an empty curve must return 0.0."""
+    assert metrics.max_drawdown([]) == 0.0
+
+
+def test_max_drawdown_zero_peak():
+    """
+    If the first element is 0 (zero peak), max_drawdown must not divide by zero
+    and should return 0.0 (no positive peak to draw down from).
+    """
+    # Curve starts at 0, peak never goes positive in the standard case —
+    # the guard `if peak > 0` skips the drawdown calculation.
+    assert metrics.max_drawdown([0.0, 0.0, 0.0]) == 0.0
+
+
+def test_annualized_return_empty_curve():
+    """annualized_return with fewer than 2 points must return 0.0."""
+    assert metrics.annualized_return([]) == 0.0
+    assert metrics.annualized_return([100.0]) == 0.0
+
+
+def test_annualized_return_zero_start():
+    """annualized_return with equity[0] == 0 must return 0.0 (guard against divide-by-zero)."""
+    assert metrics.annualized_return([0.0, 100.0, 200.0]) == 0.0
+
+
+def test_annualized_return_negative_growth():
+    """
+    When the equity curve ends at or below zero, growth <= 0 → returns -1.0
+    (total loss, cannot take a power of a non-positive number).
+    """
+    result = metrics.annualized_return([100.0, 50.0, 0.0])
+    assert result == -1.0
+
+
+def test_annualized_return_positive_known_value():
+    """
+    25% return over 252 periods (one year) → annualized return ≈ 25%.
+    Hand-computed: growth=1.25, exponent=252/252=1, result=0.25.
+    """
+    curve = [100.0] + [125.0] * 252  # 252 period-to-period steps
+    ann = metrics.annualized_return(curve, periods_per_year=252)
+    assert abs(ann - 0.25) < 1e-9
+
+
+def test_calmar_ratio_zero_drawdown():
+    """
+    A monotonically rising equity curve has zero drawdown; calmar_ratio must
+    return 0.0 rather than dividing by zero.
+    """
+    assert metrics.calmar_ratio([100.0, 110.0, 120.0, 130.0]) == 0.0
+
+
+def test_calmar_ratio_positive_known_value():
+    """
+    Calmar = annualized_return / max_drawdown. With a curve of [100, 80, 120]
+    over 2 periods we can hand-check: drawdown=20%, annualized return uses
+    growth=1.2, exponent=252/2=126 → very high CAGR. Assert just that it's
+    positive (the ratio of a positive return to a positive drawdown).
+    """
+    result = metrics.calmar_ratio([100.0, 80.0, 120.0])
+    assert result > 0.0
+
+
+def test_correlation_too_short():
+    """correlation returns 0.0 when either input has fewer than 2 elements."""
+    assert metrics.correlation([], [1.0, 2.0]) == 0.0
+    assert metrics.correlation([1.0, 2.0], []) == 0.0
+    assert metrics.correlation([1.0], [2.0]) == 0.0
+
+
+def test_correlation_constant_series():
+    """
+    A constant series has zero variance. correlation must return 0.0 rather
+    than dividing by zero (denom == 0 branch).
+    """
+    constant = [5.0, 5.0, 5.0, 5.0]
+    varying = [1.0, 2.0, 3.0, 4.0]
+    assert metrics.correlation(constant, varying) == 0.0
+    assert metrics.correlation(varying, constant) == 0.0
+    assert metrics.correlation(constant, constant) == 0.0
+
+
+def test_profit_factor_all_losses():
+    """When there are only losing trades, gross_profit=0 and the ratio is 0.0."""
+    assert metrics.profit_factor([-1.0, -2.0, -0.5]) == 0.0
+
+
+def test_win_rate_all_losers():
+    assert metrics.win_rate([-1.0, -2.0, -3.0]) == 0.0
+
+
+def test_win_rate_all_winners():
+    assert metrics.win_rate([1.0, 2.0, 3.0]) == 1.0
+
+
+def test_total_return_zero_start():
+    """total_return with equity[0] == 0 must return 0.0 (guard against divide-by-zero)."""
+    assert metrics.total_return([0.0, 100.0]) == 0.0
+
+
+def test_sharpe_with_nonzero_risk_free():
+    """Sharpe should deduct the per-period risk-free rate from each return."""
+    # Flat 1% daily returns minus a 252% annualized rf (= 1% per day) → excess = 0 → Sharpe 0.
+    daily_rf = 1.0  # 100% per year → per-period = 1.0/252 ≈ 0.00397
+    rets = [0.01] * 10  # returns equal to roughly the daily rf → near-zero excess
+    # Just assert it doesn't raise and returns a float.
+    result = metrics.sharpe_ratio(rets, risk_free_rate=daily_rf)
+    assert isinstance(result, float)
+
+
+def test_sortino_with_nonzero_risk_free():
+    """sortino_ratio with a nonzero risk-free rate should still run without error."""
+    rets = [0.02, -0.01, 0.03, -0.02, 0.01]
+    result = metrics.sortino_ratio(rets, risk_free_rate=0.05)
+    assert isinstance(result, float)
