@@ -85,6 +85,7 @@ class RunReport:
     reconciled: bool = False
     quarantined: bool = False
     killed: bool = False
+    reconcile_discrepancy: bool = False
     drift_summary: str = ""
 
     def summary(self) -> str:
@@ -94,6 +95,7 @@ class RunReport:
             f"{self.signals_evaluated} signals -> {self.orders_submitted} orders, "
             f"{len(self.fills)} fills{', HALTED' if self.halted else ''}"
             f"{', QUARANTINED' if self.quarantined else ''}"
+            f"{', RECONCILE-DISCREPANCY' if self.reconcile_discrepancy else ''}"
             f"{', KILLED' if self.killed else ''}"
         )
         return f"{base}\n  {self.drift_summary}" if self.drift_summary else base
@@ -145,6 +147,20 @@ class StateStore:
             )
             """
         )
+        # NOW-5: per-calendar-day opening equity, the clean daily-loss baseline. Keyed
+        # by (ISO date, mode) so a mid-day cron re-fire cannot reset the baseline to an
+        # already-down intraday value: it is written exactly ONCE per day (first cycle
+        # observed) and read thereafter.
+        self._conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS daily_open (
+                day    TEXT NOT NULL,
+                mode   TEXT NOT NULL,
+                equity REAL NOT NULL,
+                PRIMARY KEY (day, mode)
+            )
+            """
+        )
         self._conn.commit()
 
     def save_run(self, report: RunReport, positions: Dict[str, dict]) -> None:
@@ -165,6 +181,29 @@ class StateStore:
             ),
         )
         self._conn.commit()
+
+    def day_start_equity(self, day: str, mode: str, observed_equity: float) -> float:
+        """
+        Return TODAY's opening-equity baseline for the daily-loss circuit breaker.
+
+        First call for a given (calendar day, mode): records `observed_equity` as the
+        day's open and returns it. Every later call that same day: ignores the (possibly
+        already-down) `observed_equity` and returns the stored morning value. This makes
+        a mid-day cron re-fire after a loss reuse the SAME baseline, never a down one.
+
+        `day` is the ISO date string from the injected clock (callers pass
+        ``clock.now().date().isoformat()``) — never the wall clock.
+        """
+        # Write-only-if-absent: the first writer of the day wins the baseline.
+        self._conn.execute(
+            "INSERT OR IGNORE INTO daily_open (day, mode, equity) VALUES (?, ?, ?)",
+            (day, mode, float(observed_equity)),
+        )
+        self._conn.commit()
+        row = self._conn.execute(
+            "SELECT equity FROM daily_open WHERE day = ? AND mode = ?", (day, mode)
+        ).fetchone()
+        return float(row[0])
 
     def last_run(self) -> Optional[sqlite3.Row]:
         self._conn.row_factory = sqlite3.Row
@@ -255,6 +294,12 @@ def run_once(
         # 2. Reconcile broker truth into the local portfolio.
         report.reconciled = _reconcile(execution_engine, portfolio, symbols)
 
+        # 2b. NOW-7: diff broker truth against what we EXPECTED to hold from the last
+        # persisted run. A notional mismatch > $1 means an unrecorded fill or a manual /
+        # unexpected trade — we may be acting on a wrong picture, so de-risk: block NEW
+        # entries this cycle (exits still allowed). Non-fatal; never crashes the cycle.
+        report.reconcile_discrepancy = _detect_reconcile_discrepancy(execution_engine, state_store)
+
         # 3. Fetch the most recent window, warming up indicators.
         feed.connect()
         try:
@@ -273,6 +318,14 @@ def run_once(
         # 4. Warm strategies over the window; act only on the latest bar's signals.
         latest_signals = _evaluate(events, strategies, portfolio)
         report.signals_evaluated = len(latest_signals)
+
+        # 4-NOW-5: establish TODAY's clean daily-loss baseline. The window replay above
+        # has marked the portfolio to today's market, so portfolio.equity is now the
+        # current opening equity. Record it once per calendar day (keyed by the injected
+        # clock's date) and seed the circuit breaker's day_start_equity from the stored
+        # morning value — so a mid-day re-fire after a loss reuses the SAME baseline, not
+        # a down intraday value, and never falls back to initial_capital or yesterday.
+        _set_daily_baseline(portfolio, state_store, clock, report.mode)
 
         # 4a. Manual kill switch (APEX_HALT) — emergency human override. Blocks ALL
         # orders this cycle, no exceptions. Highest priority, checked before anything.
@@ -294,6 +347,19 @@ def run_once(
             if len(kept) != len(latest_signals):
                 logger.critical(
                     "QUARANTINED (alpha decay) — blocking %d new entr(ies).",
+                    len(latest_signals) - len(kept),
+                )
+            latest_signals = kept
+
+        # 4c. NOW-7 reconcile-discrepancy guard: broker truth disagreed with our last
+        # persisted snapshot. We may be acting on a wrong picture, so block NEW entries
+        # this cycle while still permitting de-risking exits (mirrors the quarantine
+        # guard). Already alerted in step 2b; here we just gate the entries.
+        if report.reconcile_discrepancy:
+            kept = [s for s in latest_signals if _signal_reduces(s, portfolio)]
+            if len(kept) != len(latest_signals):
+                logger.critical(
+                    "RECONCILE DISCREPANCY — blocking %d new entr(ies); exits still allowed.",
                     len(latest_signals) - len(kept),
                 )
             latest_signals = kept
@@ -517,6 +583,105 @@ def _signal_reduces(signal, portfolio: Portfolio) -> bool:
     return (q > 0 and signal.side == OrderSide.SELL) or (q < 0 and signal.side == OrderSide.BUY)
 
 
+# Notional tolerance for the reconciliation diff: a per-symbol |qty delta| x price
+# discrepancy above this (in account currency) is treated as a real mismatch — an
+# unrecorded fill or a manual/unexpected trade. Sub-dollar drift (rounding, fractional
+# dust) is ignored to avoid false alarms.
+_RECONCILE_NOTIONAL_TOLERANCE = Decimal("1")
+
+
+def _set_daily_baseline(
+    portfolio: Portfolio,
+    store: Optional[StateStore],
+    clock: Clock,
+    mode: str,
+) -> None:
+    """
+    NOW-5: seed the daily-loss circuit breaker's baseline with TODAY's opening equity,
+    recorded ONCE per calendar day (keyed by the injected clock's date), so a mid-day
+    re-fire after a loss reuses the morning value instead of an already-down one.
+
+    Without a store there is nothing to persist across re-fires, so we leave the
+    portfolio's own day_start_equity (set at construction) untouched. The portfolio
+    exposes no public setter for an arbitrary baseline (start_new_day always snaps to
+    *current* equity, which is exactly the down-value bug we are avoiding), so we set the
+    backing field directly — the only safe way to inject the stored morning baseline.
+    """
+    if store is None:
+        return
+    day = clock.now().date().isoformat()
+    baseline = store.day_start_equity(day, mode, float(portfolio.equity))
+    portfolio._day_start_equity = Decimal(str(baseline))
+
+
+def _detect_reconcile_discrepancy(engine: BaseExecutionEngine, store: Optional[StateStore]) -> bool:
+    """
+    NOW-7: compare the broker's CURRENT positions against what we EXPECTED to hold from
+    the last persisted run. Returns True if any symbol's quantity differs by a notional
+    value (|qty delta| x price) above the tolerance — an unrecorded fill or a manual /
+    unexpected trade. Logs loudly and fires a non-fatal alert on any discrepancy.
+
+    Fully defensive: any error (no store, malformed snapshot, engine quirk) returns False
+    so the diff can never crash the cycle. The entry-blocking de-risk is applied upstream.
+    """
+    if store is None:
+        return False
+    try:
+        truth = engine.reconcile_positions() or {}
+    except Exception as exc:  # noqa: BLE001 — diff must never crash the cycle
+        logger.warning("reconcile diff: broker truth unavailable: %s", exc)
+        return False
+
+    last = store.last_run()
+    expected: Dict[str, dict] = {}
+    if last is not None:
+        try:
+            expected = json.loads(last["positions"]) or {}
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("reconcile diff: could not parse last snapshot: %s", exc)
+            expected = {}
+
+    mismatches: List[str] = []
+    for ticker in set(truth) | set(expected):
+        broker = truth.get(ticker, {})
+        ours = expected.get(ticker, {})
+        try:
+            broker_qty = Decimal(str(broker.get("qty", "0")))
+            our_qty = Decimal(str(ours.get("qty", "0")))
+            # Prefer the broker's current price; fall back to its avg entry or our last.
+            price_src = (
+                broker.get("current_price")
+                or broker.get("avg_entry_price")
+                or ours.get("current_price")
+                or ours.get("avg_entry_price")
+                or "0"
+            )
+            price = Decimal(str(price_src))
+        except Exception as exc:  # noqa: BLE001 — bad row → flag conservatively, fail closed
+            logger.warning("reconcile diff: unparseable position for %s: %s", ticker, exc)
+            mismatches.append(ticker)
+            continue
+        notional = abs(broker_qty - our_qty) * abs(price)
+        if notional > _RECONCILE_NOTIONAL_TOLERANCE:
+            mismatches.append(
+                f"{ticker}: broker={broker_qty} expected={our_qty} (~${notional:.2f})"
+            )
+
+    if not mismatches:
+        return False
+
+    detail = "; ".join(str(m) for m in mismatches)
+    logger.critical(
+        "RECONCILE DISCREPANCY — broker truth disagrees with last persisted run: %s", detail
+    )
+    _notify(
+        "Apex Quant - RECONCILE DISCREPANCY",
+        f"Broker positions diverge from last run; blocking new entries this cycle. {detail}",
+        priority="urgent",
+    )
+    return True
+
+
 # The deployed strategy's Gauntlet-validated full Sharpe (smart-7 trend, Session 15/16).
 # The drift monitor quarantines if the live 30-day rolling Sharpe falls below 70% of it.
 DEPLOYED_VALIDATED_SHARPE = 0.85
@@ -632,9 +797,22 @@ PRODUCTION_RISK = RiskConfig(
     # Survive the strategy's deep trend drawdowns: once down 12% from peak, size new
     # entries down, reaching 35% size by a 30% drawdown. Protects the equity path so a
     # bad run is survivable well before the 40% catastrophe halt fires.
+    #
+    # NOTE (NOW-4): drawdown_throttle_start is DELIBERATELY 0.12, not the roadmap's
+    # suggested 0.05. A 200-day trend strategy's ordinary drawdowns routinely run past
+    # 5%, so a 0.05 throttle would down-size nearly every cycle and bleed the edge. The
+    # 0.12 start sits just above the strategy's normal DD band so the throttle acts as a
+    # slump-survival overlay, not a constant brake. Left unchanged on purpose.
     drawdown_throttle_start=Decimal("0.12"),
     drawdown_throttle_full=Decimal("0.30"),
     drawdown_throttle_floor=Decimal("0.35"),
+    # NOW-4: ENABLE the volatility-target overlay (built but previously OFF). New entries
+    # are scaled by target_volatility / portfolio_realized_vol, clamped to
+    # [vol_scale_min, vol_scale_max]. With vol_scale_max=1.0 and no leverage it acts as a
+    # pure turbulence de-risker: the book shrinks when realized vol runs hot above the
+    # ~12% annualized target and returns to full size when it cools. 0.12 matches the
+    # managed-futures roadmap target for this sleeve.
+    target_volatility=Decimal("0.12"),
 )
 
 

@@ -20,7 +20,16 @@ from apex.core.models import AssetClass, Bar, OrderSide, Symbol
 from apex.execution.simulated import SimulatedExecutionEngine
 from apex.risk.risk_manager import RiskConfig, RiskManager
 from apex.strategy.base_strategy import BaseStrategy
-from scripts.run_once import RunReport, StateStore, _drift_monitor, _notify, _notify_cycle, run_once
+from scripts.run_once import (
+    PRODUCTION_RISK,
+    RunReport,
+    StateStore,
+    _detect_reconcile_discrepancy,
+    _drift_monitor,
+    _notify,
+    _notify_cycle,
+    run_once,
+)
 
 SPY = Symbol("SPY", AssetClass.ETF)
 UTC = timezone.utc
@@ -434,3 +443,202 @@ def test_notify_cycle_fail_open_on_notifier_error(tmp_path, monkeypatch):
     )
     # Must not raise even though the notifier is broken.
     _notify_cycle(report, store)  # no AssertionError, no exception propagated
+
+
+# ===================================================== NOW-4/5/7 (Session 32)
+
+
+class AlwaysSell(BaseStrategy):
+    """Emits a SELL on every bar (a reduce/exit when a long is held)."""
+
+    def on_bar(self, bar: Bar) -> List[SignalEvent]:
+        return [
+            SignalEvent(
+                symbol=bar.symbol,
+                side=OrderSide.SELL,
+                strength=Decimal("1.0"),
+                strategy_id=self.strategy_id,
+                reason="test-exit",
+            )
+        ]
+
+
+def _holding_engine(qty="10", avg="90", cur="100"):
+    """A SimulatedExecutionEngine whose broker truth reports a SPY position."""
+
+    class _Holding(SimulatedExecutionEngine):
+        def reconcile_positions(self):
+            return {
+                "SPY": {
+                    "qty": Decimal(qty),
+                    "avg_entry_price": Decimal(avg),
+                    "current_price": Decimal(cur),
+                }
+            }
+
+    return _Holding()
+
+
+# ------------------------------------------------------- NOW-4: live risk config
+
+
+def test_production_risk_enables_vol_target_and_throttle():
+    # Vol-target overlay must be ENABLED (non-None) at the roadmap ~0.12 target.
+    assert PRODUCTION_RISK.target_volatility is not None
+    assert PRODUCTION_RISK.target_volatility == Decimal("0.12")
+    # Drawdown throttle deliberately populated at its trend-aware values (start=0.12,
+    # NOT the roadmap's 0.05 — see code comment).
+    assert PRODUCTION_RISK.drawdown_throttle_start == Decimal("0.12")
+    assert PRODUCTION_RISK.drawdown_throttle_full == Decimal("0.30")
+    assert PRODUCTION_RISK.drawdown_throttle_floor == Decimal("0.35")
+
+
+# ------------------------------------------- NOW-5: clean daily-loss baseline
+
+
+def test_daily_baseline_records_and_uses_todays_opening_equity(tmp_path):
+    from apex.risk.portfolio import Portfolio
+
+    store = StateStore(tmp_path / "s.db")
+    port = Portfolio(Decimal("100000"))
+    run_once(
+        _config(),
+        [NoSignal("noop", [SPY])],
+        clock=FixedClock(NOW),
+        feed=_feed([(1, 100), (2, 101), (3, 102)]),
+        execution_engine=SimulatedExecutionEngine(),
+        state_store=store,
+        portfolio=port,
+    )
+    # Opening equity for today was recorded in the daily_open table AND seeded as the
+    # portfolio's day-start baseline (== today's opening equity, here 100000).
+    day = NOW.date().isoformat()
+    assert store.day_start_equity(day, "paper", 999.0) == 100000.0  # already stored → ignores arg
+    assert port.day_start_equity == Decimal("100000")
+
+
+def test_daily_baseline_survives_midsession_refire_after_loss(tmp_path):
+    """A second cycle the SAME day, after a loss, must keep the MORNING baseline."""
+    from apex.risk.portfolio import Portfolio
+
+    store = StateStore(tmp_path / "s.db")
+    # Morning cycle: equity = 100000 → baseline recorded.
+    port_am = Portfolio(Decimal("100000"))
+    run_once(
+        _config(),
+        [NoSignal("noop", [SPY])],
+        clock=FixedClock(NOW),
+        feed=_feed([(1, 100), (2, 101), (3, 102)]),
+        execution_engine=SimulatedExecutionEngine(),
+        state_store=store,
+        portfolio=port_am,
+    )
+    assert port_am.day_start_equity == Decimal("100000")
+
+    # Mid-session re-fire, SAME calendar day, but the account is now DOWN to 95000.
+    port_pm = Portfolio(Decimal("95000"))  # already-down intraday equity
+    run_once(
+        _config(),
+        [NoSignal("noop", [SPY])],
+        clock=FixedClock(NOW),  # same day
+        feed=_feed([(1, 100), (2, 101), (3, 102)]),
+        execution_engine=SimulatedExecutionEngine(),
+        state_store=store,
+        portfolio=port_pm,
+    )
+    # Baseline must remain the MORNING value, NOT the down 95000.
+    assert port_pm.day_start_equity == Decimal("100000")
+
+
+def test_daily_baseline_is_not_initial_capital_when_account_grew(tmp_path):
+    """When equity has grown above initial_capital, the baseline tracks the grown open."""
+    from apex.risk.portfolio import Portfolio
+
+    store = StateStore(tmp_path / "s.db")
+    # Seed growth by reconciling a winning SPY position so equity > capital.
+    port = Portfolio(Decimal("100000"))
+    run_once(
+        _config(),
+        [NoSignal("noop", [SPY])],
+        clock=FixedClock(NOW),
+        feed=_feed([(1, 100), (2, 101), (3, 102)]),
+        execution_engine=_holding_engine(qty="100", avg="90", cur="100"),
+        state_store=store,
+        portfolio=port,
+    )
+    # Reconciled 100 sh @90 entry, marked to 102 close → unrealized gain over capital.
+    assert port.day_start_equity > Decimal("100000")
+    assert port.day_start_equity == port.equity  # baseline == today's grown open
+
+
+# ------------------------------------------ NOW-7: reconciliation diff + alert
+
+
+def test_reconcile_clean_match_no_discrepancy(tmp_path):
+    store = StateStore(tmp_path / "s.db")
+    # Persist a snapshot matching what the broker will report (SPY 10 @100).
+    store.save_run(
+        RunReport(
+            timestamp=NOW - timedelta(days=1), mode="paper", equity=100000.0, num_positions=1
+        ),
+        {"SPY": {"qty": "10", "avg_entry_price": "90", "current_price": "100"}},
+    )
+    discrepancy = _detect_reconcile_discrepancy(_holding_engine(qty="10", cur="100"), store)
+    assert discrepancy is False
+
+
+def test_reconcile_clean_match_allows_entries(tmp_path):
+    store = StateStore(tmp_path / "s.db")
+    report = run_once(
+        _config(),
+        [AlwaysBuy("buy", [SPY])],
+        clock=FixedClock(NOW),
+        feed=_feed([(1, 100), (2, 101), (3, 102)]),
+        execution_engine=SimulatedExecutionEngine(),  # broker flat, last run flat → match
+        state_store=store,
+    )
+    assert report.reconcile_discrepancy is False
+    assert report.orders_submitted == 1  # entries allowed on a clean match
+
+
+def test_reconcile_mismatch_sets_flag_and_blocks_entries(tmp_path):
+    store = StateStore(tmp_path / "s.db")
+    # Broker shows a SPY position we never persisted (last run is empty) → mismatch.
+    report = run_once(
+        _config(),
+        [AlwaysBuy("buy", [SPY])],
+        clock=FixedClock(NOW),
+        feed=_feed([(1, 100), (2, 101), (3, 102)]),
+        execution_engine=_holding_engine(qty="10", cur="100"),
+        state_store=store,
+    )
+    assert report.reconcile_discrepancy is True
+    assert report.orders_submitted == 0  # new entries blocked on discrepancy
+
+
+def test_reconcile_mismatch_still_allows_exits(tmp_path):
+    store = StateStore(tmp_path / "s.db")
+    # Broker holds SPY (unpersisted → discrepancy); a SELL is a reduce/exit → allowed.
+    report = run_once(
+        _config(),
+        [AlwaysSell("sell", [SPY])],
+        clock=FixedClock(NOW),
+        feed=_feed([(1, 100), (2, 101), (3, 102)]),
+        execution_engine=_holding_engine(qty="10", avg="90", cur="100"),
+        state_store=store,
+    )
+    assert report.reconcile_discrepancy is True
+    assert report.orders_submitted == 1  # de-risking exit still goes through
+
+
+def test_reconcile_subdollar_drift_is_not_a_discrepancy(tmp_path):
+    store = StateStore(tmp_path / "s.db")
+    # Persist 10.000 sh; broker reports 10.001 sh @ ~$100 → ~$0.10 notional < $1 tol.
+    store.save_run(
+        RunReport(
+            timestamp=NOW - timedelta(days=1), mode="paper", equity=100000.0, num_positions=1
+        ),
+        {"SPY": {"qty": "10.000", "avg_entry_price": "90", "current_price": "100"}},
+    )
+    discrepancy = _detect_reconcile_discrepancy(_holding_engine(qty="10.001", cur="100"), store)
+    assert discrepancy is False  # sub-dollar dust ignored
