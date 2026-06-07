@@ -3,9 +3,11 @@ tests/test_preflight.py
 =======================
 Unit tests for scripts/preflight.py.
 
-All checks are pure functions: we exercise them by supplying fake inputs (a
-patched environ dict, fake paths, or a hand-built RiskConfig) — no network,
-no broker, no real CSV data, no full backtest.
+We exercise every check by supplying fake inputs (a patched environ dict, fake
+paths, a hand-built RiskConfig, or an injected fake execution engine) — no
+network, no real broker, no real CSV data, no full backtest. All checks but
+check_broker_reachable are pure; that one is kept offline via its engine_factory
+seam.
 """
 
 from __future__ import annotations
@@ -20,6 +22,7 @@ from scripts.preflight import (
     STATUS_FAIL,
     STATUS_PASS,
     STATUS_WARN,
+    check_broker_reachable,
     check_config_loads,
     check_dirs_and_db,
     check_env_vars,
@@ -27,6 +30,29 @@ from scripts.preflight import (
     check_risk_config,
     run_all_checks,
 )
+
+
+# A fake execution engine implementing the seam check_broker_reachable needs.
+class _FakeEngine:
+    def __init__(self, equity=Decimal("100000"), raise_on=None):
+        self._equity = equity
+        self._raise_on = raise_on  # one of: "connect", "equity", None
+        self.connected = False
+        self.disconnected = False
+
+    def connect(self):
+        if self._raise_on == "connect":
+            raise RuntimeError("broker unreachable: connection refused")
+        self.connected = True
+
+    def get_account_equity(self):
+        if self._raise_on == "equity":
+            raise RuntimeError("403 forbidden: api key revoked")
+        return self._equity
+
+    def disconnect(self):
+        self.disconnected = True
+
 
 # ============================================================= check_env_vars
 
@@ -286,15 +312,123 @@ class TestCheckConfigLoads:
         assert name == "config.loads"
 
 
+# ====================================================== check_broker_reachable
+
+
+class TestCheckBrokerReachable:
+    def test_backtest_mode_is_skipped_pass(self):
+        called = []
+        _, status, detail = check_broker_reachable(
+            {"APEX_MODE": "backtest"},
+            engine_factory=lambda: called.append(1) or _FakeEngine(),
+        )
+        assert status == STATUS_PASS
+        assert "no live broker" in detail
+        assert called == []  # factory must NOT be invoked when skipped
+
+    def test_no_mode_defaults_to_skipped_pass(self):
+        _, status, _ = check_broker_reachable({})
+        assert status == STATUS_PASS
+
+    def test_simulated_broker_is_skipped_pass(self):
+        called = []
+        _, status, detail = check_broker_reachable(
+            {"APEX_MODE": "paper", "APEX_BROKER": "simulated"},
+            engine_factory=lambda: called.append(1) or _FakeEngine(),
+        )
+        assert status == STATUS_PASS
+        assert "simulated" in detail
+        assert called == []
+
+    def test_paper_alpaca_reachable_is_pass(self):
+        engine = _FakeEngine(equity=Decimal("100000"))
+        _, status, detail = check_broker_reachable(
+            {"APEX_MODE": "paper", "APEX_BROKER": "alpaca"},
+            engine_factory=lambda: engine,
+        )
+        assert status == STATUS_PASS
+        assert "reachable" in detail
+        assert "100000" in detail
+        assert engine.connected and engine.disconnected
+
+    def test_live_alpaca_reachable_is_pass(self):
+        engine = _FakeEngine(equity=Decimal("50000"))
+        _, status, _ = check_broker_reachable(
+            {"APEX_MODE": "live", "APEX_BROKER": "alpaca"},
+            engine_factory=lambda: engine,
+        )
+        assert status == STATUS_PASS
+
+    def test_alpaca_crypto_broker_is_checked(self):
+        engine = _FakeEngine(equity=Decimal("1000"))
+        _, status, _ = check_broker_reachable(
+            {"APEX_MODE": "paper", "APEX_BROKER": "alpaca_crypto"},
+            engine_factory=lambda: engine,
+        )
+        assert status == STATUS_PASS
+
+    def test_connect_failure_is_fail(self):
+        engine = _FakeEngine(raise_on="connect")
+        _, status, detail = check_broker_reachable(
+            {"APEX_MODE": "paper", "APEX_BROKER": "alpaca"},
+            engine_factory=lambda: engine,
+        )
+        assert status == STATUS_FAIL
+        assert "round-trip failed" in detail
+
+    def test_revoked_key_round_trip_is_fail(self):
+        engine = _FakeEngine(raise_on="equity")
+        _, status, detail = check_broker_reachable(
+            {"APEX_MODE": "live", "APEX_BROKER": "alpaca"},
+            engine_factory=lambda: engine,
+        )
+        assert status == STATUS_FAIL
+        assert "round-trip failed" in detail
+        # Best-effort disconnect still runs even when the equity call raised.
+        assert engine.disconnected
+
+    def test_factory_construction_failure_is_fail(self):
+        def boom():
+            raise RuntimeError("could not build engine")
+
+        _, status, detail = check_broker_reachable(
+            {"APEX_MODE": "paper", "APEX_BROKER": "alpaca"},
+            engine_factory=boom,
+        )
+        assert status == STATUS_FAIL
+        assert "round-trip failed" in detail
+
+    def test_unfunded_account_is_warn(self):
+        engine = _FakeEngine(equity=Decimal("0"))
+        _, status, detail = check_broker_reachable(
+            {"APEX_MODE": "paper", "APEX_BROKER": "alpaca"},
+            engine_factory=lambda: engine,
+        )
+        assert status == STATUS_WARN
+        assert "unfunded" in detail
+
+    def test_negative_equity_is_warn(self):
+        engine = _FakeEngine(equity=Decimal("-5"))
+        _, status, _ = check_broker_reachable(
+            {"APEX_MODE": "paper", "APEX_BROKER": "alpaca"},
+            engine_factory=lambda: engine,
+        )
+        assert status == STATUS_WARN
+
+    def test_check_name_is_broker_reachable(self):
+        name, _, _ = check_broker_reachable({})
+        assert name == "broker.reachable"
+
+
 # ============================================================== run_all_checks
 
 
 class TestRunAllChecks:
-    def test_returns_five_results(self, monkeypatch):
+    def test_returns_six_results(self, monkeypatch):
         monkeypatch.delenv("APEX_MODE", raising=False)
         monkeypatch.delenv("APEX_BROKER", raising=False)
         results = run_all_checks()
-        assert len(results) == 5
+        assert len(results) == 6
 
     def test_each_result_is_three_strings(self, monkeypatch):
         monkeypatch.delenv("APEX_MODE", raising=False)
@@ -315,6 +449,7 @@ class TestRunAllChecks:
         assert "halt.state" in names
         assert "dirs.state_db" in names
         assert "risk.config_sane" in names
+        assert "broker.reachable" in names
 
 
 # ============================================================ main() exit codes

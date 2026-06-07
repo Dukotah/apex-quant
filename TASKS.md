@@ -19,6 +19,18 @@ Live board. `todo` / `doing` / `done`. See `ROADMAP.md` for phases, `PROGRESS.md
 | F2.2 | Preflight health check (`scripts/preflight.py`) + tests. | done |
 | F2.3 | Tighten alerts (actionable only + daily heartbeat). | todo |
 
+## Path A — Go-live hardening *(docs/ROADMAP-STRATEGIC.md NOW phase)*
+
+| # | Task | Status |
+|---|------|--------|
+| NOW-1 | Complete & verify the 30-day paper gate (`scripts/report.py`). | doing (time-gated) |
+| NOW-2 | Broker-reachability preflight (`check_broker_reachable` → `get_account`). | done |
+| NOW-3 | Programmatic paper→live gate in `trade.yml` (report+preflight, fail non-zero). | todo |
+| NOW-4 | Live-risk config: `drawdown_throttle_start`, `target_volatility`. | todo |
+| NOW-5 | Clean daily-loss baseline in `run_once` each cycle. | todo |
+| NOW-6 | Confirm HaltEvent cancels open broker orders. | todo |
+| NOW-7 | Broker-truth reconciliation diff + alert. | todo |
+
 ## Improvements
 
 | Task | Status |

@@ -9,8 +9,10 @@ any FAIL was reported.
 Usage:
     python -m scripts.preflight
 
-Each individual check is a PURE function that returns a (name, status, detail)
-3-tuple so it can be unit-tested offline without any broker, network, or DB.
+Each individual check returns a (name, status, detail) 3-tuple. All but one are
+PURE functions, unit-tested offline with no broker/network/DB. The exception is
+``check_broker_reachable`` — the single network round-trip — which takes an
+injectable ``engine_factory`` so it too is tested offline with a fake engine.
 
 IMPORTANT: this script NEVER prints the value of any secret env var.
 """
@@ -21,7 +23,7 @@ import os
 import sys
 from decimal import Decimal
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 
 # ----------------------------------------------------------------- constants
 
@@ -178,6 +180,79 @@ def check_risk_config(risk_cfg=None) -> CheckResult:
         return name, STATUS_FAIL, f"could not instantiate RiskConfig: {exc}"
 
 
+def check_broker_reachable(
+    environ: Optional[dict[str, str]] = None,
+    engine_factory: Optional[Callable[[], object]] = None,
+) -> CheckResult:
+    """
+    Verify the broker is actually REACHABLE with the configured credentials by
+    doing one real account round-trip (``get_account_equity()`` → Alpaca's
+    ``get_account()``). This is the one check that touches the network.
+
+    Why it exists: every other credential check only confirms a key is *present*.
+    A present-but-stale/revoked key (or a broker outage) sails past those and
+    fails deep inside the trading cycle — *after* reconciliation has already run,
+    leaving a half-applied state. This check fails fast, before any order logic.
+
+    Behaviour by mode/broker:
+      - mode not in {paper, live}                  → PASS (skipped — no broker)
+      - broker not a real venue (alpaca / crypto)  → PASS (skipped — simulator)
+      - real broker, round-trip succeeds, equity>0 → PASS
+      - real broker, round-trip succeeds, equity≤0 → WARN (reachable but unfunded)
+      - real broker, round-trip raises             → FAIL (unreachable / bad key)
+
+    Offline-testable: ``engine_factory`` is injected in tests to return a fake
+    engine implementing ``connect()`` / ``get_account_equity()`` / ``disconnect()``.
+    In production it defaults to building the real engine from ``AppConfig``.
+
+    NEVER prints any secret. The exception text is the broker's own (auth/network)
+    message; this function never interpolates credential values into the detail.
+    """
+    name = "broker.reachable"
+    env = environ if environ is not None else dict(os.environ)
+
+    mode = env.get("APEX_MODE", "backtest").strip().lower()
+    if mode not in ("live", "paper"):
+        return name, STATUS_PASS, f"mode={mode!r} — no live broker to reach"
+
+    broker = env.get("APEX_BROKER", "simulated").strip().lower()
+    if broker not in ("alpaca", "alpaca_crypto"):
+        return name, STATUS_PASS, f"broker={broker!r} — simulated, nothing to reach"
+
+    try:
+        if engine_factory is not None:
+            engine = engine_factory()
+        else:
+            from apex.core.config import AppConfig
+            from apex.execution.factory import make_execution_engine
+
+            engine = make_execution_engine(AppConfig.from_env())
+
+        try:
+            engine.connect()  # type: ignore[attr-defined]
+            equity = Decimal(str(engine.get_account_equity()))  # type: ignore[attr-defined]
+        finally:
+            # Best-effort teardown; disconnect must never mask the real result.
+            try:
+                engine.disconnect()  # type: ignore[attr-defined]
+            except Exception:  # noqa: BLE001
+                pass
+    except Exception as exc:  # noqa: BLE001
+        return (
+            name,
+            STATUS_FAIL,
+            f"mode={mode!r} broker={broker!r} — account round-trip failed: {exc}",
+        )
+
+    if equity <= 0:
+        return (
+            name,
+            STATUS_WARN,
+            f"broker reachable (mode={mode!r}) but account equity is {equity} — unfunded",
+        )
+    return name, STATUS_PASS, f"broker reachable (mode={mode!r}) — account equity={equity}"
+
+
 # ----------------------------------------------------------------- runner
 
 
@@ -212,6 +287,10 @@ def run_all_checks() -> list[CheckResult]:
     except Exception:  # noqa: BLE001
         pass  # check_config_loads already reported this; use the default
     checks.append(check_risk_config(risk_cfg))
+
+    # 6. Broker reachability (the one network round-trip; skipped unless a real
+    #    broker is configured in paper/live mode).
+    checks.append(check_broker_reachable())
 
     return checks
 

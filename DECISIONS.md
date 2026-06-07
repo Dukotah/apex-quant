@@ -6,6 +6,37 @@
 
 ---
 
+## Session 32 — NOW-2: broker-reachability preflight (Path A, suite 1082 green)
+
+First build off the new strategic roadmap (`docs/ROADMAP-STRATEGIC.md`), Path A (live capital).
+Built **NOW-2**, the prerequisite for the NOW-3 live-switch gate: a preflight check that proves the
+broker is actually **reachable** with the configured credentials, not merely that a key string is
+*present*. The pre-existing `check_env_vars` only confirms presence — a stale/revoked key (or broker
+outage) sails past it and fails deep in the trading cycle *after* reconciliation has run, persisting a
+half-applied state. NOW-2 fails fast, before any order logic.
+
+**Design:** `scripts/preflight.py` gains `check_broker_reachable(environ=None, engine_factory=None)`.
+It does ONE real account round-trip — `engine.connect()` → `get_account_equity()` (Alpaca's
+`get_account()`) → best-effort `disconnect()`. Behaviour: mode∉{paper,live} → PASS (skipped, no
+broker); broker∉{alpaca, alpaca_crypto} → PASS (skipped, simulator); round-trip raises → **FAIL**
+(unreachable/bad key); equity≤0 → WARN (reachable but unfunded); else PASS. It's the one check that
+touches the network; kept offline-testable via the injected `engine_factory` seam (production default
+builds the real engine through `apex.execution.factory.make_execution_engine(AppConfig.from_env())`,
+the single paper/live decision point). **Never leaks a secret** — only the broker's own exception text
+is surfaced, no credential values are interpolated. Wired into `run_all_checks` as the 6th check so the
+preflight **exit code** already covers reachability — NOW-3 can gate the workflow on `preflight` failing
+non-zero without new plumbing.
+
+**Verification:** +12 tests (`TestCheckBrokerReachable` + updated `run_all_checks` count/names) covering
+skip paths, reachable PASS, connect/round-trip/factory FAIL, unfunded+negative WARN, disconnect-still-runs
+on failure, and the no-secret-leak invariant. `make check` green via `ruff`/`ruff format`/`pytest`:
+**1082 tests, 92% coverage**, lint+format clean. On branch `feat/research-buildout` (per owner: keep
+working on it; merge to main later as one reviewed step). TASKS.md + ROADMAP-STRATEGIC.md updated
+(NOW-2 ✅). **NEXT on Path A:** NOW-3 (programmatic paper→live gate in `trade.yml` — run report.py +
+preflight, fail non-zero if `APEX_MODE=live` and gate not passed), then NOW-4..NOW-7.
+
+---
+
 ## Session 31 (cont. 5) — Strategic roadmap synthesized (docs/ROADMAP-STRATEGIC.md)
 
 Ran a 13-agent research workflow (5 codebase-survey + 5 web best-practice research → synthesize →
