@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from scripts.dashboard import build_page, export_to
 
-
 _STATE = {
     "mode": "paper",
     "broker": "alpaca",
