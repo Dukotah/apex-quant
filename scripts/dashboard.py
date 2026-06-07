@@ -124,6 +124,20 @@ def _render() -> str:
     return build_page(status_text, _SHIPPED, _recent_progress())
 
 
+def export_to(path: str | Path) -> Path:
+    """Render the dashboard to a static HTML file and return the path written.
+
+    This is what the GitHub Pages workflow calls: it produces the same page the
+    local server serves, but as a one-shot static artifact (Pages is static-only).
+    Read-only — it never touches the broker or the state DB.
+    """
+    out = Path(path)
+    if str(out.parent) not in ("", "."):
+        out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(_render(), encoding="utf-8")
+    return out
+
+
 class _Handler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:  # noqa: N802
         if self.path not in ("/", "/index.html"):
@@ -148,7 +162,17 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Local web dashboard for Apex Quant.")
     ap.add_argument("--port", type=int, default=8787)
     ap.add_argument("--host", default="127.0.0.1")
+    ap.add_argument(
+        "--export",
+        metavar="PATH",
+        help="Render the dashboard to a static HTML file and exit (for GitHub Pages).",
+    )
     args = ap.parse_args()
+
+    if args.export:
+        out = export_to(args.export)
+        print(f"Apex Quant dashboard exported → {out}", flush=True)
+        return 0
 
     server = ThreadingHTTPServer((args.host, args.port), _Handler)
     url = f"http://{args.host}:{args.port}"
