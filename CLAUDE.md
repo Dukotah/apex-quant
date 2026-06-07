@@ -238,10 +238,34 @@ concluded that trend is the sole deployable edge in this universe. See `DECISION
 2. Read `DECISIONS.md` (what was decided previously — your external memory).
 3. Read `ROADMAP.md` to find the next 🔲 item.
 4. Read `SESSION_PLAYBOOK.md` for the exact prompt pattern for that item type.
-5. Build **one module**, test it, update `DECISIONS.md` and `ROADMAP.md`, commit.
+5. Build **one module**, get `make check` green (see **Definition of Done**), update `DECISIONS.md` and `ROADMAP.md`, commit.
 
 **Do not build more than one module per session.** Context drift causes
 regressions. One module, tested, committed. Stop.
+
+---
+
+## Definition of Done (close the loop — never skip)
+
+A module is **not done** until the exact CI gate passes locally. Run:
+
+```
+make check          # ruff check + ruff format --check + pytest (the 3 CI gates, fail-fast)
+```
+
+- If formatting fails, run `make fmt` then re-run `make check`.
+- `make test` alone runs just the suite; `make check` is what CI enforces, so it's the real bar.
+- **Read before you guess:** if you're unsure how an existing module behaves, read it (and its test) — never assume an API, signal shape, or event field.
+- **Fix the root cause, not the symptom.** A failing test means the design or the code is wrong — don't loosen the assertion to make it green.
+- Don't report a module finished, or commit, until `make check` is green. If it fails, say so with the output.
+
+> Worked example of one clean session:
+> ```
+> task: build the ATR-based position sizing helper
+> you:  read indicators.py + its test to match style → implement → write its test
+>       → run `make check` → 1 ruff error, fix it → `make check` green (417 passing)
+>       → update DECISIONS.md + ROADMAP.md → commit. Done. Stop.
+> ```
 
 ---
 
