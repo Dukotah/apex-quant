@@ -2,6 +2,19 @@
 
 Running log so the owner can glance in anytime. Newest first.
 
+## 2026-06-07 (cont. 3) — proving phase: validation sweep + roadmap wiring (suite 1057 green)
+
+- Fetched 15y real data (ETFs + ^TNX/^IRX yields + crypto); ran `scripts/validate_sweep.py`
+  (full Gauntlet + correlation-to-trend) on every candidate sleeve.
+- **VERDICT: only EWMA-vol trend clears the Gauntlet (grade A, OOS 1.33).** turn_of_month,
+  breadth_momentum, credit_spread (near-miss), bond_carry, crypto_trend, long_short_mom all
+  FAIL on this free 2011-26 window — kept as documented references; none earns a live slot.
+  (Window is bull/low-rate — unkind to defensive/carry; honest "not demonstrable here".)
+- **Roadmap wiring done (all gated, green):** MCPT→Gauntlet (opt-in), options→RiskManager
+  (closes the bypass), alerts→run_once, allocator inverse-vol + tolerance bands.
+- **Still gated for live:** options engine routing + portfolio tracking; live-shorting margin
+  plumbing. Deployed long-only trend bot stands; EWMA tweak is the lone deploy candidate.
+
 ## 2026-06-07 (cont. 2) — Phases 2-4: crypto + long/short + options (parallel fleet)
 
 - 6-agent fleet (long/short core on Opus in an isolated worktree, diff-reviewed before merge).

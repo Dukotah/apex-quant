@@ -6,6 +6,45 @@
 
 ---
 
+## Session 31 (cont. 3) — PROVING phase: validation sweep verdict + roadmap wiring complete (suite 1057 green)
+
+Fetched real data (`scripts/fetch_yahoo SPY EFA EEM AGG LQD IEF SHV TLT HYG GLD DBC UUP DBA
+^TNX ^IRX --range 15y` → sweep_universe.csv; crypto BTC-USD/ETH-USD 5y) — confirmed ^TNX/^IRX
+closes are raw yields (plumbing OK; COVID-2020 negative ^IRX bars auto-skip). `data/real` is
+gitignored, so CSVs are regenerated via fetch_yahoo, not committed.
+
+**VALIDATION SWEEP (`scripts/validate_sweep.py` — full Gauntlet + correlation-to-trend, real data):**
+| sleeve | grade | full Sh | OOS | 2x cost | corr→trend | read |
+|---|---|---|---|---|---|---|
+| **trend_ewma** | **A** | 0.83 | 1.33 | 0.81 | 1.00 | ✅ validated micro-upgrade (it IS trend, EWMA sizing) |
+| credit_spread | FAIL | 0.54 | 0.75 | 0.48 | +0.31 | near-miss (cost-stress just under 0.50) |
+| bond_carry | FAIL | 0.34 | 0.07 | 0.28 | +0.10 | curve upward-sloped most of 2011-26 → mostly long IEF |
+| crypto_trend | FAIL | 0.33 | −0.56 | 0.33 | +0.11 | OOS negative (recent crypto chop) |
+| turn_of_month | FAIL | 0.26 | 0.01 | 0.02 | +0.18 | calendar effect < costs (US TOM decayed) |
+| breadth_momentum | FAIL | −0.28 | 0.78 | 0.21 | −0.02 | defensive switches hurt in a bull window |
+| long_short_mom | FAIL | −0.33 | — | −0.74 | +0.18 | turnover-killed (3354 trades), short leg loses in a bull |
+
+**VERDICT: only EWMA-vol trend clears the Gauntlet.** The 4 new candidate sleeves + crypto +
+long/short all FAIL on this free 15y window — they mostly come back uncorrelated (good) but don't
+beat the bar. Honest caveat: 2011-26 is a mostly-bull, low-rate regime that is structurally unkind
+to defensive/carry/value sleeves (bond_carry needs a rate cycle; credit_spread needs more crises).
+So "FAIL on free 15y data" = "not demonstrable here", not "no edge ever". They stay as tested,
+documented references (like rsi2/value_momentum before them) — NONE earns a live slot. This is the
+discipline working: we built the capability, tested honestly, and most didn't survive — expected
+for edge-hunting. **EWMA vol is the one shippable win** (deploy candidate, pending the 30-day gate).
+
+**ROADMAP WIRING COMPLETED (all additive, gated, green):** MCPT wired into the Gauntlet
+(`run_mcpt` opt-in note); **options routed through the RiskManager** (`OptionOrderEvent` +
+`evaluate_option` — closes the bypass so options honor the golden rule); W7 alerts wired into
+run_once (actionable + daily heartbeat); allocator gained inverse-vol weighting + tolerance bands.
+
+**STILL GATED before live (unchanged, deliberate):** options need engine routing +
+Portfolio options tracking; live shorting needs a margin account + Alpaca short routing + borrow
+checks. No new edge to deploy from this sweep; the deployed long-only trend bot stands. Optional
+next: deploy the EWMA tweak (A/B +small, grade A) after a paper-gate confirmation.
+
+---
+
 ## Session 31 (cont. 2) — Phases 2-4 built in parallel: crypto + long/short + options (suite 1021 green)
 
 Operator mandate: build out the whole capability surface ("utilize Alpaca for all it's got") via a
