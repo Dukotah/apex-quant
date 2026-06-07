@@ -6,6 +6,52 @@
 
 ---
 
+## Session 32 (cont.) — UNIFIED the two diverged lines + landed NOW-3..7 (Path A, suite 3065 green)
+
+**Discovery (important):** the local working branch `feat/research-buildout` (the Session-31 buildout:
+crypto, long/short, options, F3.3 allocator, MCPT, Gate 8, EWMA trend craft, ROADMAP-STRATEGIC, NOW-2)
+had **DIVERGED** from `origin/main`. They share ancestor `5e66315` but neither contained the other:
+my line = 23 commits / 58 test files; `origin/main` = 15 commits / 151 test files on a SEPARATE line
+(performance-analytics package, data-hygiene tools, advisory risk analytics, 25 standalone indicators,
+vol-regime classifier, research-strategy registry, ts-momentum wiring, ops/reporting scripts — almost
+certainly the autonomous overseer's work; `origin/overseer/2026-06-08` exists). `origin/main` is
+`origin/HEAD`. Per owner decision: **merge the two lines first**, then land the go-live work on the union.
+
+**Merge:** clean — the two lines touched DISJOINT files (mine 61, theirs 227, overlap 0), so `git merge`
+produced ZERO conflicts. Done on branch `integration/unify-lines` (merge commit fb3b17a). Unified suite:
+**3034 tests green** pre-NOW-work, ruff+format clean. NOTE: `origin/main`'s 15 commits never touched
+`DECISIONS.md` (logged elsewhere/PRs), so this log does not yet capture that line's history — a doc-recon
+follow-up.
+
+**Go-live hardening (Path A NOW-3..7), built by 3 worktree-isolated agents (1 Opus + 2 Sonnet), each
+file-disjoint, then integrated + re-gated by me:**
+- **NOW-6 (cherry-picked clean):** `cancel_open_orders()` added to the `BaseExecutionEngine` contract
+  (concrete no-op default; Simulated overrides as documented no-op; Alpaca delegates to the broker).
+  `TradingEngine.run()` now calls it exactly once on the first transition to halted (sentinel; re-arms
+  after `reset_daily`). Halt → zero resting broker exposure, with an integration test forcing a DD breach.
+- **NOW-3 (cherry-picked clean):** `report.py` gains `gate_passed()` (reused by `build_report`) and a
+  `--check` mode that exits non-zero when the 30-day paper gate isn't met. `trade.yml` now runs
+  `scripts.preflight` (mandatory, fails the job on FAIL — incl. NOW-2 broker reachability) and, ONLY when
+  `APEX_MODE=live`, `report.py --check` (fails the job if the gate hasn't passed). Closes the hole where a
+  misclick to live would trade with no gate. Paper runs stay unblocked.
+- **NOW-4/5/7 (hand-ported onto the unified richer run_once.py):** NOW-4 enables the vol-target overlay
+  (`target_volatility=Decimal("0.12")` in `PRODUCTION_RISK`; `drawdown_throttle_start` deliberately kept
+  at 0.12, NOT the roadmap's 0.05 — a trend strategy's normal DD exceeds 5%, documented inline). NOW-5
+  adds a `StateStore.daily_open` table + `day_start_equity(day, mode, observed)` (write-once-per-day) and
+  `_set_daily_baseline()` so the daily-loss breaker uses TODAY's MORNING opening equity — a mid-day re-fire
+  after a loss reuses the morning baseline, never a down value (sets `portfolio._day_start_equity` directly
+  since there's no public setter — flagged for a future `set_day_start_equity`). NOW-7 adds
+  `_detect_reconcile_discrepancy()` diffing broker truth vs the last persisted snapshot (>$1 notional →
+  flag + urgent alert + block NEW entries this cycle, exits still allowed). +`reconcile_discrepancy` on RunReport.
+
+**Verification:** full CI gate on the unified trunk — `ruff check` + `ruff format --check` + `pytest`:
+**3065 tests pass, 94.52% coverage.** Agent commits preserved on `wip/now*` branches (now integrated).
+Branch `integration/unify-lines` is NOT pushed yet — owner to decide push/PR to main (note: pushing main
+auto-runs the trade cron / may interact with the overseer). NOW-1 (30-day paper gate) remains time-gated.
+**Remaining Path A before live $:** NEXT-2 — move StateStore OFF the public repo (hard blocker).
+
+---
+
 ## Session 32 — NOW-2: broker-reachability preflight (Path A, suite 1082 green)
 
 First build off the new strategic roadmap (`docs/ROADMAP-STRATEGIC.md`), Path A (live capital).

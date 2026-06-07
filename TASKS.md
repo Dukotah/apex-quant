@@ -25,11 +25,12 @@ Live board. `todo` / `doing` / `done`. See `ROADMAP.md` for phases, `PROGRESS.md
 |---|------|--------|
 | NOW-1 | Complete & verify the 30-day paper gate (`scripts/report.py`). | doing (time-gated) |
 | NOW-2 | Broker-reachability preflight (`check_broker_reachable` → `get_account`). | done |
-| NOW-3 | Programmatic paper→live gate in `trade.yml` (report+preflight, fail non-zero). | todo |
-| NOW-4 | Live-risk config: `drawdown_throttle_start`, `target_volatility`. | todo |
-| NOW-5 | Clean daily-loss baseline in `run_once` each cycle. | todo |
-| NOW-6 | Confirm HaltEvent cancels open broker orders. | todo |
-| NOW-7 | Broker-truth reconciliation diff + alert. | todo |
+| NOW-3 | Programmatic paper→live gate in `trade.yml` (report+preflight, fail non-zero). | done |
+| NOW-4 | Live-risk config: `target_volatility` enabled (throttle kept at 0.12). | done |
+| NOW-5 | Clean daily-loss baseline in `run_once` each cycle (`daily_open` table). | done |
+| NOW-6 | HaltEvent cancels open broker orders (`cancel_open_orders` in engine contract). | done |
+| NOW-7 | Broker-truth reconciliation diff + alert (block entries, allow exits). | done |
+| NEXT-2 | Move StateStore OFF the public repo (hard blocker before live $). | todo |
 
 ## Improvements
 
