@@ -71,6 +71,33 @@ class RiskConfig:
     vol_scale_min: Decimal = Decimal("0.4")  # floor on the exposure multiplier
     vol_scale_max: Decimal = Decimal("1.0")  # cap (1.0 = never lever past full)
 
+    # --- Short-selling (Phase 3, long/short) ---------------------------------
+    # OFF by default. When False, a SELL only ever REDUCES/closes an existing long;
+    # a SELL on a flat (or already-short) symbol is BLOCKED — the system stays
+    # strictly long-only, exactly as the deployed bot requires. When True, a SELL
+    # on a flat/short symbol OPENS or ADDS a short: it is sized like a long, but
+    # FAILS CLOSED unless it carries a mandatory protective stop ABOVE entry
+    # (a short loses money when price rises), and it must clear the gross/net
+    # exposure caps and the leverage cap on the COMBINED book.
+    #
+    # WHY THESE GUARDRAILS ARE STRUCTURAL, NOT OPTIONAL: a short has UNBOUNDED loss
+    # (price can rise without limit). A long can only go to zero; a short can bury
+    # the account. The mandatory above-entry stop bounds the per-trade loss; the
+    # gross-exposure cap bounds total leverage across both legs; the net-exposure
+    # cap bounds directional risk. Together they are the only thing standing between
+    # this code and an unlimited-loss event, so they fail closed.
+    allow_short: bool = False
+
+    # Gross exposure = sum(|position notional|) / equity — total capital at risk
+    # across BOTH long and short legs (a market-neutral 50/50 book is 100% gross).
+    # Bounds total leverage when both sides are open. None = disabled (unchanged).
+    max_gross_exposure_pct: Optional[Decimal] = None
+
+    # Net exposure = |signed sum of position notional| / equity — the directional
+    # tilt (longs minus shorts). Bounds how one-sided the book may get. None =
+    # disabled (unchanged).
+    max_net_exposure_pct: Optional[Decimal] = None
+
 
 class TradingHaltError(Exception):
     """Raised when trading is globally halted (drawdown/daily-loss breach)."""
@@ -129,6 +156,14 @@ class RiskManager:
             if self._is_reducing(signal, portfolio):
                 return self._evaluate_reduce(signal, portfolio)
 
+            # 1c. Short gate. A SELL that is NOT reducing a long is an OPEN/ADD
+            # SHORT (flat or already short). When shorting is disabled this is
+            # blocked outright — the system stays strictly long-only and the
+            # deployed bot is unaffected. FAIL CLOSED: the default is no-short.
+            if signal.side == OrderSide.SELL and not self._config.allow_short:
+                self._reject(signal, "short selling disabled (allow_short=False)")
+                return None
+
             # 2. Symbol whitelist.
             if not self._check_whitelist(signal.symbol):
                 self._reject(signal, f"{signal.symbol} not in whitelist")
@@ -154,6 +189,15 @@ class RiskManager:
             # 6. Leverage check on the resulting portfolio.
             if not self._check_leverage(signal, quantity, portfolio):
                 self._reject(signal, "would exceed max leverage")
+                return None
+
+            # 6b. Gross / net exposure caps on the COMBINED long+short book. These
+            # are the structural protection for shorting (a short's loss is
+            # unbounded), so they fail closed: if configured and the resulting book
+            # would breach either cap, the order is rejected. Disabled (None) by
+            # default → no effect on the existing long-only path.
+            if not self._check_gross_net_exposure(signal, quantity, portfolio):
+                self._reject(signal, "would exceed gross/net exposure cap")
                 return None
 
             # ALL CHECKS PASSED → build the approved, sized order.
@@ -396,6 +440,57 @@ class RiskManager:
         total_notional = Decimal(str(portfolio.exposure)) + new_notional
         leverage = total_notional / equity
         return leverage <= self._config.max_leverage
+
+    def _check_gross_net_exposure(self, signal: SignalEvent, quantity: Decimal, portfolio) -> bool:
+        """
+        Enforce the gross- and net-exposure caps on the book AFTER this order fills.
+
+          gross = sum(|signed notional|) / equity   (total leverage across both legs)
+          net   = |sum(signed notional)| / equity   (directional tilt, longs-shorts)
+
+        Returns True when neither cap is configured (the default → unchanged) or
+        when both are satisfied. FAILS CLOSED: a missing price or non-positive
+        equity returns False, so an order is rejected rather than waved through on
+        incomplete data. The new order adds to a same-side position (reduces/covers
+        are handled earlier), so its signed notional is +notional for a BUY and
+        −notional for a SELL (short).
+        """
+        gross_cap = self._config.max_gross_exposure_pct
+        net_cap = self._config.max_net_exposure_pct
+        if gross_cap is None and net_cap is None:
+            return True
+
+        equity = Decimal(str(portfolio.equity))
+        if equity <= 0:
+            return False
+        price = self._reference_price(signal.symbol, portfolio)
+        if price is None or price <= 0:
+            return False
+
+        # Signed notional of every currently-held position.
+        signed_long_short: Decimal = Decimal("0")  # net (signed) sum
+        gross: Decimal = Decimal("0")  # sum of absolutes
+        for pos in portfolio.open_positions.values():
+            mv = Decimal(str(pos.market_value))  # already signed (qty can be < 0)
+            signed_long_short += mv
+            gross += abs(mv)
+
+        # Fold in the proposed order's signed notional.
+        new_notional = quantity * price * signal.symbol.contract_multiplier
+        signed_new = new_notional if signal.side == OrderSide.BUY else -new_notional
+
+        # The proposed symbol may already be held (an ADD on the same side); its
+        # contribution simply increases the magnitude of that leg, so adding the
+        # new signed notional to both the running net and gross is correct because
+        # same-side adds never cross zero (opposite-side moves are the reduce path).
+        new_net = abs(signed_long_short + signed_new) / equity
+        new_gross = (gross + abs(new_notional)) / equity
+
+        if gross_cap is not None and new_gross > gross_cap:
+            return False
+        if net_cap is not None and new_net > net_cap:
+            return False
+        return True
 
     # ---- helpers ----------------------------------------------------------
 

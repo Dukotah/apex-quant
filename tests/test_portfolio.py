@@ -426,3 +426,130 @@ def test_start_new_day_banks_daily_return():
     p.start_new_day()  # prev==cur -> 0.0 return banked
     assert len(p._daily_returns) == 1
     assert p._daily_returns[-1] == 0.0
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 — Long/short: short positions, cover P&L, gross/net exposure
+# ---------------------------------------------------------------------------
+
+
+def test_open_short_from_flat():
+    """
+    SELL 10 AAPL @ 100 from flat opens a SHORT.
+    cash = 10000 + 10*100 = 11000 (short sale proceeds).
+    position qty = -10, avg_entry = 100.
+    equity = cash + market_value = 11000 + (-10*100) = 10000 (unchanged at entry).
+    """
+    p = Portfolio(Decimal("10000"))
+    p.on_fill(_fill(SYM, OrderSide.SELL, "10", "100", "0"))
+
+    assert p.cash == Decimal("11000")
+    pos = p.open_positions["AAPL"]
+    assert pos.quantity == Decimal("-10")
+    assert pos.is_short
+    assert pos.avg_entry_price == Decimal("100")
+    assert p.equity == Decimal("10000")
+    # exposure is ABSOLUTE notional → 10 * 100 = 1000.
+    assert p.exposure == Decimal("1000")
+
+
+def test_short_marks_to_market_and_unrealized():
+    """
+    Short 10 @ 100, price falls to 90 → short is in profit.
+    unrealized = (90-100) * -10 = 100.
+    equity = 11000 + (-10*90) = 11000 - 900 = 10100.
+    """
+    p = Portfolio(Decimal("10000"))
+    p.on_fill(_fill(SYM, OrderSide.SELL, "10", "100", "0"))
+    p.on_market(_bar(SYM, "90"))
+
+    assert p.unrealized_pnl == Decimal("100")
+    assert p.equity == Decimal("10100")
+
+
+def test_cover_short_books_realized_pnl():
+    """
+    Short 10 @ 100, then BUY 10 @ 90 to cover.
+    realized = (entry - cover) * qty = (100 - 90) * 10 = 100.
+    cash = 10000 + 1000 (short) - 900 (cover) = 10100.
+    equity = 10100, no open position.
+    """
+    p = Portfolio(Decimal("10000"))
+    p.on_fill(_fill(SYM, OrderSide.SELL, "10", "100", "0"))
+    p.on_fill(_fill(SYM, OrderSide.BUY, "10", "90", "0"))
+
+    assert p.realized_pnl == Decimal("100")
+    assert p.cash == Decimal("10100")
+    assert p.equity == Decimal("10100")
+    assert "AAPL" not in p.open_positions  # exact cover leaves no zombie
+
+
+def test_cover_short_at_a_loss():
+    """
+    Short 10 @ 100, cover at 130 (price rose against the short → loss).
+    realized = (100 - 130) * 10 = -300.
+    cash = 10000 + 1000 - 1300 = 9700.
+    """
+    p = Portfolio(Decimal("10000"))
+    p.on_fill(_fill(SYM, OrderSide.SELL, "10", "100", "0"))
+    p.on_fill(_fill(SYM, OrderSide.BUY, "10", "130", "0"))
+
+    assert p.realized_pnl == Decimal("-300")
+    assert p.cash == Decimal("9700")
+
+
+def test_partial_cover_leaves_residual_short():
+    """
+    Short 10 @ 100, BUY 4 @ 90 (partial cover).
+    realized = (100-90)*4 = 40. Remaining qty = -6, entry unchanged.
+    """
+    p = Portfolio(Decimal("10000"))
+    p.on_fill(_fill(SYM, OrderSide.SELL, "10", "100", "0"))
+    p.on_fill(_fill(SYM, OrderSide.BUY, "4", "90", "0"))
+
+    assert p.realized_pnl == Decimal("40")
+    pos = p.open_positions["AAPL"]
+    assert pos.quantity == Decimal("-6")
+    assert pos.avg_entry_price == Decimal("100")
+
+
+def test_add_to_short_updates_avg_entry():
+    """
+    Short 4 @ 100 then short 6 @ 150 → avg entry of the short leg.
+    avg = (4*100 + 6*150) / 10 = 130. qty = -10.
+    """
+    p = Portfolio(Decimal("100000"))
+    p.on_fill(_fill(SYM, OrderSide.SELL, "4", "100", "0"))
+    p.on_fill(_fill(SYM, OrderSide.SELL, "6", "150", "0"))
+
+    pos = p.open_positions["AAPL"]
+    assert pos.quantity == Decimal("-10")
+    assert pos.avg_entry_price == Decimal("130")
+
+
+def test_gross_and_net_exposure_mixed_book():
+    """
+    Mixed long+short book:
+      Long  10 TSLA @ 200 → market_value +2000.
+      Short 10 AAPL @ 100 → market_value -1000.
+    gross_exposure = |+2000| + |-1000| = 3000.
+    net_exposure   =  +2000 + (-1000) = 1000  (net long).
+    exposure (legacy absolute) == gross_exposure.
+    """
+    p = Portfolio(Decimal("50000"))
+    p.on_fill(_fill(SYM2, OrderSide.BUY, "10", "200", "0"))  # long TSLA
+    p.on_fill(_fill(SYM, OrderSide.SELL, "10", "100", "0"))  # short AAPL
+
+    assert p.gross_exposure == Decimal("3000")
+    assert p.net_exposure == Decimal("1000")
+    assert p.exposure == p.gross_exposure
+
+
+def test_market_neutral_book_nets_to_zero():
+    """A balanced long/short book has ~0 net but full gross exposure."""
+    p = Portfolio(Decimal("50000"))
+    p.on_fill(_fill(SYM2, OrderSide.BUY, "10", "100", "0"))  # +1000 long
+    p.on_fill(_fill(SYM, OrderSide.SELL, "10", "100", "0"))  # -1000 short
+
+    assert p.net_exposure == Decimal("0")
+    assert p.gross_exposure == Decimal("2000")

@@ -248,16 +248,24 @@ class TestStopWrongSide:
         assert rm.evaluate(sig, port) is None
 
     def test_sell_stop_below_price_rejected(self):
-        """For a SELL, a stop at or below entry price is wrong → reject."""
-        rm = RiskManager(_default_config())
+        """For a SELL short, a stop at or below entry price is wrong → reject.
+
+        Uses allow_short=True so this exercises the wrong-side-stop check, not the
+        short gate (which would also reject — but for a different reason).
+        """
+        rm = RiskManager(_default_config(allow_short=True))
         port = _portfolio_with_price("AAPL", Decimal("200"))
         # For a short, stop must be ABOVE entry; here stop is 190 < 200 → wrong side.
         sig = _sell_signal(stop=Decimal("190"))
         assert rm.evaluate(sig, port) is None
 
     def test_sell_stop_above_price_accepted(self):
-        """Correct short stop: above entry."""
-        rm = RiskManager(_default_config())
+        """Correct short stop: above entry. Requires allow_short=True (Phase 3).
+
+        With shorting OFF (the default) this SELL-from-flat is blocked by the short
+        gate; the short-open path only exists when allow_short is explicitly set.
+        """
+        rm = RiskManager(_default_config(allow_short=True))
         port = _portfolio_with_price("AAPL", Decimal("200"))
         # 5 % above $200 = $210
         sig = _sell_signal(stop=Decimal("210"))
@@ -741,3 +749,175 @@ class TestVolatilityTarget:
     def test_warming_up_is_full_size(self):
         rm = RiskManager(self._cfg())
         assert rm._vol_target_multiplier(self._port(None)) == Decimal("1")
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 — Long/short: short-selling support (OFF by default)
+# ---------------------------------------------------------------------------
+
+
+def _short_pos(ticker: str, qty: str, entry: str, price: str) -> Position:
+    """A SHORT Position (negative quantity)."""
+    return Position(
+        symbol=Symbol(ticker, AssetClass.EQUITY),
+        quantity=Decimal(qty),  # negative
+        avg_entry_price=Decimal(entry),
+        current_price=Decimal(price),
+    )
+
+
+def _long_pos(ticker: str, qty: str, entry: str, price: str) -> Position:
+    return Position(
+        symbol=Symbol(ticker, AssetClass.EQUITY),
+        quantity=Decimal(qty),
+        avg_entry_price=Decimal(entry),
+        current_price=Decimal(price),
+    )
+
+
+class TestShortGateDisabledByDefault:
+    """allow_short=False (the default) keeps the system strictly long-only."""
+
+    def test_sell_from_flat_blocked_by_default(self):
+        """A SELL with no existing long produces NOTHING when shorting is off."""
+        rm = RiskManager(_default_config())  # allow_short defaults to False
+        port = _portfolio_with_price("AAPL", Decimal("200"))
+        sig = _sell_signal(stop=Decimal("210"))  # a valid short stop, but gated
+        assert rm.evaluate(sig, port) is None
+
+    def test_sell_from_flat_blocked_even_with_valid_stop(self):
+        """Even a perfectly-formed short request is blocked while shorting is off."""
+        rm = RiskManager(_default_config(allow_short=False))
+        port = _portfolio_with_price("AAPL", Decimal("200"))
+        sig = _sell_signal(stop=Decimal("210"), strength=Decimal("1.0"))
+        assert rm.evaluate(sig, port) is None
+
+    def test_sell_still_reduces_a_long_when_shorting_off(self):
+        """The long-only reduce path is UNCHANGED: SELL trims/closes a long."""
+        rm = RiskManager(_default_config(allow_short=False))
+        port = _portfolio_with_price("AAPL", Decimal("200"))
+        port.open_positions = {"AAPL": _long_pos("AAPL", "10", "180", "200")}
+        sig = _sell_signal(strength=Decimal("1.0"))  # full exit, no stop needed
+        order = rm.evaluate(sig, port)
+        assert order is not None
+        assert order.side == OrderSide.SELL
+        assert order.quantity == Decimal("10")  # flatten the held long
+
+
+class TestShortOpening:
+    """allow_short=True opens a sized short with a mandatory stop ABOVE entry."""
+
+    def _cfg(self, **ov) -> RiskConfig:
+        return _default_config(
+            allow_short=True,
+            max_position_size_pct=Decimal("0.05"),
+            max_total_exposure_pct=Decimal("0.50"),
+            **ov,
+        )
+
+    def test_short_from_flat_is_sized_like_a_long(self):
+        """SELL-from-flat with a stop above entry opens a short of mirror size."""
+        rm = RiskManager(self._cfg())
+        port = _portfolio_with_price("AAPL", Decimal("200"))
+        # stop 210 is 5% ABOVE entry → valid short stop.
+        sig = _sell_signal(stop=Decimal("210"))
+        order = rm.evaluate(sig, port)
+        assert order is not None
+        assert order.side == OrderSide.SELL
+        # Mirror of the long: 100_000 * 0.05 / 200 = 25 shares.
+        assert order.quantity == Decimal("25")
+        assert order.stop_loss == Decimal("210")  # above entry
+
+    def test_short_requires_stop_above_entry(self):
+        """FAIL CLOSED: a short with no stop is rejected (unbounded loss)."""
+        rm = RiskManager(self._cfg())
+        port = _portfolio_with_price("AAPL", Decimal("200"))
+        sig = _sell_signal(stop=None)
+        assert rm.evaluate(sig, port) is None
+
+    def test_short_with_stop_below_entry_rejected(self):
+        """A short stop must be ABOVE entry; below entry is the wrong side."""
+        rm = RiskManager(self._cfg())
+        port = _portfolio_with_price("AAPL", Decimal("200"))
+        sig = _sell_signal(stop=Decimal("190"))  # below entry → wrong side
+        assert rm.evaluate(sig, port) is None
+
+    def test_adding_to_existing_short(self):
+        """SELL while already short ADDS to the short (entry path, sized)."""
+        rm = RiskManager(self._cfg(max_open_positions=1))
+        port = _portfolio_with_price("AAPL", Decimal("200"))
+        port.open_positions = {"AAPL": _short_pos("AAPL", "-10", "205", "200")}
+        port.exposure = Decimal("2000")  # |−10 * 200|
+        sig = _sell_signal(stop=Decimal("210"))
+        order = rm.evaluate(sig, port)
+        assert order is not None
+        assert order.side == OrderSide.SELL
+
+
+class TestShortExposureCaps:
+    """Gross / net / leverage caps block oversized shorts (fail closed)."""
+
+    def _cfg(self, **ov) -> RiskConfig:
+        base = dict(
+            allow_short=True,
+            max_position_size_pct=Decimal("0.50"),
+            max_total_exposure_pct=Decimal("2.0"),  # let other caps bind first
+            max_leverage=Decimal("2.0"),
+        )
+        base.update(ov)
+        return _default_config(**base)
+
+    def test_gross_cap_blocks_oversized_short(self):
+        """A short that would push gross exposure past the cap is rejected."""
+        # equity 100k; already long 80k (gross 0.8). A new 50k short → gross 1.3.
+        rm = RiskManager(self._cfg(max_gross_exposure_pct=Decimal("1.0")))
+        port = _portfolio_with_price("AAPL", Decimal("200"))
+        port.open_positions = {"SPY": _long_pos("SPY", "200", "400", "400")}  # 80k long
+        port.exposure = Decimal("80000")
+        # New short: 0.50 * 100k = 50k → 250 sh @200. gross = (80k+50k)/100k = 1.3 > 1.0.
+        sig = _sell_signal(symbol=AAPL, stop=Decimal("210"))
+        assert rm.evaluate(sig, port) is None
+
+    def test_gross_cap_allows_within_limit(self):
+        """The same short is allowed when it stays under the gross cap."""
+        rm = RiskManager(self._cfg(max_gross_exposure_pct=Decimal("1.5")))
+        port = _portfolio_with_price("AAPL", Decimal("200"))
+        port.open_positions = {"SPY": _long_pos("SPY", "200", "400", "400")}
+        port.exposure = Decimal("80000")
+        sig = _sell_signal(symbol=AAPL, stop=Decimal("210"))
+        order = rm.evaluate(sig, port)
+        assert order is not None  # gross 1.3 <= 1.5
+
+    def test_net_cap_blocks_one_sided_short_book(self):
+        """A short that pushes the NET (directional) tilt past the cap is rejected."""
+        # Flat book; a 50k short → net = |−50k|/100k = 0.5 > 0.4 cap.
+        rm = RiskManager(self._cfg(max_net_exposure_pct=Decimal("0.4")))
+        port = _portfolio_with_price("AAPL", Decimal("200"))
+        sig = _sell_signal(symbol=AAPL, stop=Decimal("210"))
+        assert rm.evaluate(sig, port) is None
+
+    def test_net_cap_satisfied_when_short_offsets_a_long(self):
+        """A short that REDUCES net tilt (offsets a long) passes the net cap."""
+        # Long 50k already (net +0.5). Adding a 50k SHORT in another name nets to 0.
+        rm = RiskManager(
+            self._cfg(
+                max_net_exposure_pct=Decimal("0.4"),
+                max_gross_exposure_pct=Decimal("2.0"),
+            )
+        )
+        port = _portfolio_with_price("AAPL", Decimal("200"))
+        port.open_positions = {"SPY": _long_pos("SPY", "125", "400", "400")}  # 50k long
+        port.exposure = Decimal("50000")
+        sig = _sell_signal(symbol=AAPL, stop=Decimal("210"))  # 50k short → net 0
+        order = rm.evaluate(sig, port)
+        assert order is not None
+
+    def test_leverage_cap_blocks_combined_book(self):
+        """The leverage cap counts the short's notional in total exposure."""
+        rm = RiskManager(self._cfg(max_leverage=Decimal("1.0")))
+        port = _portfolio_with_price("AAPL", Decimal("200"))
+        port.open_positions = {"SPY": _long_pos("SPY", "225", "400", "400")}  # 90k long
+        port.exposure = Decimal("90000")
+        # New short 50k → total notional 140k → leverage 1.4 > 1.0.
+        sig = _sell_signal(symbol=AAPL, stop=Decimal("210"))
+        assert rm.evaluate(sig, port) is None

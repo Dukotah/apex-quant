@@ -247,6 +247,26 @@ class Portfolio:
         return dict(self._last_price)
 
     # ------------------------------------------------------------------
+    # Long/short exposure helpers (Phase 3) — read by the RiskManager's
+    # gross/net exposure caps. Shorts have negative market_value, so:
+    #   gross_exposure = sum(|market_value|)  (== `exposure`, the total at risk
+    #                    across BOTH legs; a market-neutral 50/50 book is 100%).
+    #   net_exposure   = sum(market_value)    (SIGNED directional tilt; longs add,
+    #                    shorts subtract; a balanced market-neutral book nets ~0).
+    # These make the structural shorting guardrails computable from portfolio state.
+    # ------------------------------------------------------------------
+
+    @property
+    def gross_exposure(self) -> Decimal:
+        """Total absolute notional across all legs = sum(abs(market_value))."""
+        return sum(abs(p.market_value) for p in self._positions.values())
+
+    @property
+    def net_exposure(self) -> Decimal:
+        """Signed directional notional = sum(market_value) (shorts are negative)."""
+        return sum(p.market_value for p in self._positions.values())
+
+    # ------------------------------------------------------------------
     # Additional informational properties
     # ------------------------------------------------------------------
 
