@@ -42,7 +42,7 @@ import os
 import sqlite3
 import urllib.request
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence
@@ -55,6 +55,7 @@ from apex.data.alpaca_feed import AlpacaDataFeed
 from apex.data.base_feed import BaseDataFeed
 from apex.execution.base_execution import BaseExecutionEngine
 from apex.execution.factory import make_execution_engine
+from apex.ops.alerts import NtfyNotifier, decide_alerts, send_alerts, should_heartbeat
 from apex.risk.portfolio import Portfolio
 from apex.risk.risk_manager import RiskConfig, RiskManager
 from apex.strategy.base_strategy import BaseStrategy, StrategyContext
@@ -132,6 +133,17 @@ class StateStore:
             )
             """
         )
+        # Single-row meta table that tracks the calendar date of the most
+        # recently sent alert. Used by the heartbeat logic so silence on a
+        # new day means the cron is down, not just quiet.
+        self._conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS alert_meta (
+                id            INTEGER PRIMARY KEY CHECK (id = 1),
+                last_alert_ts TEXT NOT NULL
+            )
+            """
+        )
         self._conn.commit()
 
     def save_run(self, report: RunReport, positions: Dict[str, dict]) -> None:
@@ -167,6 +179,22 @@ class StateStore:
             "SELECT equity FROM runs WHERE mode = ? ORDER BY ts DESC LIMIT ?", (mode, limit)
         )
         return [float(r[0]) for r in reversed(cur.fetchall())]
+
+    def last_alert_date(self) -> date | None:
+        """Return the calendar date of the most recently sent alert, or None if never."""
+        row = self._conn.execute("SELECT last_alert_ts FROM alert_meta WHERE id = 1").fetchone()
+        if row is None:
+            return None
+        return date.fromisoformat(row[0])
+
+    def record_alert_date(self, d: date) -> None:
+        """Persist *d* as the last alert date (upsert — only one row ever exists)."""
+        self._conn.execute(
+            "INSERT INTO alert_meta (id, last_alert_ts) VALUES (1, ?) "
+            "ON CONFLICT(id) DO UPDATE SET last_alert_ts = excluded.last_alert_ts",
+            (d.isoformat(),),
+        )
+        self._conn.commit()
 
     def history(self, mode: str) -> List[sqlite3.Row]:
         """All runs for `mode`, oldest->newest (ts, equity, orders, fills, halted) — for reporting."""
@@ -287,7 +315,7 @@ def run_once(
 
     _persist(state_store, report, portfolio)
     logger.info(report.summary())
-    _notify_cycle(report)
+    _notify_cycle(report, state_store)
     return report
 
 
@@ -488,16 +516,31 @@ def _notify(title: str, message: str, priority: str = "default") -> None:
         logger.warning("ntfy notify failed: %s", exc)
 
 
-def _notify_cycle(report: RunReport) -> None:
-    """Push an alert only when something happened — no spam on quiet no-op days."""
-    if report.killed:
-        _notify("Apex Quant - KILL SWITCH", report.summary(), priority="urgent")
-    elif report.quarantined:
-        _notify("Apex Quant - QUARANTINED", report.summary(), priority="urgent")
-    elif report.halted:
-        _notify("Apex Quant - HALTED", report.summary(), priority="high")
-    elif report.orders_submitted > 0:
-        _notify("Apex Quant - traded", report.summary(), priority="default")
+def _notify_cycle(report: RunReport, store: Optional[StateStore] = None) -> None:
+    """Send actionable alerts and a once-daily heartbeat via the alerts policy module.
+
+    Uses ``report.timestamp.date()`` (the injected clock's date) rather than
+    ``date.today()`` so the function stays deterministic. Wrapped in a top-level
+    try/except so a notify or DB failure can never break the cron cycle.
+    """
+    try:
+        notifier = NtfyNotifier()
+        today = report.timestamp.date()
+        last = store.last_alert_date() if store is not None else None
+        is_new = should_heartbeat(last, today)
+        alerts = decide_alerts(
+            killed=report.killed,
+            quarantined=report.quarantined,
+            halted=report.halted,
+            orders_submitted=report.orders_submitted,
+            summary=report.summary(),
+            is_new_day=is_new,
+        )
+        send_alerts(notifier, alerts)
+        if alerts and store is not None:
+            store.record_alert_date(today)
+    except Exception as exc:  # noqa: BLE001 — notify/db failure must never break the cron
+        logger.warning("_notify_cycle failed (non-fatal): %s", exc)
 
 
 def _kill_switch_active() -> bool:

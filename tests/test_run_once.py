@@ -9,7 +9,7 @@ broker reconciliation seeding the portfolio, and halt suppressing orders.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import List
 
@@ -299,3 +299,138 @@ def test_kill_switch_various_truthy_values(monkeypatch):
     for v in ("0", "false", "", "no"):
         monkeypatch.setenv("APEX_HALT", v)
         assert _kill_switch_active() is False
+
+
+# --------------------------------------------------------- alert meta / heartbeat
+
+
+class FakeNotifier:
+    """Captures calls to send() without touching the network."""
+
+    def __init__(self) -> None:
+        self.sent: List[tuple] = []  # [(title, message, priority), ...]
+
+    def send(self, title: str, message: str, priority: str) -> None:
+        self.sent.append((title, message, priority))
+
+
+def test_state_store_alert_date_round_trip(tmp_path):
+    """last_alert_date / record_alert_date persist and retrieve correctly."""
+    store = StateStore(tmp_path / "s.db")
+    assert store.last_alert_date() is None  # fresh DB → None
+
+    d = date(2024, 6, 3)
+    store.record_alert_date(d)
+    assert store.last_alert_date() == d
+
+    # Overwrite with a later date — still exactly one row.
+    d2 = date(2024, 6, 4)
+    store.record_alert_date(d2)
+    assert store.last_alert_date() == d2
+
+
+def test_notify_cycle_actionable_event_sends_alert(tmp_path, monkeypatch):
+    """An orders_submitted > 0 cycle sends exactly one 'traded' alert."""
+    store = StateStore(tmp_path / "s.db")
+    fake = FakeNotifier()
+    monkeypatch.setattr("scripts.run_once.NtfyNotifier", lambda: fake)
+
+    report = RunReport(
+        timestamp=NOW,
+        mode="paper",
+        equity=100_000.0,
+        num_positions=0,
+        orders_submitted=1,
+    )
+    _notify_cycle(report, store)
+
+    assert len(fake.sent) == 1
+    title, _msg, priority = fake.sent[0]
+    assert "traded" in title.lower()
+    assert priority == "default"
+    # Alert date should be recorded.
+    assert store.last_alert_date() == NOW.date()
+
+
+def test_notify_cycle_quiet_new_day_sends_heartbeat(tmp_path, monkeypatch):
+    """A quiet cycle on a brand-new calendar day sends exactly one heartbeat."""
+    store = StateStore(tmp_path / "s.db")
+    fake = FakeNotifier()
+    monkeypatch.setattr("scripts.run_once.NtfyNotifier", lambda: fake)
+
+    # No prior alert → is_new_day = True for any date.
+    report = RunReport(
+        timestamp=NOW,
+        mode="paper",
+        equity=100_000.0,
+        num_positions=0,
+        orders_submitted=0,
+    )
+    _notify_cycle(report, store)
+
+    assert len(fake.sent) == 1
+    title, _msg, priority = fake.sent[0]
+    assert "heartbeat" in title.lower()
+    assert priority == "min"
+    assert store.last_alert_date() == NOW.date()
+
+
+def test_notify_cycle_quiet_same_day_sends_nothing(tmp_path, monkeypatch):
+    """A quiet cycle on the SAME day as the last alert sends nothing."""
+    store = StateStore(tmp_path / "s.db")
+    # Pre-record today's date as the last alert date.
+    store.record_alert_date(NOW.date())
+
+    fake = FakeNotifier()
+    monkeypatch.setattr("scripts.run_once.NtfyNotifier", lambda: fake)
+
+    report = RunReport(
+        timestamp=NOW,
+        mode="paper",
+        equity=100_000.0,
+        num_positions=0,
+        orders_submitted=0,
+    )
+    _notify_cycle(report, store)
+
+    assert fake.sent == []  # silence — already heartbeated today
+
+
+def test_notify_cycle_store_none_no_heartbeat_tracking(monkeypatch):
+    """When store is None, _notify_cycle runs without heartbeat tracking and doesn't raise."""
+    fake = FakeNotifier()
+    monkeypatch.setattr("scripts.run_once.NtfyNotifier", lambda: fake)
+
+    report = RunReport(
+        timestamp=NOW,
+        mode="paper",
+        equity=100_000.0,
+        num_positions=0,
+        orders_submitted=0,
+    )
+    # store=None → last_alert_date is None → is_new_day=True → heartbeat fires
+    _notify_cycle(report, store=None)
+    # No crash, heartbeat is sent (no store to check/record date).
+    assert len(fake.sent) == 1
+    assert "heartbeat" in fake.sent[0][0].lower()
+
+
+def test_notify_cycle_fail_open_on_notifier_error(tmp_path, monkeypatch):
+    """If the notifier raises, _notify_cycle swallows the exception (fail-open)."""
+
+    class BrokenNotifier:
+        def send(self, title: str, message: str, priority: str) -> None:
+            raise RuntimeError("network down")
+
+    monkeypatch.setattr("scripts.run_once.NtfyNotifier", lambda: BrokenNotifier())
+    store = StateStore(tmp_path / "s.db")
+
+    report = RunReport(
+        timestamp=NOW,
+        mode="paper",
+        equity=100_000.0,
+        num_positions=0,
+        orders_submitted=1,  # actionable → would normally send
+    )
+    # Must not raise even though the notifier is broken.
+    _notify_cycle(report, store)  # no AssertionError, no exception propagated
