@@ -23,11 +23,19 @@ Test coverage:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import date
 from decimal import Decimal
 from typing import Dict, Optional
 
-from apex.core.events import SignalEvent
+from apex.core.events import OptionOrderEvent, SignalEvent
 from apex.core.models import AssetClass, OrderSide, Position, Symbol
+from apex.core.option import (
+    OptionContract,
+    OptionLeg,
+    OptionOrder,
+    OptionRight,
+    OptionType,
+)
 from apex.risk.risk_manager import RiskConfig, RiskManager
 
 # ---------------------------------------------------------------------------
@@ -35,6 +43,7 @@ from apex.risk.risk_manager import RiskConfig, RiskManager
 # ---------------------------------------------------------------------------
 
 AAPL = Symbol("AAPL", AssetClass.EQUITY)
+SPY = Symbol("SPY", AssetClass.ETF)
 TSLA = Symbol("TSLA", AssetClass.EQUITY)
 BTCUSD = Symbol("BTC/USD", AssetClass.CRYPTO, fractionable=True)
 
@@ -921,3 +930,200 @@ class TestShortExposureCaps:
         # New short 50k → total notional 140k → leverage 1.4 > 1.0.
         sig = _sell_signal(symbol=AAPL, stop=Decimal("210"))
         assert rm.evaluate(sig, port) is None
+
+
+def _option_order(quantity: int = 1, legs: int = 1) -> OptionOrder:
+    """Build a single- or two-leg defined-risk OptionOrder on SPY."""
+    long_leg = OptionLeg(
+        contract=OptionContract(SPY, date(2026, 9, 18), Decimal("450"), OptionType.CALL),
+        right=OptionRight.SELL,
+        ratio=1,
+    )
+    built = [long_leg]
+    if legs >= 2:
+        built.append(
+            OptionLeg(
+                contract=OptionContract(SPY, date(2026, 9, 18), Decimal("460"), OptionType.CALL),
+                right=OptionRight.BUY,
+                ratio=1,
+            )
+        )
+    return OptionOrder(legs=tuple(built), quantity=quantity, limit_price=Decimal("1.00"))
+
+
+class TestEvaluateOption:
+    """The options golden rule: an OptionOrder only becomes an event via the gate."""
+
+    def _port(self, cash: Decimal = Decimal("100000")) -> FakePortfolio:
+        return FakePortfolio(equity=cash, peak_equity=cash, day_start_equity=cash)
+
+    def test_defined_risk_within_buying_power_returns_event(self):
+        rm = RiskManager(_default_config())
+        evt = rm.evaluate_option(
+            order=_option_order(legs=2),
+            max_loss=Decimal("900"),
+            strategy_id="bull_put",
+            reason="spread",
+            portfolio=self._port(cash=Decimal("5000")),
+        )
+        assert isinstance(evt, OptionOrderEvent)
+        assert evt.max_loss == Decimal("900")
+        assert evt.strategy_id == "bull_put"
+        assert evt.order is not None
+
+    def test_event_timestamp_is_injected_not_wall_clock(self):
+        rm = RiskManager(_default_config())
+        port = self._port()
+        injected = __import__("datetime").datetime(
+            2026, 6, 7, tzinfo=__import__("datetime").timezone.utc
+        )
+        port.timestamp = injected  # type: ignore[attr-defined]
+        evt = rm.evaluate_option(
+            order=_option_order(),
+            max_loss=Decimal("100"),
+            strategy_id="s",
+            reason="r",
+            portfolio=port,
+        )
+        assert evt is not None
+        assert evt.timestamp == injected
+
+    def test_max_loss_infinite_rejected(self):
+        rm = RiskManager(_default_config())
+        evt = rm.evaluate_option(
+            order=_option_order(),
+            max_loss=Decimal("Infinity"),
+            strategy_id="s",
+            reason="r",
+            portfolio=self._port(),
+        )
+        assert evt is None
+
+    def test_max_loss_nan_rejected(self):
+        rm = RiskManager(_default_config())
+        evt = rm.evaluate_option(
+            order=_option_order(),
+            max_loss=Decimal("NaN"),
+            strategy_id="s",
+            reason="r",
+            portfolio=self._port(),
+        )
+        assert evt is None
+
+    def test_max_loss_zero_rejected(self):
+        rm = RiskManager(_default_config())
+        evt = rm.evaluate_option(
+            order=_option_order(),
+            max_loss=Decimal("0"),
+            strategy_id="s",
+            reason="r",
+            portfolio=self._port(),
+        )
+        assert evt is None
+
+    def test_max_loss_negative_rejected(self):
+        rm = RiskManager(_default_config())
+        evt = rm.evaluate_option(
+            order=_option_order(),
+            max_loss=Decimal("-50"),
+            strategy_id="s",
+            reason="r",
+            portfolio=self._port(),
+        )
+        assert evt is None
+
+    def test_max_loss_exceeds_buying_power_rejected(self):
+        rm = RiskManager(_default_config())
+        evt = rm.evaluate_option(
+            order=_option_order(),
+            max_loss=Decimal("6000"),
+            strategy_id="s",
+            reason="r",
+            portfolio=self._port(cash=Decimal("5000")),
+        )
+        assert evt is None
+
+    def test_max_loss_exactly_equal_buying_power_accepted(self):
+        rm = RiskManager(_default_config())
+        evt = rm.evaluate_option(
+            order=_option_order(),
+            max_loss=Decimal("5000"),
+            strategy_id="s",
+            reason="r",
+            portfolio=self._port(cash=Decimal("5000")),
+        )
+        assert isinstance(evt, OptionOrderEvent)
+
+    def test_prefers_buying_power_attribute(self):
+        """When the portfolio exposes buying_power, it is used over cash/equity."""
+        rm = RiskManager(_default_config())
+        port = self._port(cash=Decimal("100"))
+        port.buying_power = Decimal("10000")  # type: ignore[attr-defined]
+        evt = rm.evaluate_option(
+            order=_option_order(),
+            max_loss=Decimal("5000"),
+            strategy_id="s",
+            reason="r",
+            portfolio=port,
+        )
+        assert isinstance(evt, OptionOrderEvent)
+
+    def test_halted_system_rejects_option(self):
+        rm = RiskManager(_default_config(max_drawdown_pct=Decimal("0.10")))
+        # Trip the drawdown halt via the equity path.
+        breached = FakePortfolio(
+            equity=Decimal("89000"),
+            peak_equity=Decimal("100000"),
+            day_start_equity=Decimal("89000"),
+        )
+        breached.last_price["AAPL"] = Decimal("200")
+        rm.evaluate(_buy_signal(stop=Decimal("190")), breached)
+        assert rm.is_halted
+        evt = rm.evaluate_option(
+            order=_option_order(),
+            max_loss=Decimal("100"),
+            strategy_id="s",
+            reason="r",
+            portfolio=self._port(),
+        )
+        assert evt is None
+
+    def test_quantity_not_positive_rejected(self):
+        """A non-positive quantity fails closed even if OptionOrder somehow allowed it."""
+        rm = RiskManager(_default_config())
+        order = _option_order()
+        object.__setattr__(order, "quantity", 0)  # bypass frozen guard for the test
+        evt = rm.evaluate_option(
+            order=order,
+            max_loss=Decimal("100"),
+            strategy_id="s",
+            reason="r",
+            portfolio=self._port(),
+        )
+        assert evt is None
+
+    def test_empty_legs_rejected(self):
+        """No legs fails closed even if OptionOrder's own guard is bypassed."""
+        rm = RiskManager(_default_config())
+        order = _option_order()
+        object.__setattr__(order, "legs", ())  # bypass frozen guard for the test
+        evt = rm.evaluate_option(
+            order=order,
+            max_loss=Decimal("100"),
+            strategy_id="s",
+            reason="r",
+            portfolio=self._port(),
+        )
+        assert evt is None
+
+    def test_evaluate_option_does_not_halt_on_rejection(self):
+        """A plain option rejection must not flip the global halt flag."""
+        rm = RiskManager(_default_config())
+        rm.evaluate_option(
+            order=_option_order(),
+            max_loss=Decimal("-1"),
+            strategy_id="s",
+            reason="r",
+            portfolio=self._port(),
+        )
+        assert rm.is_halted is False

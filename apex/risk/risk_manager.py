@@ -23,11 +23,12 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from datetime import datetime
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Optional
 
-from apex.core.events import HaltEvent, OrderEvent, SignalEvent
+from apex.core.events import HaltEvent, OptionOrderEvent, OrderEvent, SignalEvent
 from apex.core.models import OrderSide, OrderType, Symbol, utc_now
+from apex.core.option import OptionOrder
 
 logger = logging.getLogger("apex.risk")
 
@@ -227,6 +228,112 @@ class RiskManager:
             logger.error("Risk check errored, rejecting signal: %s", exc, exc_info=True)
             self._reject(signal, f"risk-check exception: {exc}")
             return None
+
+    # ---- defined-risk options gate (the options golden rule) --------------
+
+    def evaluate_option(
+        self,
+        *,
+        order: OptionOrder,
+        max_loss: Decimal,
+        strategy_id: str,
+        reason: str,
+        portfolio,
+    ) -> Optional[OptionOrderEvent]:
+        """
+        The options gate — the analogue of ``evaluate`` for the multi-leg options
+        path. An ``OptionOrder`` is INTENT; it can only become an executable
+        ``OptionOrderEvent`` by passing every check here. This method is the SOLE
+        producer of ``OptionOrderEvent``, so options honor the golden rule
+        ("strategies cannot place orders") structurally — the execution engine must
+        never submit a raw ``OptionOrder``.
+
+        Inputs are PRIMITIVE core types only (``OptionOrder`` + ``max_loss``) — risk
+        must not import from apex.strategy.* (layering). FAILS CLOSED: returns an
+        ``OptionOrderEvent`` only if ALL hold, else logs a rejection and returns None
+        (never raises for a normal rejection):
+          1. system is not halted (a drawdown/daily-loss halt blocks options too);
+          2. ``max_loss`` is finite and > 0 — DEFINED-RISK only (inf / NaN / <= 0 fail);
+          3. ``max_loss`` <= available cash/buying power (worst case reserved);
+          4. the order has >= 1 leg AND a positive integer ``quantity``.
+        """
+        try:
+            if self._halted:
+                self._reject_option(strategy_id, order, f"system halted: {self._halt_reason}")
+                return None
+
+            try:
+                loss = Decimal(str(max_loss))
+            except (InvalidOperation, ValueError, TypeError):
+                self._reject_option(strategy_id, order, f"max_loss not a number: {max_loss!r}")
+                return None
+            if not loss.is_finite():
+                self._reject_option(strategy_id, order, f"max_loss not finite: {loss}")
+                return None
+            if loss <= 0:
+                self._reject_option(
+                    strategy_id, order, f"max_loss must be > 0 (defined-risk), got {loss}"
+                )
+                return None
+
+            legs = getattr(order, "legs", None)
+            if not legs or len(legs) < 1:
+                self._reject_option(strategy_id, order, "order has no legs")
+                return None
+            quantity = getattr(order, "quantity", 0)
+            if not isinstance(quantity, int) or isinstance(quantity, bool) or quantity <= 0:
+                self._reject_option(
+                    strategy_id, order, f"order quantity must be > 0, got {quantity}"
+                )
+                return None
+
+            available = self._available_funds(portfolio)
+            if loss > available:
+                self._reject_option(
+                    strategy_id, order, f"max_loss {loss} exceeds available funds {available}"
+                )
+                return None
+
+            # ALL CHECKS PASSED → build the approved, defined-risk option order.
+            ts = getattr(portfolio, "timestamp", None) or utc_now()
+            event = OptionOrderEvent(
+                order=order,
+                strategy_id=strategy_id,
+                reason=reason,
+                max_loss=loss,
+                timestamp=ts,
+            )
+            logger.info(
+                "APPROVED OPTION %s legs=%d qty=%s max_loss=%s (strategy=%s)",
+                order.legs[0].contract.underlying.ticker,
+                len(order.legs),
+                order.quantity,
+                loss,
+                strategy_id,
+            )
+            return event
+        except Exception as exc:  # FAIL CLOSED — any error = reject.
+            logger.error("Option risk check errored, rejecting order: %s", exc, exc_info=True)
+            self._reject_option(strategy_id, order, f"option risk-check exception: {exc}")
+            return None
+
+    def _available_funds(self, portfolio) -> Decimal:
+        """Funds the option's max_loss is reserved against: buying_power, else cash,
+        else equity; 0 (fail-closed) if none readable."""
+        for attr in ("buying_power", "cash", "equity"):
+            val = getattr(portfolio, attr, None)
+            if val is not None:
+                return Decimal(str(val))
+        return Decimal("0")
+
+    def _reject_option(self, strategy_id: str, order: OptionOrder, reason: str) -> None:
+        underlying = "?"
+        try:
+            if order is not None and getattr(order, "legs", None):
+                underlying = order.legs[0].contract.underlying.ticker
+        except Exception:  # never let logging mask the real rejection
+            pass
+        logger.warning("REJECTED OPTION %s (strategy=%s): %s", underlying, strategy_id, reason)
 
     # ---- reduce-aware exit path (always allowed to de-risk) ---------------
 

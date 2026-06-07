@@ -27,6 +27,7 @@ from apex.core.models import (
     Tick,
     TimeInForce,
 )
+from apex.core.option import OptionOrder
 
 
 class EventType(str, Enum):
@@ -35,6 +36,7 @@ class EventType(str, Enum):
     ORDER = "order"
     FILL = "fill"
     HALT = "halt"  # emitted by risk manager to stop the system
+    OPTION_ORDER = "option_order"  # approved, defined-risk option order (risk-gated)
 
 
 @dataclass(frozen=True)
@@ -148,3 +150,33 @@ class HaltEvent(Event):
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "type", EventType.HALT)
+
+
+@dataclass(frozen=True)
+class OptionOrderEvent(Event):
+    """
+    An APPROVED, DEFINED-RISK option order. Like OrderEvent, but for the multi-leg
+    options path (see apex.core.option.OptionOrder).
+
+    ONLY the RiskManager creates these — via RiskManager.evaluate_option, the options
+    analogue of the golden rule "strategies cannot place orders". By the time one
+    exists it has passed every option risk check (defined max_loss > 0 and finite,
+    reserved against available funds, >= 1 leg, positive quantity). The execution
+    engine must consume these and NEVER submit a raw OptionOrder directly.
+
+    `max_loss` is the worst-case dollar loss the risk manager reserved when approving
+    it. `timestamp` is bar/injected time, never the wall clock (backtest/live parity).
+    """
+
+    order: Optional[OptionOrder] = None
+    strategy_id: str = ""
+    reason: str = ""  # human-readable why (for audit/AI)
+    max_loss: Decimal = Decimal("0")
+    timestamp: Optional[datetime] = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "type", EventType.OPTION_ORDER)
+        if self.order is None:
+            raise ValueError("OptionOrderEvent requires an order")
+        if self.max_loss <= 0:
+            raise ValueError("OptionOrderEvent max_loss must be positive (defined-risk)")
