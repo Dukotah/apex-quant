@@ -69,7 +69,7 @@ class AlertPreview:
 # --------------------------------------------------------------------- pure core
 
 
-def preview_alert(report) -> AlertPreview:
+def preview_alert(report, *, heartbeat_due: bool = True) -> AlertPreview:
     """
     PURE, DETERMINISTIC core. Given a RunReport (or any value exposing the same
     fields: ``killed``, ``quarantined``, ``halted``, ``orders_submitted`` and a
@@ -81,7 +81,12 @@ def preview_alert(report) -> AlertPreview:
         quarantined       -> "Apex Quant - QUARANTINED"  urgent
         halted            -> "Apex Quant - HALTED"       high
         orders_submitted  -> "Apex Quant - traded"       default
-        otherwise         -> no alert (quiet cycle)
+        quiet + due       -> "Apex Quant - OK"           min   (daily heartbeat)
+        quiet + sent      -> no alert (heartbeat already sent today)
+
+    ``heartbeat_due`` controls the quiet-cycle branch: True (default) means this
+    would be the first quiet cycle today — the heartbeat fires. False means the
+    heartbeat was already sent today — silent.
 
     No I/O, no clock, no network — only reads from the supplied report.
     """
@@ -118,7 +123,15 @@ def preview_alert(report) -> AlertPreview:
             "default",
             f"{report.orders_submitted} order(s) submitted this cycle",
         )
-    return AlertPreview(False, reason="quiet cycle — no kill/quarantine/halt and no orders")
+    if heartbeat_due:
+        return AlertPreview(
+            True,
+            "Apex Quant - OK",
+            f"[heartbeat] {message}",
+            "min",
+            "quiet cycle — daily heartbeat (first quiet cycle today)",
+        )
+    return AlertPreview(False, reason="quiet cycle — heartbeat already sent today")
 
 
 # ------------------------------------------------------------------ state lookup
@@ -168,6 +181,17 @@ def _load_last_report(state_path: Optional[str], mode: str):
 # -------------------------------------------------------------------- cli wiring
 
 
+def _heartbeat_due_for(state_path: Optional[str], date_str: str) -> bool:
+    """True if the heartbeat for ``date_str`` has NOT yet been recorded in the meta table."""
+    from scripts.run_once import _HEARTBEAT_META_KEY, StateStore  # lazy import
+
+    store = StateStore(state_path) if state_path else StateStore()
+    try:
+        return store.get_meta(_HEARTBEAT_META_KEY) != date_str
+    finally:
+        store.close()
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="alerts_preview",
@@ -200,11 +224,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:  # pragma: no cover - I/O
     if report is None:
         print(f"No '{args.mode}' runs recorded yet — nothing to preview.")
         return 0
+    heartbeat_due = _heartbeat_due_for(args.state, report.timestamp.date().isoformat())
     print(
         f"Previewing alert for the last '{args.mode}' cycle "
         f"@ {report.timestamp:%Y-%m-%d %H:%M}Z (not sent):"
     )
-    print(preview_alert(report).render())
+    print(preview_alert(report, heartbeat_due=heartbeat_due).render())
     return 0
 
 

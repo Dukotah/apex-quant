@@ -27,12 +27,28 @@ def _report(**kw) -> RunReport:
 # ------------------------------------------------------------------ pure core
 
 
-def test_quiet_cycle_sends_nothing():
-    prev = preview_alert(_report(orders_submitted=0))
+def test_quiet_cycle_heartbeat_due_sends_heartbeat():
+    prev = preview_alert(_report(orders_submitted=0), heartbeat_due=True)
+    assert prev.would_send is True
+    assert prev.title == "Apex Quant - OK"
+    assert prev.priority == "min"
+    assert "heartbeat" in prev.reason
+    assert "[heartbeat]" in prev.message
+    assert "ALERT PREVIEW" in prev.render()
+
+
+def test_quiet_cycle_heartbeat_already_sent_sends_nothing():
+    prev = preview_alert(_report(orders_submitted=0), heartbeat_due=False)
     assert prev.would_send is False
     assert prev.title == "" and prev.message == "" and prev.priority == ""
     assert "quiet" in prev.reason
     assert "NO ALERT" in prev.render()
+
+
+def test_heartbeat_message_contains_run_summary():
+    r = _report(orders_submitted=0)
+    prev = preview_alert(r, heartbeat_due=True)
+    assert r.summary() in prev.message
 
 
 def test_traded_cycle_default_priority():
@@ -62,6 +78,18 @@ def test_killed_is_highest_priority():
     assert prev.title == "Apex Quant - KILL SWITCH"
     assert prev.priority == "urgent"
     assert "kill switch" in prev.reason
+
+
+def test_heartbeat_does_not_fire_on_actionable_cycles():
+    """Traded/halted/quarantined/killed cycles must not send heartbeat even if heartbeat_due."""
+    for kw in [
+        {"orders_submitted": 1},
+        {"halted": True},
+        {"quarantined": True},
+        {"killed": True},
+    ]:
+        prev = preview_alert(_report(**kw), heartbeat_due=True)
+        assert prev.title != "Apex Quant - OK", f"heartbeat fired on {kw}"
 
 
 def test_core_is_pure_and_repeatable():
@@ -126,6 +154,27 @@ def test_load_last_report_filters_by_mode(tmp_path):
     _seed(store, n_orders_per_row=1, mode="paper")
     assert _load_last_report(path, "live") is None
     assert _load_last_report(path, "paper") is not None
+
+
+def test_heartbeat_due_for_returns_true_when_no_record(tmp_path):
+    from scripts.alerts_preview import _heartbeat_due_for
+
+    path = str(tmp_path / "s.db")
+    store = StateStore(path)
+    store.close()
+    assert _heartbeat_due_for(path, "2024-01-01") is True
+
+
+def test_heartbeat_due_for_returns_false_after_set(tmp_path):
+    from scripts.alerts_preview import _heartbeat_due_for
+    from scripts.run_once import _HEARTBEAT_META_KEY
+
+    path = str(tmp_path / "s.db")
+    store = StateStore(path)
+    store.set_meta(_HEARTBEAT_META_KEY, "2024-01-01")
+    store.close()
+    assert _heartbeat_due_for(path, "2024-01-01") is False
+    assert _heartbeat_due_for(path, "2024-01-02") is True
 
 
 def test_module_import_has_no_side_effects():

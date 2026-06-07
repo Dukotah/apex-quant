@@ -6,6 +6,23 @@
 
 ---
 
+## Overseer 2026-06-08 — F2.3: daily heartbeat alert (one "still alive" push per day on quiet crons)
+
+**What:** tightened the ntfy alert policy to add a daily heartbeat on quiet cycles.
+Previously quiet cycles (no trades/halt/quarantine/kill) were completely silent — the owner
+had no way to know if the cron was running on a flat day vs. silently broken.
+
+**Design:** added a `meta` table (key-value store) to `StateStore` (stdlib SQLite, zero new
+deps). `_heartbeat_if_due(report, store)` checks `last_heartbeat_date` in the meta table; if
+today's date isn't recorded, it fires a `priority="min"` ntfy push ("Apex Quant - OK") and
+writes today's date. Second quiet run the same day is fully silent. `_notify_cycle` now accepts
+an optional `store` argument (default None = no dedup, heartbeat fires unconditionally — safe
+for test stubs). `alerts_preview.preview_alert` updated with a `heartbeat_due: bool = True`
+parameter so the dry-run mirrors the new ladder. `_heartbeat_due_for` reads the DB without
+writing it. 10 new tests; 2517 total, 94.83% coverage, ruff clean.
+
+---
+
 ## Session 30 — W8 feasibility: survivorship-free data needs a PAID source (free path is a dead end)
 
 Probed whether the live-capital gate (W8, survivorship-free validation) is achievable on free

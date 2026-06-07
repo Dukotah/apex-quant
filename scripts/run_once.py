@@ -132,6 +132,25 @@ class StateStore:
             )
             """
         )
+        self._conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS meta (
+                key   TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            )
+            """
+        )
+        self._conn.commit()
+
+    def get_meta(self, key: str) -> Optional[str]:
+        """Read a metadata value by key; returns None if not set."""
+        cur = self._conn.execute("SELECT value FROM meta WHERE key = ?", (key,))
+        row = cur.fetchone()
+        return row[0] if row else None
+
+    def set_meta(self, key: str, value: str) -> None:
+        """Upsert a metadata value."""
+        self._conn.execute("INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)", (key, value))
         self._conn.commit()
 
     def save_run(self, report: RunReport, positions: Dict[str, dict]) -> None:
@@ -287,7 +306,7 @@ def run_once(
 
     _persist(state_store, report, portfolio)
     logger.info(report.summary())
-    _notify_cycle(report)
+    _notify_cycle(report, state_store)
     return report
 
 
@@ -488,8 +507,27 @@ def _notify(title: str, message: str, priority: str = "default") -> None:
         logger.warning("ntfy notify failed: %s", exc)
 
 
-def _notify_cycle(report: RunReport) -> None:
-    """Push an alert only when something happened — no spam on quiet no-op days."""
+_HEARTBEAT_META_KEY = "last_heartbeat_date"
+
+
+def _heartbeat_if_due(report: RunReport, store: Optional[StateStore]) -> None:
+    """Send one low-priority 'still alive' push per calendar day on quiet cycles.
+
+    Deduplicates via the meta table so a second quiet run on the same day is
+    silent — the owner gets exactly one confirmation per day, not one per cron tick.
+    When store is None (tests without a DB) the heartbeat fires unconditionally;
+    callers that truly want no-op must pass a store with today already recorded.
+    """
+    today = report.timestamp.date().isoformat()
+    if store is not None:
+        if store.get_meta(_HEARTBEAT_META_KEY) == today:
+            return
+        store.set_meta(_HEARTBEAT_META_KEY, today)
+    _notify("Apex Quant - OK", f"[heartbeat] {report.summary()}", priority="min")
+
+
+def _notify_cycle(report: RunReport, store: Optional[StateStore] = None) -> None:
+    """Push an alert only when something actionable happened; quiet days get one daily heartbeat."""
     if report.killed:
         _notify("Apex Quant - KILL SWITCH", report.summary(), priority="urgent")
     elif report.quarantined:
@@ -498,6 +536,8 @@ def _notify_cycle(report: RunReport) -> None:
         _notify("Apex Quant - HALTED", report.summary(), priority="high")
     elif report.orders_submitted > 0:
         _notify("Apex Quant - traded", report.summary(), priority="default")
+    else:
+        _heartbeat_if_due(report, store)
 
 
 def _kill_switch_active() -> bool:

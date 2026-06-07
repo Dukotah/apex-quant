@@ -20,7 +20,14 @@ from apex.core.models import AssetClass, Bar, OrderSide, Symbol
 from apex.execution.simulated import SimulatedExecutionEngine
 from apex.risk.risk_manager import RiskConfig, RiskManager
 from apex.strategy.base_strategy import BaseStrategy
-from scripts.run_once import RunReport, StateStore, _drift_monitor, _notify, _notify_cycle, run_once
+from scripts.run_once import (
+    RunReport,
+    StateStore,
+    _drift_monitor,
+    _notify,
+    _notify_cycle,
+    run_once,
+)
 
 SPY = Symbol("SPY", AssetClass.ETF)
 UTC = timezone.utc
@@ -299,3 +306,96 @@ def test_kill_switch_various_truthy_values(monkeypatch):
     for v in ("0", "false", "", "no"):
         monkeypatch.setenv("APEX_HALT", v)
         assert _kill_switch_active() is False
+
+
+# ---------------------------------------------------------- heartbeat (F2.3)
+
+
+def test_statestore_get_set_meta(tmp_path):
+    store = StateStore(tmp_path / "s.db")
+    assert store.get_meta("x") is None
+    store.set_meta("x", "hello")
+    assert store.get_meta("x") == "hello"
+    store.set_meta("x", "updated")
+    assert store.get_meta("x") == "updated"
+    store.close()
+
+
+def test_heartbeat_fires_once_per_day(monkeypatch, tmp_path):
+    sent = []
+
+    def fake_notify(title, message, priority="default"):
+        sent.append((title, priority))
+
+    monkeypatch.setattr("scripts.run_once._notify", fake_notify)
+    monkeypatch.delenv("NTFY_TOPIC", raising=False)
+    monkeypatch.setenv("NTFY_TOPIC", "test-topic")
+
+    store = StateStore(tmp_path / "s.db")
+    report = RunReport(timestamp=NOW, mode="paper", equity=100000.0, num_positions=0)
+
+    _notify_cycle(report, store)  # first quiet cycle of the day
+    assert len(sent) == 1
+    assert sent[0] == ("Apex Quant - OK", "min")
+
+    _notify_cycle(report, store)  # second quiet cycle — same day, should be silent
+    assert len(sent) == 1  # no new alert
+
+
+def test_heartbeat_resets_on_new_day(monkeypatch, tmp_path):
+    sent = []
+
+    def fake_notify(title, message, priority="default"):
+        sent.append(title)
+
+    monkeypatch.setattr("scripts.run_once._notify", fake_notify)
+    monkeypatch.setenv("NTFY_TOPIC", "test-topic")
+
+    store = StateStore(tmp_path / "s.db")
+    day1 = RunReport(timestamp=NOW, mode="paper", equity=100000.0, num_positions=0)
+    day2 = RunReport(
+        timestamp=NOW.replace(day=NOW.day + 1), mode="paper", equity=100000.0, num_positions=0
+    )
+
+    _notify_cycle(day1, store)
+    _notify_cycle(day1, store)  # same day — duplicate, no extra send
+    _notify_cycle(day2, store)  # new day — heartbeat fires again
+
+    assert sent.count("Apex Quant - OK") == 2  # day1 + day2
+
+
+def test_heartbeat_suppressed_on_actionable_cycle(monkeypatch, tmp_path):
+    """Traded cycle must not also emit a heartbeat."""
+    sent = []
+
+    def fake_notify(title, message, priority="default"):
+        sent.append(title)
+
+    monkeypatch.setattr("scripts.run_once._notify", fake_notify)
+    monkeypatch.setenv("NTFY_TOPIC", "test-topic")
+
+    store = StateStore(tmp_path / "s.db")
+    report = RunReport(
+        timestamp=NOW, mode="paper", equity=100000.0, num_positions=0, orders_submitted=1
+    )
+    _notify_cycle(report, store)
+
+    assert "Apex Quant - traded" in sent
+    assert "Apex Quant - OK" not in sent
+
+
+def test_heartbeat_without_store_fires_unconditionally(monkeypatch):
+    """When no store is provided (e.g. test stubs), heartbeat fires every quiet cycle."""
+    sent = []
+
+    def fake_notify(title, message, priority="default"):
+        sent.append(title)
+
+    monkeypatch.setattr("scripts.run_once._notify", fake_notify)
+    monkeypatch.setenv("NTFY_TOPIC", "test-topic")
+
+    report = RunReport(timestamp=NOW, mode="paper", equity=100000.0, num_positions=0)
+    _notify_cycle(report, None)
+    _notify_cycle(report, None)
+
+    assert sent.count("Apex Quant - OK") == 2  # no dedup without store
