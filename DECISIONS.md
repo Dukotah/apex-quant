@@ -6,6 +6,25 @@
 
 ---
 
+## Session 31 (cont. 5) — Strategic roadmap synthesized (docs/ROADMAP-STRATEGIC.md)
+
+Ran a 13-agent research workflow (5 codebase-survey + 5 web best-practice research → synthesize →
+adversarial code-grounded critique → finalize; ~705k tokens) to produce a comprehensive forward
+roadmap: `docs/ROADMAP-STRATEGIC.md` (Now / Next / Later / Horizon, every item with ID · rationale ·
+deps · effort · impact · gating · DoD; two critical paths; anti-goals; success metrics). Pointer
+added at the top of ROADMAP.md. The critique pass kept it honest against THIS log — it removed an
+already-done "wire MCPT" item, cut a proposed `PositionSizer` ABC as a golden-rule violation (sizing
+must stay inside the RiskManager), corrected the options status (risk-approval path is DONE per cont.2/3;
+only engine-routing + Portfolio Greeks tracking remain), and decoupled shorting/ledger from the options
+path. **Key sequencing surfaced:** Path A (live capital) = paper gate → broker preflight + live-switch
+gate in trade.yml → live-risk config (throttle/target-vol) → **move StateStore off the PUBLIC repo
+(hard blocker — the cron commits positions/equity to a public git every cycle)** → pilot 10–25%.
+Path B (second edge) = free synthetic-delisting stress verdict → explicit pay-for-data decision →
+paid survivorship-free W8 Gauntlet → ADV cap → flip value funded=True + allocator ON. No code changed;
+docs only.
+
+---
+
 ## Session 31 (cont. 4) — F3.3 LIVE capital allocator: per-sleeve entry sizing, gated OFF (suite 1070 green)
 
 Closed the last forward 🔲: the **live, risk-aware multi-strategy allocator**. F3.2 already proved

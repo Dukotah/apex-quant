@@ -3,6 +3,11 @@
 > **Forward (founder) view first; the original Phase 1–6 build roadmap is preserved below as
 > "Build history."** See `VISION.md` for the bar and what winning looks like, `TASKS.md` for
 > the live board, `PROGRESS.md` for the running log.
+>
+> **📍 `docs/ROADMAP-STRATEGIC.md`** is the full phased plan of record (Now / Next / Later /
+> Horizon, every item with ID · deps · effort · impact · gating · DoD, the two critical paths
+> to live capital and the second edge, anti-goals, and success metrics). This file stays the
+> quick founder view; the strategic doc is the execution plan.
 
 Status legend: ✅ done · 🔲 to build · 🚧 in progress
 
