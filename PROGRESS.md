@@ -2,6 +2,20 @@
 
 Running log so the owner can glance in anytime. Newest first.
 
+## 2026-06-07 (cont.) — research buildout: trend craft, MCPT, 3 candidate sleeves
+
+- Parallel agent fleet → integrated serially. **Full suite 820 green**, ruff clean, 90% cov.
+  Branch `feat/research-buildout` (7 commits; allocator held for item 3).
+- **Trend craft** (deployed strategy, additive/OFF by default): EWMA vol sizing + multi-speed
+  barbell trend vote. Live behavior unchanged until A/B-validated.
+- **MCPT** price-path-permutation test (`apex/validation/permutation.py`) — completes Gauntlet
+  hardening; gauntlet wiring still to do.
+- **3 candidate low-correlation sleeves drafted + tested (NOT validated):** turn-of-month,
+  breadth-momentum (VAA), credit-spread regime. Plus bond-carry from earlier.
+- **NEXT (heavy):** validate the new sleeves on real data through the Gauntlet + measure
+  correlation to trend; verify ^TNX/^IRX & HYG/LQD feed plumbing first. Only uncorrelated
+  Gauntlet-passers earn deployment; rest stay documented references.
+
 ## 2026-06-07 — research sweep + Gauntlet hardening (Gate 8: Deflated Sharpe)
 
 - **6-agent research sweep, ~35 papers**, scored against our hard constraints. Verdict: trend +

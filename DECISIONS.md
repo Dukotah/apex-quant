@@ -6,6 +6,31 @@
 
 ---
 
+## Session 31 (cont.) — Research buildout: trend craft + MCPT + 3 candidate sleeves (all drafts, suite 820 green)
+
+Put the sweep to work with a parallel agent fleet (each on distinct new files, offline tests),
+integrating serially. Branch `feat/research-buildout`, full `make check` green (820 tests, 90%).
+- **Item 2 — trend craft (deployed strategy, ADDITIVE & OFF by default).** `MultiAssetTrendStrategy`
+  gained `vol_method="ewma"` (+`ewma_lambda`, RiskMetrics EWMA sizing — sizing only, not timing)
+  and `trend_lookbacks`/`trend_threshold` (multi-speed "barbell" price-vs-SMA vote). Defaults keep
+  the live 20/200 cross + simple-vol byte-identical, so grade-A is untouched until A/B-validated.
+- **Item 1 (cont.) — MCPT.** `apex/validation/permutation.py`: Monte-Carlo PERMUTATION test
+  (shuffle the price path, re-run the whole strategy) — tests the signal LOGIC, complementing the
+  Gate-4 trade bootstrap. Injectable backtester. Wiring into gauntlet_runner still pending.
+- **Three candidate low-corr sleeves (RESEARCH DRAFTS, NOT validated):** turn-of-month (Ariel),
+  breadth-momentum / VAA-13612W (Keller-Keuning), credit-spread regime HYG/LQD z-score. Plus the
+  bond-carry sleeve from earlier. All position-aware, deterministic, tested.
+
+**NEXT (the payoff, heavy serial): Gauntlet-validate the new sleeves on real data.** Blocking
+sub-tasks first: (a) verify the data feed passes `^TNX`/`^IRX` as raw yield-% and routes
+`HYG/LQD/EEM/AGG/SHV` bars (agents flagged these); (b) fetch/build the real CSV universes;
+(c) run each sleeve through the gauntlet_runner + measure correlation to the deployed trend edge;
+(d) A/B the trend-craft options (EWMA, barbell) to decide any deploy swap. Only survivors that
+clear the Gauntlet AND come back uncorrelated earn a place; the rest stay documented references.
+Still parked/unbuilt: F3.3 allocator (item 3), MCPT gauntlet wiring, W7 alerts run_once wiring.
+
+---
+
 ## Session 31 — Research sweep (35 papers) + Gauntlet hardening: the Deflated Sharpe gate (Gate 8)
 
 Ran a 6-agent literature sweep (trend enhancements / long-only second edges / risk-sizing /
