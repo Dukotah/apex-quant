@@ -218,6 +218,27 @@ class AlpacaExecutionEngine(BaseExecutionEngine):
             logger.error("cancel_order(%s) failed: %s", broker_order_id, exc)
             return False
 
+    def cancel_open_orders(self) -> None:
+        """
+        Cancel ALL working orders at Alpaca. Satisfies the BaseExecutionEngine
+        contract: called explicitly on halt so the system carries no live
+        exposure from resting orders after trading stops.
+
+        Safe to call even when disconnected (logs a warning, does not raise).
+        Swallows broker errors so a cancel failure never propagates into the
+        halt or disconnect path.
+        """
+        if not self._connected or self._client is None:
+            logger.warning(
+                "AlpacaExecutionEngine.cancel_open_orders() called while disconnected — skipping."
+            )
+            return
+        try:
+            self._client.cancel_open_orders()
+            logger.info("AlpacaExecutionEngine: cancelled all open orders.")
+        except Exception as exc:  # noqa: BLE001 — never raise from a cancel path
+            logger.error("cancel_open_orders() failed: %s", exc)
+
     # ----------------------------------------------------------- account / sync
 
     def get_account_equity(self) -> Decimal:

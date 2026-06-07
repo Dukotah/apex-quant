@@ -405,6 +405,41 @@ class TestAncillaryMethods:
         result = SimulatedExecutionEngine().reconcile_positions()
         assert result == {}
 
+    def test_cancel_open_orders_does_not_raise(self):
+        """
+        cancel_open_orders() is a safe no-op on the simulator: the simulator fills
+        every order synchronously so there are never resting orders. The method must
+        not raise regardless of connection state.
+        """
+        eng = SimulatedExecutionEngine()
+        eng.cancel_open_orders()  # disconnected — must not raise
+
+        eng.connect()
+        eng.cancel_open_orders()  # connected — must not raise
+
+    def test_cancel_open_orders_is_idempotent(self):
+        """Multiple calls are safe — no state is corrupted."""
+        eng = SimulatedExecutionEngine()
+        eng.cancel_open_orders()
+        eng.cancel_open_orders()
+        eng.cancel_open_orders()
+        # No assertion needed beyond "did not raise"; verify no side effects.
+        assert not eng.is_connected  # state unchanged
+
+    def test_cancel_open_orders_satisfies_base_contract(self):
+        """
+        The SimulatedExecutionEngine inherits from BaseExecutionEngine and its
+        cancel_open_orders() must satisfy the base contract: callable at any time
+        without crashing, and the set of resting orders afterward is empty
+        (trivially true in simulation since no orders are ever resting).
+        """
+        from apex.execution.base_execution import BaseExecutionEngine
+
+        eng = SimulatedExecutionEngine()
+        assert isinstance(eng, BaseExecutionEngine)
+        # Calling the method is the assertion — it must not raise.
+        eng.cancel_open_orders()
+
 
 # ---------------------------------------------------------------------------
 # Full round-trip: connect → update_price → submit → fill

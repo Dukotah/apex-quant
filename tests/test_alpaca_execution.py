@@ -299,6 +299,48 @@ def test_is_paper_reflects_flag():
     assert eng_live.is_paper is False
 
 
+# ----------------------------------------------------------------- cancel_open_orders (NOW-6)
+
+
+def test_cancel_open_orders_delegates_to_broker():
+    """
+    cancel_open_orders() on the connected engine must call broker.cancel_open_orders()
+    exactly once, satisfying the NOW-6 contract (halt → zero resting orders).
+    """
+    broker = FakeBroker()
+    eng, _ = _engine(broker)
+    assert broker.cancel_open_calls == 0
+
+    eng.cancel_open_orders()
+
+    assert broker.cancel_open_calls == 1
+
+
+def test_cancel_open_orders_swallows_broker_errors():
+    """
+    If the broker raises during cancel_open_orders(), the engine must not
+    propagate the exception — the halt path must never crash.
+    """
+
+    class ErroringBroker(FakeBroker):
+        def cancel_open_orders(self):
+            raise RuntimeError("broker down")
+
+    eng, _ = _engine(ErroringBroker())
+    eng.cancel_open_orders()  # must not raise
+
+
+def test_cancel_open_orders_while_disconnected_does_not_raise():
+    """
+    cancel_open_orders() called before connect() or after disconnect() must be
+    safe: it logs a warning and returns without touching the broker.
+    """
+    broker = FakeBroker()
+    eng = AlpacaExecutionEngine(broker_client=broker)  # never connected
+    eng.cancel_open_orders()  # must not raise
+    assert broker.cancel_open_calls == 0  # broker not contacted
+
+
 # ------------------------------------------------------------------ factory
 
 

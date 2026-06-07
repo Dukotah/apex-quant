@@ -70,6 +70,22 @@ class BaseExecutionEngine(ABC):
         """Cancel a working order. Returns True if cancellation accepted."""
         ...
 
+    def cancel_open_orders(self) -> None:
+        """
+        Cancel ALL working/resting orders at the venue.
+
+        Default implementation is a safe no-op: engines whose venue has no
+        concept of resting orders (e.g. the simulator, which fills every order
+        synchronously) inherit this and carry zero live exposure automatically.
+
+        Concrete live engines (AlpacaExecutionEngine, etc.) MUST override this
+        to issue the appropriate bulk-cancel API call so that a halted system
+        leaves NO working orders at the broker.
+
+        This method MUST NOT raise — it is called in halt and disconnect paths
+        where a crash would leave the system in an unknown state.
+        """
+
     @abstractmethod
     def get_account_equity(self) -> "Decimal":  # noqa: F821
         """Current account equity from the venue (for reconciliation)."""

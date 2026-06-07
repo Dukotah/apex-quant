@@ -237,3 +237,121 @@ def test_round_trip_sell_behavior_is_observable():
     # At least the BUY fills; whether the SELL sizes depends on remaining room.
     sides = [f.side for f in result.fills]
     assert OrderSide.BUY in sides
+
+
+# ------------------------------------------------------------------ NOW-6: halt cancels orders
+
+
+class _TrackingExecutionEngine(SimulatedExecutionEngine):
+    """
+    Wraps SimulatedExecutionEngine and records every cancel_open_orders() call
+    so integration tests can assert the engine was instructed to cancel on halt.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.cancel_open_calls: int = 0
+        # Track any open order ids registered externally (simulates resting orders).
+        self._open_orders: list = []
+
+    def register_open_order(self, order_id: str) -> None:
+        """Test helper: register a fake resting order id."""
+        self._open_orders.append(order_id)
+
+    def cancel_open_orders(self) -> None:
+        self.cancel_open_calls += 1
+        self._open_orders.clear()  # cancel clears them all
+        import logging
+
+        logging.getLogger(__name__).debug("_TrackingExecutionEngine: cancel_open_orders() called.")
+
+    @property
+    def open_orders(self) -> list:
+        return list(self._open_orders)
+
+
+def _engine_tracking(events, strategies, risk_config=None, capital="100000"):
+    """Like _engine() but uses _TrackingExecutionEngine instead of plain Simulated."""
+    portfolio = Portfolio(Decimal(capital))
+    risk = RiskManager(risk_config or _full_risk())
+    execu = _TrackingExecutionEngine(slippage_pct=Decimal("0.001"))
+    engine = TradingEngine(events, strategies, risk, portfolio, execu)
+    return engine, portfolio, risk, execu
+
+
+def test_halt_triggers_cancel_open_orders_exactly_once():
+    """
+    Integration test (NOW-6): when a drawdown breach halts the system, the
+    TradingEngine must call execution_engine.cancel_open_orders() so that no
+    resting broker orders remain open after halt.
+
+    Scenario:
+      - 5% drawdown limit; strategy buys on bar 0 at price 100.
+      - Price crashes to 50 on bar 2 → drawdown ~50% >> 5% → halt fires.
+      - Engine must call cancel_open_orders() exactly once on the halt bar.
+      - After the run, zero open orders remain (the engine cleared them).
+    """
+    events = _bars([100, 100, 50, 50, 50])
+    strat = ScriptedStrategy("s", [SYM], buy_at={0, 3})
+    rc = _full_risk(max_drawdown_pct=Decimal("0.05"))
+    engine, portfolio, risk, tracking_execu = _engine_tracking(events, [strat], risk_config=rc)
+
+    # Pre-register a fake resting order to simulate broker exposure.
+    tracking_execu.register_open_order("FAKE-RESTING-ORDER-1")
+    assert len(tracking_execu.open_orders) == 1
+
+    result = engine.run()
+
+    # 1. The system halted.
+    assert risk.is_halted
+    assert result.halted
+
+    # 2. cancel_open_orders() was called exactly once (not on every subsequent bar).
+    assert tracking_execu.cancel_open_calls == 1, (
+        f"Expected exactly 1 cancel_open_orders() call on halt, "
+        f"got {tracking_execu.cancel_open_calls}"
+    )
+
+    # 3. Zero open orders remain — the system carries no live broker exposure.
+    assert tracking_execu.open_orders == [], (
+        "Open orders must be empty after halt (system must carry zero resting exposure)"
+    )
+
+
+def test_daily_loss_halt_triggers_cancel_then_clears_next_day():
+    """
+    A daily-loss breach also fires cancel_open_orders() when it halts. After
+    reset_daily() clears the halt, a subsequent halt on the next day fires
+    cancel_open_orders() again (sentinel resets with the daily state).
+
+    This test uses a single daily-loss breach: cancel fires on the breach bar,
+    and the run completes normally.
+    """
+    events = _bars([100, 100, 100, 90, 100, 100])
+    strat = ScriptedStrategy("s", [SYM], buy_at={0, 1, 2, 3, 4, 5})
+    rc = _full_risk(max_daily_loss_pct=Decimal("0.02"), max_drawdown_pct=Decimal("0.99"))
+    engine, portfolio, risk, tracking_execu = _engine_tracking(events, [strat], risk_config=rc)
+
+    engine.run()
+
+    # The daily-loss halt was cleared by next-day reset, so not halted at end.
+    assert risk.is_halted is False
+    # cancel_open_orders() was called at least once (when daily loss breach fired).
+    assert tracking_execu.cancel_open_calls >= 1
+
+
+def test_no_cancel_when_no_halt():
+    """
+    Sanity: if no halt ever occurs, cancel_open_orders() is never called during
+    the run (it may be called once by disconnect(), but that's separate — the
+    tracking engine overrides cancel_open_orders() so this test is clean).
+    """
+    events = _bars([100, 101, 102, 103, 104])
+    strat = ScriptedStrategy("s", [SYM])  # no trades → no drawdown
+    engine, portfolio, risk, tracking_execu = _engine_tracking(events, [strat])
+
+    engine.run()
+
+    assert not risk.is_halted
+    # No halt → cancel_open_orders() never called during the run.
+    assert tracking_execu.cancel_open_calls == 0

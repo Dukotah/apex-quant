@@ -176,6 +176,16 @@ class SimulatedExecutionEngine(BaseExecutionEngine):
         logger.debug("SimulatedEngine: cancel_order(%s) — no-op.", broker_order_id)
         return True
 
+    def cancel_open_orders(self) -> None:
+        """
+        No-op for the simulator: every order submitted via ``submit_order()``
+        is filled synchronously and immediately — there are never resting orders
+        waiting at the venue. This satisfies the BaseExecutionEngine contract
+        (all open orders cancelled) because the set of open orders is always
+        empty by the time this is called.
+        """
+        logger.debug("SimulatedEngine: cancel_open_orders() — no-op (no resting orders).")
+
     # ------------------------------------------------------------------
     # Account / position queries
     # ------------------------------------------------------------------

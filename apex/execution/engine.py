@@ -158,6 +158,7 @@ class TradingEngine:
                 self._quarantined.add(strat.strategy_id)
 
         prev_ts: Optional[datetime] = None
+        _was_halted: bool = False  # tracks the transition so cancel fires exactly once
         try:
             for event in self.market_events:
                 bar = event.bar
@@ -173,6 +174,9 @@ class TradingEngine:
                     # Clear any daily-loss halt for the new day (drawdown halts,
                     # being more severe, are sticky and NOT cleared here).
                     self.risk_manager.reset_daily()
+                    # A cleared daily halt resumes trading — reset the sentinel.
+                    if _was_halted and not self.risk_manager.is_halted:
+                        _was_halted = False
                 prev_ts = ts
 
                 # 1. Fill orders queued on a prior bar, at THIS bar's open (no look-ahead).
@@ -189,6 +193,19 @@ class TradingEngine:
                 #    current holdings and won't re-enter what they already hold.
                 self._sync_context()
                 self._dispatch(event)
+
+                # NOW-6: On the first bar where the RiskManager transitions into a
+                # halted state, cancel all working broker orders immediately so the
+                # system carries NO live exposure from resting orders after a halt.
+                # Called exactly once per halt event (the sentinel prevents re-firing
+                # on every subsequent bar while still halted).
+                if self.risk_manager.is_halted and not _was_halted:
+                    _was_halted = True
+                    try:
+                        self.execution_engine.cancel_open_orders()
+                        logger.critical("HALT detected — cancelled all open broker orders.")
+                    except Exception as exc:  # noqa: BLE001 — never let cancel crash the run
+                        logger.error("cancel_open_orders() raised during halt handling: %s", exc)
 
                 # 4. "close" timing fills immediately at this same close (optimistic).
                 if self.fill_timing == "close":
