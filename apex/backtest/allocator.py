@@ -31,6 +31,7 @@ the return-stream math is float, matching apex.validation.metrics.
 
 from __future__ import annotations
 
+import statistics
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from decimal import Decimal
@@ -239,7 +240,111 @@ def _pairwise_correlations(aligned: Mapping[str, Sequence[float]]) -> dict[tuple
     return out
 
 
+def inverse_vol_weights(aligned: Mapping[str, Sequence[float]]) -> dict[str, float]:
+    """Cross-sleeve inverse-volatility weights: each sleeve weighted ∝ 1 / realized_vol.
+
+    Realized vol is the population standard deviation of the sleeve's return series.
+    A sleeve with zero (or near-zero) vol falls back to an equal share of the total
+    inverse-vol budget, so the function never crashes and always sums to 1.
+
+    This is the DeMiguel 1/N / Garleanu-Pedersen cross-sleeve risk-parity calibration:
+    calmer sleeves receive a larger capital share, reducing the portfolio's overall
+    realized volatility without requiring a mean estimate. Deterministic.
+
+    Args:
+        aligned: ``{sleeve_name: [daily_return, ...]}`` — all series already share length
+            (use ``align_streams`` first).
+
+    Returns:
+        ``{sleeve_name: weight}`` summing to 1.0 (or an empty dict if ``aligned`` is empty).
+    """
+    if not aligned:
+        return {}
+
+    names = list(aligned.keys())
+    vols: dict[str, float] = {}
+    for name, series in aligned.items():
+        if len(series) < 2:
+            vols[name] = 0.0
+        else:
+            vols[name] = statistics.pstdev(series)
+
+    # Inverse-vol for each sleeve; zero-vol sleeves fall back to 1.0 (equal share).
+    inv_vols: dict[str, float] = {name: (1.0 / v if v > 0.0 else 1.0) for name, v in vols.items()}
+    total_inv = sum(inv_vols.values())
+    if total_inv == 0.0:
+        # Degenerate: all vols are zero and the fallback sum is also zero (impossible
+        # given the fallback of 1.0, but guard defensively).
+        equal = 1.0 / len(names)
+        return {name: equal for name in names}
+
+    return {name: inv_vols[name] / total_inv for name in names}
+
+
+def tolerance_band_rebalance(
+    current: Mapping[str, float],
+    target: Mapping[str, float],
+    bands: Mapping[str, float],
+) -> dict[str, float]:
+    """Trade-to-edge rebalancing with per-sleeve no-trade tolerance bands.
+
+    For each sleeve:
+    - If ``|current[s] - target[s]| <= bands[s]``: KEEP current weight (no trade).
+    - Otherwise: move to the near EDGE of the band — i.e. ``target[s] ± bands[s]``
+      toward the current weight (the minimum trade that puts the sleeve inside the band).
+
+    The result is renormalized to sum to 1.0 so the book stays fully invested.
+    This implements the Garleanu-Pedersen insight: slower/costlier-to-trade sleeves
+    should get wider bands (passed in via ``bands`` by the caller).
+
+    Args:
+        current: ``{sleeve_name: current_weight}`` — the live allocation fractions.
+        target:  ``{sleeve_name: target_weight}``  — the desired long-run allocation.
+        bands:   ``{sleeve_name: half_bandwidth}``  — the ± tolerance for each sleeve.
+            All three mappings must share the same key set; raises ``ValueError`` otherwise.
+
+    Returns:
+        ``{sleeve_name: new_weight}`` summing to 1.0. Deterministic.
+
+    Raises:
+        ``ValueError`` if the key sets of the three mappings are inconsistent.
+    """
+    cur_keys = set(current)
+    tgt_keys = set(target)
+    band_keys = set(bands)
+    if cur_keys != tgt_keys or cur_keys != band_keys:
+        raise ValueError(
+            f"Key mismatch: current={sorted(cur_keys)}, "
+            f"target={sorted(tgt_keys)}, bands={sorted(band_keys)}."
+        )
+    if not cur_keys:
+        return {}
+
+    proposed: dict[str, float] = {}
+    for name in current:
+        c = current[name]
+        t = target[name]
+        b = bands[name]
+        diff = c - t
+        if abs(diff) <= b:
+            # Inside (or on) the band — keep exactly, no trade.
+            proposed[name] = c
+        else:
+            # Outside: snap to the near edge of the band (sign of diff tells direction).
+            proposed[name] = t + b * (1.0 if diff > 0.0 else -1.0)
+
+    # Renormalize so the book stays fully invested.
+    total = sum(proposed.values())
+    if total == 0.0:
+        equal = 1.0 / len(proposed)
+        return {name: equal for name in proposed}
+    return {name: w / total for name, w in proposed.items()}
+
+
 # --------------------------------------------------------------------- the engine
+
+
+_WEIGHTING_MODES = frozenset({"config", "inverse_vol"})
 
 
 def run_allocation_backtest(
@@ -248,6 +353,7 @@ def run_allocation_backtest(
     *,
     slippage_pct: Decimal = Decimal("0.001"),
     weights: Mapping[str, float] | None = None,
+    weighting: str = "config",
     run_backtest_fn: RunBacktestFn | None = None,
 ) -> AllocationResult:
     """Backtest each sleeve at full capital, align on common days, and blend by capital weight.
@@ -258,12 +364,26 @@ def run_allocation_backtest(
         slippage_pct: per-trade slippage passed to each sleeve backtest.
         weights: the split to blend with; defaults to ``config.target_weights()`` (the research
             split). Pass ``config.live_weights()`` to model the deployable, W8-gated split.
+            Ignored when ``weighting="inverse_vol"``.
+        weighting: blend-weight source — one of:
+            - ``"config"`` (default): use ``weights`` or ``config.target_weights()``.
+              Byte-identical to the previous behaviour.
+            - ``"inverse_vol"``: derive weights from the aligned return streams via
+              :func:`inverse_vol_weights` (calmer sleeves receive more capital). The
+              ``weights`` argument is ignored in this mode.
         run_backtest_fn: the per-sleeve backtester; defaults to ``apex.backtest.run_backtest``
             (injectable so the engine unit-tests offline with canned results).
 
     Returns an :class:`AllocationResult`. Fails closed: a spec whose name isn't in the config,
     or a config sleeve with no spec, raises rather than silently dropping capital.
+
+    Raises:
+        ``ValueError`` for an unknown ``weighting`` string.
     """
+    if weighting not in _WEIGHTING_MODES:
+        raise ValueError(
+            f"Unknown weighting {weighting!r}. Valid options: {sorted(_WEIGHTING_MODES)}."
+        )
     spec_names = [s.name for s in specs]
     if len(set(spec_names)) != len(spec_names):
         raise ValueError(f"Duplicate sleeve specs: {spec_names}.")
@@ -276,7 +396,6 @@ def run_allocation_backtest(
         from apex.backtest.backtester import run_backtest
 
         run_backtest_fn = run_backtest
-    use_weights = dict(weights) if weights is not None else config.target_weights()
 
     # 1. Backtest each sleeve at full capital; collect its daily-return-by-date stream.
     streams: dict[str, dict[date, float]] = {}
@@ -286,12 +405,19 @@ def run_allocation_backtest(
         )
         streams[spec.name] = returns_by_date(result.equity_curve, result.equity_timestamps)
 
-    # 2. Align on the common window and blend by capital weight.
+    # 2. Align on the common window.
     dates, aligned = align_streams(streams)
+
+    # 3. Resolve the blend weights based on the chosen weighting mode.
+    if weighting == "inverse_vol":
+        use_weights: dict[str, float] = inverse_vol_weights(aligned)
+    else:
+        use_weights = dict(weights) if weights is not None else config.target_weights()
+
     blended = blend(aligned, use_weights) if aligned else []
     blended_equity = equity_from_returns(blended)
 
-    # 3. Per-sleeve standalone metrics over the SAME common window (apples to apples).
+    # 4. Per-sleeve standalone metrics over the SAME common window (apples to apples).
     weight_by_name = {s.name: s.weight for s in config.sleeves}
     sleeve_results = tuple(
         SleeveResult(
