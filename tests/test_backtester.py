@@ -12,7 +12,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
-from apex.backtest.backtester import run_backtest
+from apex.backtest.backtester import make_slice_backtest_fn, run_backtest
 from apex.backtest.gauntlet_runner import (
     GauntletInputs,
     run_full_gauntlet,
@@ -154,3 +154,54 @@ def test_gauntlet_is_deterministic():
     assert r1.grade == r2.grade
     assert i1.full_sharpe == i2.full_sharpe
     assert i1.num_trades == i2.num_trades
+
+
+# ---- make_slice_backtest_fn -------------------------------------------------
+
+
+def test_make_slice_backtest_fn_returns_callable():
+    events = _trending_series(n=200)
+
+    def factory():
+        return SMACrossoverStrategy("sma", [SYM], fast_period=10, slow_period=30)
+
+    fn = make_slice_backtest_fn(events, factory, _full_risk())
+    assert callable(fn)
+
+
+def test_make_slice_backtest_fn_short_window_returns_fallback():
+    events = _trending_series(n=200)
+
+    def factory():
+        return SMACrossoverStrategy("sma", [SYM], fast_period=10, slow_period=30)
+
+    fn = make_slice_backtest_fn(events, factory, _full_risk())
+    # test_end - test_start = 1 event → too short, must return the fallback.
+    result = fn(0, 100, 0, 1)
+    assert result == [1.0, 1.0]
+
+
+def test_make_slice_backtest_fn_valid_window_returns_curve():
+    events = _trending_series(n=400)
+
+    def factory():
+        return SMACrossoverStrategy("sma", [SYM], fast_period=10, slow_period=30)
+
+    fn = make_slice_backtest_fn(events, factory, _full_risk())
+    # 200-event test window — enough bars for the strategy to warm up and trade.
+    result = fn(0, 200, 200, 400)
+    assert isinstance(result, list)
+    assert len(result) >= 2
+    assert all(isinstance(v, float) for v in result)
+
+
+def test_make_slice_backtest_fn_empty_window_returns_fallback():
+    events = _trending_series(n=100)
+
+    def factory():
+        return SMACrossoverStrategy("sma", [SYM], fast_period=10, slow_period=30)
+
+    fn = make_slice_backtest_fn(events, factory, _full_risk())
+    # test_start == test_end → empty slice → fallback.
+    result = fn(0, 50, 80, 80)
+    assert result == [1.0, 1.0]
