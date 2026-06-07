@@ -193,3 +193,66 @@ def test_deterministic():
     sig1 = h1.feed(CALM, prices)
     sig2 = h2.feed(CALM, prices)
     assert [(s.side, s.strength) for s in sig1] == [(s.side, s.strength) for s in sig2]
+
+
+# ----------------------------------------------------- Session 31 research options
+
+
+def test_new_option_validation():
+    with pytest.raises(ValueError):
+        MultiAssetTrendStrategy("s", [CALM], vol_method="bogus")
+    with pytest.raises(ValueError):
+        MultiAssetTrendStrategy("s", [CALM], ewma_lambda=1.5)
+    with pytest.raises(ValueError):
+        MultiAssetTrendStrategy("s", [CALM], trend_lookbacks=[1])  # lookback < 2
+    with pytest.raises(ValueError):
+        MultiAssetTrendStrategy("s", [CALM], trend_lookbacks=[3, 5], trend_threshold=0.0)
+
+
+def test_ewma_vol_option_still_trades_correctly():
+    # vol_method only changes SIZING, never entry/exit timing: an EWMA sleeve must
+    # still enter an uptrend exactly once with a valid conviction in (0, 1].
+    h = _Harness(
+        MultiAssetTrendStrategy(
+            "s", [CALM], fast_period=3, slow_period=5, vol_window=3, vol_method="ewma"
+        )
+    )
+    prices = [20, 19, 18, 17, 16, 15, 16, 18, 21, 25, 30]
+    buys = [s for s in h.feed(CALM, prices) if s.side == OrderSide.BUY]
+    assert len(buys) == 1
+    assert Decimal("0") < buys[0].strength <= Decimal("1")
+
+
+def test_default_path_is_unchanged_by_options_presence():
+    # Constructing with the default options must yield the SAME signals as a strategy
+    # built the old way — guards against the additive options altering deployed behavior.
+    prices = [20, 19, 18, 17, 16, 15, 16, 18, 21, 25, 30]
+    h = _Harness(MultiAssetTrendStrategy("s", [CALM], fast_period=3, slow_period=5, vol_window=3))
+    sides = [(s.side, s.strength) for s in h.feed(CALM, prices)]
+    # exactly one BUY, no SELL, on this clean uptrend
+    assert [x[0] for x in sides] == [OrderSide.BUY]
+
+
+def test_barbell_threshold_controls_long():
+    # Last bar: price 32 is ABOVE SMA(3)=30 but BELOW SMA(5)=34 → exactly one of two
+    # speeds votes long. Majority (0.5) enters; unanimous (1.0) stays flat.
+    prices = [40, 40, 30, 28, 32]
+    maj = _Harness(
+        MultiAssetTrendStrategy(
+            "s", [CALM], vol_window=3, trend_lookbacks=[3, 5], trend_threshold=0.5
+        )
+    )
+    assert any(s.side == OrderSide.BUY for s in maj.feed(CALM, prices))
+
+    unanimous = _Harness(
+        MultiAssetTrendStrategy(
+            "s", [CALM], vol_window=3, trend_lookbacks=[3, 5], trend_threshold=1.0
+        )
+    )
+    assert unanimous.feed(CALM, prices) == []
+
+
+def test_barbell_warmup_needs_longest_lookback():
+    # With lookbacks [3, 8], no decision is possible until 8 closes exist.
+    h = _Harness(MultiAssetTrendStrategy("s", [CALM], vol_window=3, trend_lookbacks=[3, 8]))
+    assert h.feed(CALM, [10, 11, 12, 13, 14, 15, 16]) == []  # 7 bars → still warming up

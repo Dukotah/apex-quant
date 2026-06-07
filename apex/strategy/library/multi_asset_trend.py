@@ -43,6 +43,7 @@ Deterministic, no I/O, stdlib-only math — safe on the free CI runner.
 
 from __future__ import annotations
 
+import math
 import statistics
 from decimal import Decimal
 from typing import Dict, List, Optional
@@ -65,6 +66,21 @@ class MultiAssetTrendStrategy(BaseStrategy):
         vol_window: lookback (in returns) for realized volatility (default 60).
         stop_loss_pct: protective stop distance suggested to the RiskManager.
         min_strength: floor so a very wild sleeve still gets a tradeable size.
+
+    Research options (Session 31; both OFF by default so the DEPLOYED behavior is
+    byte-identical until A/B-validated through the Gauntlet):
+        vol_method: "simple" (population stdev, the deployed default) or "ewma" —
+            a RiskMetrics exponentially-weighted vol that responds faster to regime
+            change and has no "ghost effect" (Harvey et al. 2018; ~Sharpe lift in
+            vol-targeting studies). Only changes SIZING, never entry/exit timing.
+        ewma_lambda: EWMA decay for vol_method="ewma" (default 0.94, daily standard).
+        trend_lookbacks: when set (e.g. [63, 200]), replaces the single fast/slow
+            SMA cross with a MULTI-SPEED "barbell" price-vs-SMA vote (Hurst/Ooi/
+            Pedersen; the 2025 "drop-the-middle" barbell). Long iff the fraction of
+            speeds with price above their SMA is >= trend_threshold. None (default)
+            keeps the exact 20/200 cross.
+        trend_threshold: vote fraction to be long under trend_lookbacks (default 0.5
+            = majority; for a 2-speed barbell, >=1 of 2). Ignored when lookbacks None.
     """
 
     def __init__(
@@ -76,17 +92,35 @@ class MultiAssetTrendStrategy(BaseStrategy):
         vol_window: int = 60,
         stop_loss_pct: Decimal = Decimal("0.05"),
         min_strength: Decimal = Decimal("0.10"),
+        *,
+        vol_method: str = "simple",
+        ewma_lambda: float = 0.94,
+        trend_lookbacks: Optional[List[int]] = None,
+        trend_threshold: float = 0.5,
     ) -> None:
         super().__init__(strategy_id, symbols)
         if fast_period >= slow_period:
             raise ValueError("fast_period must be < slow_period")
         if vol_window < 2:
             raise ValueError("vol_window must be >= 2")
+        if vol_method not in ("simple", "ewma"):
+            raise ValueError("vol_method must be 'simple' or 'ewma'")
+        if not (0.0 < ewma_lambda < 1.0):
+            raise ValueError("ewma_lambda must be in (0, 1)")
+        if trend_lookbacks is not None:
+            if not trend_lookbacks or any(lb < 2 for lb in trend_lookbacks):
+                raise ValueError("trend_lookbacks must be non-empty positive lookbacks (>= 2)")
+            if not (0.0 < trend_threshold <= 1.0):
+                raise ValueError("trend_threshold must be in (0, 1]")
         self.fast_period = fast_period
         self.slow_period = slow_period
         self.vol_window = vol_window
         self.stop_loss_pct = stop_loss_pct
         self.min_strength = min_strength
+        self.vol_method = vol_method
+        self.ewma_lambda = ewma_lambda
+        self.trend_lookbacks = list(trend_lookbacks) if trend_lookbacks else None
+        self.trend_threshold = trend_threshold
         # Per-symbol rolling close buffers and latest realized vol. NOTE: this
         # strategy holds NO internal long/flat flag — it reads its real position
         # from the (broker-reconciled) context each bar. That is what makes it
@@ -110,6 +144,15 @@ class MultiAssetTrendStrategy(BaseStrategy):
         ]
         if len(rets) < 2:
             return None
+        if self.vol_method == "ewma":
+            # RiskMetrics EWMA variance recurrence, seeded on the first squared
+            # return: var_t = λ·var_{t-1} + (1-λ)·r_t². Deterministic; reacts faster
+            # to a vol regime change than equal-weight pstdev and has no ghost effect.
+            lam = self.ewma_lambda
+            var = rets[0] ** 2
+            for r in rets[1:]:
+                var = lam * var + (1.0 - lam) * r * r
+            return math.sqrt(var)
         return statistics.pstdev(rets)
 
     def _inverse_vol_strength(self, ticker: str) -> Decimal:
@@ -147,6 +190,36 @@ class MultiAssetTrendStrategy(BaseStrategy):
         pos = self.context.get_position(symbol)
         return pos is not None and pos.quantity > 0
 
+    # ---- trend decision ---------------------------------------------------
+
+    def _want_long(self, closes: list[float], price: float) -> Optional[bool]:
+        """
+        Target trend state for this sleeve: True=long, False=flat, None=warming up.
+
+        Default (trend_lookbacks is None): the deployed 20/200 fast-vs-slow SMA cross
+        — bit-identical to the validated strategy. When trend_lookbacks is set, switch
+        to the MULTI-SPEED barbell: each lookback votes 1 if price is above its SMA,
+        and we go long iff the vote fraction reaches trend_threshold.
+        """
+        if self.trend_lookbacks is None:
+            if len(closes) < self.slow_period:
+                return None
+            fast = ind.sma(closes, self.fast_period)[-1]
+            slow = ind.sma(closes, self.slow_period)[-1]
+            if fast is None or slow is None:
+                return None
+            return fast > slow
+
+        if len(closes) < max(self.trend_lookbacks):
+            return None
+        votes = []
+        for lb in self.trend_lookbacks:
+            s = ind.sma(closes, lb)[-1]
+            if s is None:
+                return None
+            votes.append(1.0 if price > s else 0.0)
+        return (sum(votes) / len(votes)) >= self.trend_threshold
+
     # ---- main hook -------------------------------------------------------
 
     def on_bar(self, bar: Bar) -> List[SignalEvent]:
@@ -157,29 +230,23 @@ class MultiAssetTrendStrategy(BaseStrategy):
         closes = self._closes[ticker]
         closes.append(float(bar.close))
 
-        # Keep the buffer bounded: need slow_period for the trend filter + the
-        # vol_window of returns for volatility, plus a little slack.
-        max_len = max(self.slow_period, self.vol_window) + 5
+        # Keep the buffer bounded: need the longest trend lookback for the filter +
+        # the vol_window of returns for volatility, plus a little slack.
+        trend_need = max(self.trend_lookbacks) if self.trend_lookbacks else self.slow_period
+        max_len = max(trend_need, self.vol_window) + 5
         if len(closes) > max_len:
             del closes[:-max_len]
 
         # Update this sleeve's realized volatility every bar (used for weighting).
         self._vol[ticker] = self._realized_vol(closes)
 
-        # Warmup: need slow_period points for the 200-day trend filter.
-        if len(closes) < self.slow_period:
-            return []
-
-        fast = ind.sma(closes, self.fast_period)[-1]
-        slow = ind.sma(closes, self.slow_period)[-1]
-        if fast is None or slow is None:
-            return []
-
         # Decide on STATE, not the cross EVENT: target = long iff in an uptrend,
         # then emit the delta against what we actually hold. This is idempotent —
         # it enters an established trend on a cold start (no fresh cross needed) and
         # never pyramids (held + still-uptrend emits nothing).
-        want_long = fast > slow
+        want_long = self._want_long(closes, float(bar.close))
+        if want_long is None:
+            return []  # still warming up
         held = self._held(bar.symbol)
         signals: List[SignalEvent] = []
         price = bar.close
