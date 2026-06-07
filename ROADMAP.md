@@ -44,10 +44,15 @@ F1 verdict was positive, so:
 - **F3.2** ✅ allocation backtest (`scripts/allocate.py`): **20% value / 80% trend → blend
   Sharpe 0.82 → 0.99 (+0.17) at correlation +0.24, drawdown flat at 7% — a diversification
   WIN.** The value edge is a real, book-improving second edge.
-- **F3.3** 🔲 build the live, risk-aware multi-strategy allocator (~20/80). Gated on W8: do
-  NOT fund the value sleeve live until survivorship-free validation clears.
-- **Definition of done:** the blend clears the Gauntlet and runs through a backtest with a
-  clean split; live wiring is config-gated and off until W8.
+- **F3.3** ✅ live, risk-aware multi-strategy allocator built (S31 cont. 4). `apex/risk/
+  capital_allocation.py` `CapitalAllocator` scopes each strategy's ENTRY sizing to its sleeve
+  weight via a read-only equity-scaled portfolio VIEW — the immutable RiskManager is untouched.
+  Wired into `run_once._submit_orders` (entries only; exits never throttled), gated behind
+  `AppConfig.allocation` (default `None` = OFF). Weights come from `AllocationConfig.live_weights()`,
+  which zeroes the unfunded value sleeve → live split is `{trend: 1.0}` today (byte-identical to the
+  deployed single-sleeve bot). Flips to ~80/20 by setting value `funded=True` AFTER W8.
+- **Definition of done:** ✅ backtest allocator (`allocator.py`) + clean split proven (F3.2);
+  live wiring config-gated and inert until W8. 13 tests; full suite 1070 green, 92% cov.
 
 ---
 

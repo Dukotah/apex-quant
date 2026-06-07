@@ -16,6 +16,7 @@ from decimal import Decimal
 from enum import Enum
 from typing import Optional
 
+from apex.risk.capital_allocation import CapitalAllocator
 from apex.risk.risk_manager import RiskConfig
 
 
@@ -52,6 +53,13 @@ class AppConfig:
 
     # Risk config is nested here so it's loaded immutably at startup.
     risk: RiskConfig = field(default_factory=RiskConfig)
+
+    # Live multi-strategy capital allocator (Phase F3.3). None = OFF: every strategy sizes
+    # against the full book (today's single-sleeve trend bot). Supply a CapitalAllocator to
+    # scope each strategy's ENTRY sizing to its sleeve weight. Value capital stays unfunded
+    # (live_weights -> {trend: 1.0}) until the W8 survivorship-free gate clears, so wiring this
+    # is safe and inert until a sleeve's `funded` flag flips.
+    allocation: Optional[CapitalAllocator] = None
 
     # Broker credentials are read from env, never hardcoded.
     alpaca_key: Optional[str] = None

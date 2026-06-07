@@ -6,6 +6,50 @@
 
 ---
 
+## Session 31 (cont. 4) — F3.3 LIVE capital allocator: per-sleeve entry sizing, gated OFF (suite 1070 green)
+
+Closed the last forward 🔲: the **live, risk-aware multi-strategy allocator**. F3.2 already proved
+the 20/80 value+trend blend on history (`scripts/allocate.py` + `apex/backtest/allocator.py`); this
+session built the LIVE counterpart and wired it into the cron path — **without adding any new risk
+surface.**
+
+**Design (the key call): scope capital via a portfolio VIEW, leave the RiskManager immutable.**
+New `apex/risk/capital_allocation.py` `CapitalAllocator` holds a `strategy_id -> Decimal weight` map
+and exposes `scoped(portfolio, strategy_id)`, returning a read-only `_ScopedPortfolio` whose
+`equity`/`peak_equity`/`day_start_equity` are multiplied by that sleeve's weight; everything else
+(`open_positions`, `exposure`, `last_price`, broker capital) passes through. Because the RiskManager
+sizes as a percent of the equity it sees, an 80%-weighted sleeve sizes against 80% of the book —
+a clean capital split with the gatekeeper (rule 3) untouched and still the sole order producer. All
+three equity scalars scale by the same factor, so the drawdown/daily-loss ratios are unchanged — only
+the absolute sizing base shrinks.
+
+**Wiring:** `run_once._submit_orders` now takes an optional `allocator` and scopes **ENTRIES only**
+(reduces/exits always see the full portfolio so a close can flatten its whole position). Reduces are
+still processed first. Gated behind new `AppConfig.allocation` (default **None** = OFF → every
+strategy sizes against the full book, exactly as today).
+
+**Why this is safe to ship now (gated off, per the build-the-vehicle-don't-fund-it rule):** weights
+come from `AllocationConfig.live_weights()`, which zeroes any **unfunded** sleeve. The value sleeve is
+`funded=False` until survivorship-free validation (W8), so the live split is `{trend: 1.0}` — and a
+single-sleeve allocator at weight 1.0 is **byte-identical** to no allocator (proved by a test). The
+80/20 book turns on by flipping one `funded` flag AFTER W8 clears; nothing about the deployed bot
+changes until then. Fail-closed: weights validate in `[0,1]` summing `<= 1`; an unallocated strategy
+gets ZERO entry capital.
+
+**Disjoint-universe note:** trend trades asset-class ETFs, value trades single names → sleeves never
+share a position, so per-sleeve entry scoping is correct; the exposure check runs the whole book's
+notional against the scaled equity, which can only reject MORE (never over-trade) — fail-safe.
+
+**Verification:** +13 tests (`tests/test_capital_allocation.py`) — fail-closed validation, the scoped
+view, real-RiskManager sizing (weight 1.0 = no-op; 0.5 halves the order; 0.0 blocks it), and
+`run_once._submit_orders` wiring (funded sleeve trades, zeroed sleeve places no live order, no-allocator
+path unchanged). `make check` green: ruff + format clean, **1070 tests, 92% coverage**.
+
+**Still gated before any live value capital (unchanged):** W8 survivorship-free validation must clear;
+only then set value `funded=True`. Options-through-risk + live shorting remain separately gated.
+
+---
+
 ## Session 31 (cont. 3) — PROVING phase: validation sweep verdict + roadmap wiring complete (suite 1057 green)
 
 Fetched real data (`scripts/fetch_yahoo SPY EFA EEM AGG LQD IEF SHV TLT HYG GLD DBC UUP DBA

@@ -56,6 +56,7 @@ from apex.data.base_feed import BaseDataFeed
 from apex.execution.base_execution import BaseExecutionEngine
 from apex.execution.factory import make_execution_engine
 from apex.ops.alerts import NtfyNotifier, decide_alerts, send_alerts, should_heartbeat
+from apex.risk.capital_allocation import CapitalAllocator
 from apex.risk.portfolio import Portfolio
 from apex.risk.risk_manager import RiskConfig, RiskManager
 from apex.strategy.base_strategy import BaseStrategy, StrategyContext
@@ -297,7 +298,15 @@ def run_once(
                 )
             latest_signals = kept
 
-        _submit_orders(latest_signals, events, risk_manager, portfolio, execution_engine, report)
+        _submit_orders(
+            latest_signals,
+            events,
+            risk_manager,
+            portfolio,
+            execution_engine,
+            report,
+            allocator=config.allocation,
+        )
     finally:
         execution_engine.disconnect()
 
@@ -448,10 +457,16 @@ def _submit_orders(
     portfolio: Portfolio,
     engine: BaseExecutionEngine,
     report: RunReport,
+    allocator: Optional[CapitalAllocator] = None,
 ) -> None:
     """
     Risk-evaluate the latest signals (reducing/exit signals first so freed capital
     is available to entries) and submit each approved order to the execution engine.
+
+    When an ``allocator`` is supplied (Phase F3.3 multi-strategy), each ENTRY is sized against
+    a capital-scoped view of the portfolio (its sleeve's weight × equity); REDUCES are never
+    scoped so an exit can always flatten its full position. With no allocator (the default,
+    single-sleeve trend bot) sizing is unchanged.
     """
     if not signals:
         return
@@ -459,11 +474,18 @@ def _submit_orders(
 
     reduces = [s for s in signals if _signal_reduces(s, portfolio)]
     entries = [s for s in signals if not _signal_reduces(s, portfolio)]
-    for signal in reduces + entries:
+    # (signal, is_entry) — reduces first so freed capital is available to entries.
+    ordered = [(s, False) for s in reduces] + [(s, True) for s in entries]
+    for signal, is_entry in ordered:
         if risk_manager.is_halted:
             logger.warning("System halted — skipping remaining signals.")
             break
-        order = risk_manager.evaluate(signal, portfolio)
+        sizing_portfolio = (
+            allocator.scoped(portfolio, signal.strategy_id)
+            if (is_entry and allocator is not None)
+            else portfolio
+        )
+        order = risk_manager.evaluate(signal, sizing_portfolio)
         if order is None:
             continue
         _submit(order, latest_close, engine, report)
