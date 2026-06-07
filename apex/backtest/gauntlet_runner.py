@@ -93,6 +93,8 @@ def run_full_gauntlet(
     wf_test_bars: Optional[int] = None,
     mc_iterations: int = 2000,
     rebalance_period_bars: Optional[int] = None,
+    run_mcpt: bool = False,
+    mcpt_iterations: int = 200,
 ) -> Tuple[gauntlet.GauntletReport, GauntletInputs]:
     """
     Run all seven gates and return (report, inputs).
@@ -227,6 +229,22 @@ def run_full_gauntlet(
     # Surface the overfitting numbers in the report (mutating the notes list is fine
     # even on the frozen report — we're appending, not rebinding the attribute).
     report.notes.append(overfit.summary())
+
+    # Optional stronger Gate-4 companion: the Monte-Carlo PERMUTATION test re-runs the
+    # whole strategy on shuffled price paths to test the SIGNAL LOGIC (not just realized
+    # trades). OFF by default (it re-backtests many times); surfaced as a report note so
+    # it never changes the gate list or grade.
+    if run_mcpt:
+        from apex.validation.permutation import monte_carlo_permutation_test
+
+        mcpt = monte_carlo_permutation_test(
+            list(events),
+            strategy_factory,
+            risk_config,
+            iterations=mcpt_iterations,
+            slippage_pct=slippage_pct,
+        )
+        report.notes.append(mcpt.summary())
     inputs = GauntletInputs(
         in_sample_sharpe=in_sharpe,
         out_of_sample_sharpe=oos_sharpe,
