@@ -6,6 +6,7 @@ Resampling rolls finer single-symbol bars up into coarser ones; it must be
 (unsorted / mixed-symbol) rather than emit garbage. OHLCV aggregation is checked
 against hand-computed values. Pure/offline: no I/O, no clock, no network.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -48,6 +49,7 @@ def _bar(
 
 # ----------------------------------------------------------- parse_timeframe
 
+
 def test_parse_timeframe_known_spellings():
     assert parse_timeframe("1Min") == timedelta(minutes=1)
     assert parse_timeframe("5Min") == timedelta(minutes=5)
@@ -71,13 +73,14 @@ def test_parse_timeframe_rejects_garbage_and_zero():
 
 # ---------------------------------------------------------- core aggregation
 
+
 def test_five_one_minute_bars_into_one_five_minute_bar():
     # Five 1-min bars filling exactly the 00:00–00:05 bucket (closes at +1..+5).
     bars = [
         _bar(1, "10", "12", "9", "11", "100"),
         _bar(2, "11", "15", "10", "14", "200"),
-        _bar(3, "14", "14", "8", "9", "150"),   # contains the bucket low (8)
-        _bar(4, "9", "16", "9", "13", "250"),   # contains the bucket high (16)
+        _bar(3, "14", "14", "8", "9", "150"),  # contains the bucket low (8)
+        _bar(4, "9", "16", "9", "13", "250"),  # contains the bucket high (16)
         _bar(5, "13", "13", "12", "12", "300"),
     ]
     out = resample_bars(bars, "5Min")
@@ -110,8 +113,9 @@ def test_decimal_precision_preserved_no_float_drift():
 
 
 def test_multiple_buckets_aligned_to_epoch():
-    # Ten 1-min bars → two complete 5-min buckets.
-    bars = [_bar(m, "10", "10", "10", str(m), str(m)) for m in range(1, 11)]
+    # Ten 1-min bars → two complete 5-min buckets. Flat bar at value m keeps each
+    # bar valid (o=h=lo=c=m) while preserving the per-bucket close/volume math.
+    bars = [_bar(m, str(m), str(m), str(m), str(m), str(m)) for m in range(1, 11)]
     out = resample_bars(bars, "5Min")
     assert len(out) == 2
     assert out[0].timestamp == BASE + timedelta(minutes=5)
@@ -119,8 +123,8 @@ def test_multiple_buckets_aligned_to_epoch():
     # First bucket = closes at +1..+5, second = +6..+10.
     assert out[0].close == Decimal("5")
     assert out[1].close == Decimal("10")
-    assert out[0].volume == Decimal("15")   # 1+2+3+4+5
-    assert out[1].volume == Decimal("40")   # 6+7+8+9+10
+    assert out[0].volume == Decimal("15")  # 1+2+3+4+5
+    assert out[1].volume == Decimal("40")  # 6+7+8+9+10
 
 
 def test_resample_to_same_timeframe_is_identity_ohlcv():
@@ -133,6 +137,7 @@ def test_resample_to_same_timeframe_is_identity_ohlcv():
 
 
 # --------------------------------------------------------- partial buckets
+
 
 def test_partial_trailing_bucket_dropped_by_default():
     # Six 1-min bars: first five complete the 00:00–00:05 bucket, the sixth
@@ -149,16 +154,17 @@ def test_partial_trailing_bucket_kept_when_requested():
     assert len(out) == 2
     # The partial bucket still carries its (would-be) close boundary timestamp.
     assert out[1].timestamp == BASE + timedelta(minutes=10)
-    assert out[1].volume == Decimal("10")   # only the single bar so far
+    assert out[1].volume == Decimal("10")  # only the single bar so far
 
 
 def test_exactly_full_trailing_bucket_is_not_partial():
     bars = [_bar(m, "10", "10", "10", "10", "10") for m in range(1, 6)]
     out = resample_bars(bars, "5Min")
-    assert len(out) == 1   # complete, kept even with keep_partial=False
+    assert len(out) == 1  # complete, kept even with keep_partial=False
 
 
 # ------------------------------------------------------------- edge cases
+
 
 def test_empty_input_returns_empty():
     assert resample_bars([], "5Min") == []
@@ -198,15 +204,16 @@ def test_bad_target_timeframe_raises():
 
 
 def test_hourly_rollup_from_minutes():
-    # 60 one-minute bars (closes +1..+60) fill the 00:00–01:00 hour bucket.
-    bars = [_bar(m, "10", str(10 + m), "5", str(m), "1") for m in range(1, 61)]
+    # 60 one-minute bars (closes +6..+65) fill the 00:00–01:00 hour bucket.
+    # close = 5 + m keeps every bar valid (low 5 stays the series minimum).
+    bars = [_bar(m, "10", str(10 + m), "5", str(5 + m), "1") for m in range(1, 61)]
     out = resample_bars(bars, "1Hour")
     assert len(out) == 1
     bar = out[0]
     assert bar.timestamp == BASE + timedelta(hours=1)
     assert bar.timeframe == "1Hour"
     assert bar.open == Decimal("10")
-    assert bar.close == Decimal("60")
-    assert bar.high == Decimal("70")   # 10 + 60
+    assert bar.close == Decimal("65")  # 5 + 60
+    assert bar.high == Decimal("70")  # 10 + 60
     assert bar.low == Decimal("5")
     assert bar.volume == Decimal("60")

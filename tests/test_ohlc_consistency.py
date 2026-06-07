@@ -1,4 +1,5 @@
 """Tests for apex.data.ohlc_consistency — full-path import, self-contained."""
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -21,8 +22,14 @@ T0 = datetime(2026, 1, 1, tzinfo=timezone.utc)
 
 
 def _bar(
-    o="100", h="110", lo="90", c="105", v="1000",
-    *, ts=T0, symbol=SYM,
+    o="100",
+    h="110",
+    lo="90",
+    c="105",
+    v="1000",
+    *,
+    ts=T0,
+    symbol=SYM,
 ) -> Bar:
     return Bar(
         symbol=symbol,
@@ -36,32 +43,59 @@ def _bar(
     )
 
 
+def _raw_bar(
+    o="100",
+    h="110",
+    lo="90",
+    c="105",
+    v="1000",
+    *,
+    ts=T0,
+    symbol=SYM,
+) -> Bar:
+    """Build a Bar that *bypasses* ``Bar.__post_init__`` validation.
+
+    The core ``Bar`` invariant now rejects open/close outside [low, high] (and
+    high < low) at construction. ``check_bar`` deliberately still defends against
+    such bars arriving "by other means" (see its docstring), so we forge them
+    here via ``object.__setattr__`` on a valid instance to exercise those paths.
+    """
+    b = _bar(ts=ts, symbol=symbol)  # a valid placeholder
+    object.__setattr__(b, "open", Decimal(o))
+    object.__setattr__(b, "high", Decimal(h))
+    object.__setattr__(b, "low", Decimal(lo))
+    object.__setattr__(b, "close", Decimal(c))
+    object.__setattr__(b, "volume", Decimal(v))
+    return b
+
+
 # ----------------------------------------------------------------- single bar
+
 
 def test_clean_bar_has_no_violations():
     assert check_bar(_bar()) == []
 
 
 def test_high_below_open_flagged():
-    # open 120 > high 110 — Bar allows it (high>=low holds), we catch it.
-    v = check_bar(_bar(o="120"))
+    # open 120 > high 110 — Bar blocks it at construction, so forge it raw.
+    v = check_bar(_raw_bar(o="120"))
     kinds = {x.kind for x in v}
     assert Violation.HIGH_NOT_MAX in kinds
     assert v[0].index == 0
 
 
 def test_high_below_close_flagged():
-    v = check_bar(_bar(c="115"))
+    v = check_bar(_raw_bar(c="115"))
     assert any(x.kind is Violation.HIGH_NOT_MAX for x in v)
 
 
 def test_low_above_close_flagged():
-    v = check_bar(_bar(c="80"))  # close 80 < low 90
+    v = check_bar(_raw_bar(c="80"))  # close 80 < low 90
     assert any(x.kind is Violation.LOW_NOT_MIN for x in v)
 
 
 def test_low_above_open_flagged():
-    v = check_bar(_bar(o="85"))  # open 85 < low 90
+    v = check_bar(_raw_bar(o="85"))  # open 85 < low 90
     assert any(x.kind is Violation.LOW_NOT_MIN for x in v)
 
 
@@ -93,12 +127,13 @@ def test_high_lt_low_detected_when_constructed_directly():
 
 
 def test_index_propagates():
-    v = check_bar(_bar(o="200"), index=7)
+    v = check_bar(_raw_bar(o="200"), index=7)
     assert all(x.index == 7 for x in v)
     assert v[0].bar.open == Decimal("200")
 
 
 # ----------------------------------------------------------------- series
+
 
 def test_empty_series_is_consistent():
     r = check_series([])
@@ -109,7 +144,7 @@ def test_empty_series_is_consistent():
 
 
 def test_single_bad_bar_series():
-    r = check_series([_bar(o="999")])
+    r = check_series([_raw_bar(o="999")])
     assert not r.is_consistent
     assert r.checked == 1
     assert bool(r) is True  # truthy when problems exist
@@ -152,29 +187,29 @@ def test_per_symbol_timestamps_compared_independently():
 
 
 def test_excessive_gap_off_by_default():
-    bars = [_bar(c="100", ts=T0), _bar(o="200", ts=T0 + timedelta(days=1))]
+    # open 200 needs a high to match (210); the gap, not OHLC shape, is the point.
+    bars = [_bar(c="100", ts=T0), _bar(o="200", h="210", ts=T0 + timedelta(days=1))]
     r = check_series(bars)  # no max_gap → gaps ignored
     assert Violation.EXCESSIVE_GAP not in r.kinds()
 
 
 def test_excessive_gap_flagged_when_enabled():
     # prev close 100, open 200 → ratio 1.0 > 0.5 threshold.
-    bars = [_bar(c="100", ts=T0), _bar(o="200", ts=T0 + timedelta(days=1))]
+    bars = [_bar(c="100", ts=T0), _bar(o="200", h="210", ts=T0 + timedelta(days=1))]
     r = check_series(bars, max_gap=0.5)
     assert r.kinds().get(Violation.EXCESSIVE_GAP) == 1
 
 
 def test_gap_within_threshold_ok():
     # prev close 100, open 140 → ratio 0.4 <= 0.5.
-    bars = [_bar(c="100", ts=T0), _bar(o="140", h="150", c="145",
-                                       ts=T0 + timedelta(days=1))]
+    bars = [_bar(c="100", ts=T0), _bar(o="140", h="150", c="145", ts=T0 + timedelta(days=1))]
     r = check_series(bars, max_gap=0.5)
     assert Violation.EXCESSIVE_GAP not in r.kinds()
 
 
 def test_gap_exact_threshold_not_flagged():
     # ratio exactly 0.5 is NOT > 0.5 → allowed (boundary is inclusive of OK).
-    bars = [_bar(c="100", ts=T0), _bar(o="150", ts=T0 + timedelta(days=1))]
+    bars = [_bar(c="100", ts=T0), _bar(o="150", h="160", ts=T0 + timedelta(days=1))]
     r = check_series(bars, max_gap=Decimal("0.5"))
     assert Violation.EXCESSIVE_GAP not in r.kinds()
 
@@ -187,8 +222,8 @@ def test_negative_max_gap_rejected():
 def test_kinds_counts_multiple():
     # Two bad bars of different kinds plus a duplicate-timestamp.
     bars = [
-        _bar(o="200", ts=T0),                       # HIGH_NOT_MAX
-        _bar(v="0", ts=T0),                         # ZERO_VOLUME_WITH_RANGE + NON_INCREASING_TIME
+        _raw_bar(o="200", ts=T0),  # HIGH_NOT_MAX (forged — Bar blocks it)
+        _bar(v="0", ts=T0),  # ZERO_VOLUME_WITH_RANGE + NON_INCREASING_TIME
     ]
     r = check_series(bars)
     counts = r.kinds()
@@ -198,15 +233,16 @@ def test_kinds_counts_multiple():
 
 
 def test_violation_is_frozen():
-    v = check_bar(_bar(o="200"))[0]
+    v = check_bar(_raw_bar(o="200"))[0]
     assert isinstance(v, OHLCViolation)
     with pytest.raises(Exception):
         v.index = 5  # frozen dataclass
 
 
 def test_determinism_same_input_same_output():
-    bars = [_bar(o="200", ts=T0 + timedelta(days=i)) for i in range(3)]
+    bars = [_raw_bar(o="200", ts=T0 + timedelta(days=i)) for i in range(3)]
     r1 = check_series(bars, max_gap=0.1)
     r2 = check_series(bars, max_gap=0.1)
-    assert [(x.index, x.kind, x.detail) for x in r1.violations] == \
-           [(x.index, x.kind, x.detail) for x in r2.violations]
+    assert [(x.index, x.kind, x.detail) for x in r1.violations] == [
+        (x.index, x.kind, x.detail) for x in r2.violations
+    ]

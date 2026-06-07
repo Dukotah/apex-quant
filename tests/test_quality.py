@@ -8,6 +8,7 @@ Strategy: build a clean, on-grid single-symbol bar series and assert it reports
 clean copy and assert that category — and only the expected categories — fires,
 against hand-computed expectations.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -49,10 +50,15 @@ def _bar(
 
 def _clean_series(n: int = 10) -> list[Bar]:
     """n on-grid daily bars, distinct timestamps, modest moves, positive volume."""
-    return [_bar(START + i * DAY, c=str(100 + i)) for i in range(n)]
+    # high/low must envelope the rising close, or the Bar invariant rejects it.
+    return [
+        _bar(START + i * DAY, o=str(100 + i), h=str(101 + i), low=str(99 + i), c=str(100 + i))
+        for i in range(n)
+    ]
 
 
 # ----------------------------------------------------------------- happy path
+
 
 def test_clean_series_is_clean() -> None:
     report = data_quality_report(_clean_series())
@@ -81,6 +87,7 @@ def test_report_is_frozen() -> None:
 
 # ------------------------------------------------------------- cadence parsing
 
+
 def test_expected_cadence_variants() -> None:
     assert _expected_cadence("1Day") == timedelta(days=1)
     assert _expected_cadence("5Min") == timedelta(minutes=5)
@@ -95,6 +102,7 @@ def test_expected_cadence_variants() -> None:
 
 
 # ----------------------------------------------------------- one defect each
+
 
 def test_detects_gap() -> None:
     bars = _clean_series(5)
@@ -113,7 +121,7 @@ def test_detects_gap() -> None:
 def test_detects_duplicate() -> None:
     bars = _clean_series(5)
     dup_ts = bars[2].timestamp
-    bars.insert(3, _bar(dup_ts, c="102"))
+    bars.insert(3, _bar(dup_ts, c="102", h="103"))
     report = data_quality_report(bars)
     assert report.duplicate_count == 1
     assert report.duplicate_timestamps == [dup_ts]
@@ -133,7 +141,7 @@ def test_detects_out_of_order() -> None:
 def test_detects_nonpositive_volume() -> None:
     bars = _clean_series(5)
     bad_ts = bars[2].timestamp
-    bars[2] = _bar(bad_ts, c="102", v="0")
+    bars[2] = _bar(bad_ts, c="102", h="103", v="0")
     report = data_quality_report(bars)
     assert report.nonpositive_volume_count == 1
     assert report.nonpositive_volume_timestamps == [bad_ts]
@@ -170,15 +178,16 @@ def test_jump_ratio_is_configurable() -> None:
 
 # ------------------------------------------------------------- combinations
 
+
 def test_all_defects_at_once() -> None:
     """A messy series should catch every category simultaneously."""
     bars = [
         _bar(START + 0 * DAY, c="100"),
         _bar(START + 1 * DAY, c="101"),
-        _bar(START + 1 * DAY, c="101"),          # duplicate of day1
-        _bar(START + 3 * DAY, c="101"),          # gap (day2 missing)
-        _bar(START + 2 * DAY, c="101"),          # out-of-order (before day3)
-        _bar(START + 4 * DAY, c="101", v="0"),   # zero volume
+        _bar(START + 1 * DAY, c="101"),  # duplicate of day1
+        _bar(START + 3 * DAY, c="101"),  # gap (day2 missing)
+        _bar(START + 2 * DAY, c="101"),  # out-of-order (before day3)
+        _bar(START + 4 * DAY, c="101", v="0"),  # zero volume
         _bar(START + 5 * DAY, o="100", h="100", low="100", c="100"),  # zero range
         _bar(START + 6 * DAY, o="300", h="301", low="299", c="300"),  # extreme jump
     ]
