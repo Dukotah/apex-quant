@@ -28,6 +28,7 @@ class ExecutionMode(str, Enum):
 class Broker(str, Enum):
     SIMULATED = "simulated"
     ALPACA = "alpaca"
+    ALPACA_CRYPTO = "alpaca_crypto"  # Alpaca crypto venue: 24/7, fractional, no PDT, long-only
     IBKR = "ibkr"
 
 

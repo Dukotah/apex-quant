@@ -65,6 +65,18 @@ def make_execution_engine(
                 paper=True,
                 on_fill=on_fill,
             )
+        if config.broker == Broker.ALPACA_CRYPTO:
+            from apex.execution.alpaca_crypto import AlpacaCryptoExecutionEngine
+
+            logger.info(
+                "Execution: AlpacaCryptoExecutionEngine (paper mode — Alpaca paper account)."
+            )
+            return AlpacaCryptoExecutionEngine(
+                api_key=config.alpaca_key,
+                api_secret=config.alpaca_secret,
+                paper=True,
+                on_fill=on_fill,
+            )
         raise NotImplementedError(
             f"Paper execution against broker '{config.broker.value}' is not built yet."
         )
@@ -75,6 +87,16 @@ def make_execution_engine(
 
             logger.warning("Execution: AlpacaExecutionEngine (LIVE mode — REAL MONEY).")
             return AlpacaExecutionEngine(
+                api_key=config.alpaca_key,
+                api_secret=config.alpaca_secret,
+                paper=False,
+                on_fill=on_fill,
+            )
+        if config.broker == Broker.ALPACA_CRYPTO:
+            from apex.execution.alpaca_crypto import AlpacaCryptoExecutionEngine
+
+            logger.warning("Execution: AlpacaCryptoExecutionEngine (LIVE mode — REAL MONEY).")
+            return AlpacaCryptoExecutionEngine(
                 api_key=config.alpaca_key,
                 api_secret=config.alpaca_secret,
                 paper=False,
