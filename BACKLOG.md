@@ -20,7 +20,7 @@ Status legend: 🔲 to do · 🚧 in progress · ✅ done
 3. 🔲 Test long-horizon (3–5y) mean reversion on equity-index ETFs as a standalone driver; record corr to trend.
 4. 🔲 Probe a carry/term-structure sleeve (bond curve steepness, VIX term structure proxy) for uncorrelated premium.
 5. 🔲 Add a defensive/safe-haven sleeve (gold + long Treasuries) gated on a risk-off regime filter.
-6. ✅ Implement a time-series momentum strategy across multiple lookbacks (1/3/6/12m) blended, distinct from the deployed inverse-vol trend. *(built+tested: `apex/strategy/library/ts_momentum_blend.py`, 23 tests; not yet registered/tuned — see F1, F8)*
+6. ✅ Implement a time-series momentum strategy across multiple lookbacks (1/3/6/12m) blended, distinct from the deployed inverse-vol trend. *(built+tested: `apex/strategy/library/ts_momentum_blend.py`, 23 tests. Registered + Gauntlet-tested on real data → **FAIL/ARCHIVED**: NOT distinct — +0.88 corr to `multi_asset_trend`. See F1, `research/TS_MOMENTUM_FINDINGS.md`.)*
 7. 🔲 Research a seasonality/calendar-effect overlay (turn-of-month, sell-in-May) as a tilt, not a standalone.
 8. ✅ Build a volatility-regime classifier (e.g. realized-vol percentile buckets) usable as a strategy gate. *(built+tested: `apex/strategy/regime.py`, 17 tests; not yet consumed by any strategy — see F2)*
 9. 🔲 Test a breadth/dispersion signal from the ETF basket as a risk-on/off switch.
@@ -157,10 +157,14 @@ wiring is the next pass:
   name→class `STRATEGY_REGISTRY` (+ `available_strategies` / `get_strategy_class`
   / `build_strategy`) now lives in `apex/strategy/library/__init__.py`, with
   `ts_momentum_blend` and the other 10 research candidates selectable by name
-  (`tests/test_strategy_registry.py`). 🔲 *Still open:* run it through the
-  Gauntlet on real data and tune defaults (lookbacks/scale/buy_threshold/atr_mult
-  are unvalidated priors) — and it stays out of the live roster until it clears.
-  Subsumes the registration half of **F12**.
+  (`tests/test_strategy_registry.py`). ✅ *Gauntlet + tune done →* **grade FAIL,
+  ARCHIVED** (`research/TS_MOMENTUM_FINDINGS.md`, `research/ts_momentum_study.py`,
+  `scripts/validate_real.py::validate_ts_momentum`): hard-fails Gate 1 (IS Sharpe
+  0.47<0.50) and is **+0.88 correlated to the deployed `multi_asset_trend`** — the
+  same edge re-expressed, not a second one. Tuning declined as gate-chasing (only
+  3/9 grid cells clear the bar, no gradient). Subsumes the registration half of
+  **F12**. *Lesson for A6:* a momentum sleeve will not be the uncorrelated second
+  edge; deployed **value** already is.
 - **F2 — Wire the gates/weighting into strategies + the allocator.** Have a
   vol-filtered strategy consume `regime.VolatilityRegimeClassifier.is_risk_on()`;
   make the (future) allocation engine (backlog §B) use `strategy/weighting.py`
