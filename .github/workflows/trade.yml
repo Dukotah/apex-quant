@@ -85,6 +85,23 @@ jobs:
             exit 1
           fi
 
+      - name: Pre-flight health check
+        # Run all system checks (config, credentials, halt state, dirs, risk config).
+        # preflight.py exits 1 on any FAIL — the job stops here if anything is broken.
+        run: python -m scripts.preflight
+
+      - name: Paper→live gate check (live mode only)
+        # ONLY enforced when APEX_MODE=live. In paper mode this step is a no-op.
+        # The gate requires 30+ days of paper cycles with full-history Sharpe >= 1.0
+        # and no quarantine. If the gate is not met, the job FAILS — preventing
+        # real-money orders from being submitted until the 30-day paper period is
+        # genuinely complete. Paper mode always passes through unblocked.
+        if: env.APEX_MODE == 'live'
+        run: |
+          echo "Live mode detected — verifying paper gate before trading with real money."
+          python -m scripts.report --check
+          echo "Gate passed — proceeding to live trading cycle."
+
       - name: Run one trading cycle
         run: python -m scripts.run_once
 
