@@ -26,6 +26,11 @@ from typing import Callable
 
 from apex.validation import metrics
 
+# Guard for efficiency calculation: IS Sharpe below this threshold makes the ratio
+# undefined (near-zero denominator).  Gate 1 normally guarantees IS Sharpe >= 0.5,
+# but this module is callable standalone, so we protect unconditionally.
+_MIN_IS_SHARPE: float = 0.10
+
 
 @dataclass(frozen=True)
 class WalkForwardWindow:
@@ -154,7 +159,9 @@ def run_walk_forward(
     # windows while is_ret is a single in-sample window, so their ratio explodes (we saw
     # 66-397). Sharpe/Sharpe is the standard, bounded, scale-free measure — ~1.0 means the
     # edge fully held up out-of-sample, < 0.5 means decay/overfit.
-    efficiency = (stitched_sharpe / is_sharpe) if is_sharpe > 0 else 0.0
+    # Guard against near-zero IS Sharpe (below _MIN_IS_SHARPE the ratio is undefined;
+    # fail closed → efficiency = 0 → gate fails, consistent with rule 6).
+    efficiency = (stitched_sharpe / is_sharpe) if is_sharpe >= _MIN_IS_SHARPE else 0.0
 
     passed = stitched_sharpe >= min_stitched_sharpe and efficiency >= min_efficiency
 
