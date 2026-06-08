@@ -184,25 +184,41 @@ class TestCheckDirsAndDb:
         assert status == STATUS_PASS
         assert str(db_path) in detail
 
-    def test_missing_state_dir_is_fail(self, tmp_path: Path):
+    def test_missing_state_dir_is_created_not_fail(self, tmp_path: Path):
+        # Self-heal: a missing runtime dir is CREATED, never a hard FAIL (the June
+        # 2026 cron outage was a hard-fail here that silently skipped trading).
         state_dir = tmp_path / "state"  # NOT created
         db_path = state_dir / "apex_state.db"
         data_dir = tmp_path / "data"
         data_dir.mkdir()
 
         _, status, detail = check_dirs_and_db(state_dir, db_path, data_dir)
-        assert status == STATUS_FAIL
-        assert "state" in detail
+        assert status != STATUS_FAIL
+        assert state_dir.is_dir()  # created
+        assert "created" in detail
 
-    def test_missing_data_dir_is_fail(self, tmp_path: Path):
+    def test_missing_data_dir_is_created_not_fail(self, tmp_path: Path):
         state_dir = tmp_path / "state"
         state_dir.mkdir()
         db_path = state_dir / "apex_state.db"
         data_dir = tmp_path / "data"  # NOT created
 
         _, status, detail = check_dirs_and_db(state_dir, db_path, data_dir)
+        assert status != STATUS_FAIL
+        assert data_dir.is_dir()  # created
+        assert "created" in detail
+
+    def test_path_exists_but_not_a_dir_is_fail(self, tmp_path: Path):
+        # A genuinely broken layout (a FILE where a dir must be) is still a hard FAIL.
+        state_dir = tmp_path / "state"
+        state_dir.mkdir()
+        db_path = state_dir / "apex_state.db"
+        data_dir = tmp_path / "data"
+        data_dir.write_bytes(b"")  # a file, not a directory
+
+        _, status, detail = check_dirs_and_db(state_dir, db_path, data_dir)
         assert status == STATUS_FAIL
-        assert "data" in detail
+        assert "not a directory" in detail
 
     def test_db_absent_is_warn_not_fail(self, tmp_path: Path):
         state_dir = tmp_path / "state"

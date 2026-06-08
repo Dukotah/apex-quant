@@ -463,7 +463,11 @@ def _all_hardening_on() -> RiskConfig:
     )
 
 
-@settings(max_examples=300, suppress_health_check=[HealthCheck.too_slow])
+# deadline=None: this is a CORRECTNESS fuzz (the fail-closed invariant), not a perf
+# test. Under full-suite coverage instrumentation an individual example can exceed
+# Hypothesis's default 200ms deadline and intermittently flake a safety assertion —
+# we care that NO input ever produces a bad order, never about per-example latency.
+@settings(max_examples=300, deadline=None, suppress_health_check=[HealthCheck.too_slow])
 @given(
     equity=_maybe_bad_numbers,
     price=_maybe_bad_numbers,
@@ -508,7 +512,7 @@ def test_fuzz_never_emits_order_on_bad_input(equity, price, stop, strength, atr,
         assert order.side == OrderSide.BUY
 
 
-@settings(max_examples=200, suppress_health_check=[HealthCheck.too_slow])
+@settings(max_examples=200, deadline=None, suppress_health_check=[HealthCheck.too_slow])
 @given(
     ts_offset=st.integers(min_value=-(10**7), max_value=10**7),
     price=_maybe_bad_numbers,

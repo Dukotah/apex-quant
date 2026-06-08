@@ -30,12 +30,11 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 # Coverage is wired in here so a bare `pytest` (locally and in CI) measures it.
 # --cov-fail-under is the regression floor: the build fails if coverage drops
-# below it. The floor is set CONSERVATIVELY at 70% because the exact current
-# coverage could not be measured in this environment (no local interpreter).
-# The suite is large (336+ tests) and almost certainly well above this; once a
-# real CI run reports the true number, RAISE this floor to ~5 points below it
-# so it ratchets up and can't silently regress.
-addopts = "-v --tb=short --cov=apex --cov-report=term-missing --cov-fail-under=70"
+# below it. Measured baseline 2026-06-08: 94.52% across ~3056 tests / 151+ files.
+# Floor ratcheted to 90 (~4.5 pts below measured) so a real regression trips CI
+# instead of silently bleeding ~24 points under the old conservative 70% placeholder.
+# Keep ratcheting toward ~5 pts below actual as coverage rises.
+addopts = "-v --tb=short --cov=apex --cov-report=term-missing --cov-fail-under=90"
 
 [tool.coverage.run]
 source = ["apex"]

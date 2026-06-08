@@ -13,8 +13,20 @@ Status legend: ✅ done · 🔲 to build · 🚧 in progress
 
 ## Where we are
 
-The framework is **functionally complete and live on paper**. The forward work is no longer
-"build the engine" — it is **prove an edge is real, make a second one, and operate cleanly.**
+The framework is **functionally complete and deployed on paper** (multi_asset_trend, grade A).
+The forward work is no longer "build the engine" — it is **prove the edge is real, make a second
+one, and operate cleanly.**
+
+> **⚠️ Re-baselined 2026-06-08 (read this).** The trading cron **silently died June 5–8** — a
+> preflight hard-fail on an uncommitted `data/` dir skipped every cycle and nothing alerted (fixed:
+> self-healing preflight + a `status.json`-freshness **watchdog**; see DECISIONS Session 33). So the
+> 30-day paper gate **restarted ~Jun 4 and is ~13% done (n≈4/30)**, NOT mid-way — the ~Jul-4 live
+> target is dead; earliest honest completion is **~late July 2026**. Operating reality now leads the
+> roadmap: **(1)** keep the cron alive + honest (watchdog/self-heal landed; an external dead-man's
+> ping is the next safeguard), **(2)** the public-repo **state leak** now includes full position-level
+> `status.json` and must close before any live dollar, **(3)** the **multi-book experiment harness**
+> + **Yahoo screener** (shipped Jun 8) are the new research/forward-test rails for the second edge.
+> Gauntlet is now **9 gates**; suite ~3056 tests, 94.5% cov, floor ratcheted to 90.
 
 ## Phase F1 — Validate & de-risk the value edge ✅ *(verdict: real-enough-to-pursue; live gate on W8)*
 

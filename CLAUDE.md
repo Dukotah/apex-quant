@@ -42,8 +42,11 @@ work, that belongs in apex-trader.
    internals. Data flows: `MarketEvent → SignalEvent → [RiskManager] → OrderEvent → FillEvent`.
 2. **Strategies emit signals, never orders.** A strategy has no broker reference
    and no way to size or place a trade. It returns `SignalEvent`s. Period.
-3. **The RiskManager is immutable and non-subclassable by strategies.** There is
-   exactly one risk policy. It cannot be weakened, overridden, or skipped.
+3. **The RiskManager is the sole order producer; strategies cannot subclass, weaken,
+   override, or skip it.** There is exactly one risk policy in the path between intent
+   and action. "Immutable" means never *weakened or bypassed* — it is still *extended*
+   (new guardrails, short/options paths) only via reviewed, tested, dedicated changes
+   with a DECISIONS.md entry, never casually or from strategy code.
 4. **All data models are frozen (immutable).** A `Bar`, once created, is a fact.
 5. **The Live/Paper switch is config-only.** Going from paper to live is changing
    `APEX_MODE`. No strategy, risk, or data code changes — ever.
@@ -132,7 +135,7 @@ apex-quant/
 │       ├── alpaca.py          ✅ Live Alpaca execution (injectable BrokerClient)
 │       ├── factory.py         ✅ MODE flag → right engine (paper+live wired)
 │       └── engine.py          ✅ Main orchestration loop
-├── tests/                     ✅ pytest suite, mirrors apex/ structure (414 tests passing)
+├── tests/                     ✅ pytest suite, mirrors apex/ structure (~3056 tests passing)
 ├── config/                    ← YAML strategy/risk configs
 ├── docs/                      ← Phase specs and reference
 ├── scripts/
@@ -212,7 +215,10 @@ use wall-clock time, or use unseeded randomness.
 
 ## Current Build Status
 
-See `ROADMAP.md` for the full plan. Quick status (**414 tests passing**):
+> **Forward plan of record:** `docs/ROADMAP-STRATEGIC.md` (NOW/NEXT/LATER). `ROADMAP.md`'s
+> F-phases are build history. See `DECISIONS.md` (Session 33) for the latest state.
+
+See `docs/ROADMAP-STRATEGIC.md` for the live plan. Quick status (**~3056 tests passing, 94.5% coverage**):
 
 - **Phase 1 (Core):** Models, events, config, event bus, clock ✅.
 - **Phase 2 (Data):** Base, historical feed, Alpaca feed, normalizer ✅.
@@ -222,13 +228,19 @@ See `ROADMAP.md` for the full plan. Quick status (**414 tests passing**):
   engine loop, backtester, `run_once` cron cycle ✅.
 - **Phase 6 (Live ops):** drift monitor, kill switch, ntfy alerts, paper-gate report ✅.
 
-All five build phases are code-complete; the Alpaca adapters are verified against live
-**paper keys** and the GitHub Actions cron is wired and running GREEN. The multi-asset
-trend strategy (7-sleeve inverse-vol, Gauntlet grade A) is **LIVE on paper**. The sole
-remaining gate before live capital is the mandatory 30-day paper period (rule 17), in
-progress — watch it with `python -m scripts.report`. The long-only second-edge hunt has
-concluded that trend is the sole deployable edge in this universe. See `DECISIONS.md`
-(newest entries on top).
+All five build phases are code-complete. The Gauntlet is now **9 gates** (Gates 8 Deflated-Sharpe
+and 9 PBO/CSCV are soft/WARN-only). The multi-asset trend strategy (inverse-vol, Gauntlet grade A)
+is deployed on paper via the GitHub Actions cron.
+
+⚠️ **Paper-gate status (read before trusting the dashboard): the cron silently DIED June 5–8** (a
+preflight hard-fail on an uncommitted `data/` dir skipped every cycle; fixed, and preflight now
+self-heals + a watchdog alerts on >26h silence — see DECISIONS Session 33). The 30-day gate
+**effectively restarted ~Jun 4 and is ~13% done (n≈4/30)** — NOT "mid-way / running green." Earliest
+honest completion is **~late July 2026**; the old ~Jul-4 target is unreachable. Watch real progress
+with `python -m scripts.report`. The long-only second-edge hunt concluded trend is the sole deployable
+edge here; the **multi-book experiment harness** (`scripts/run_experiments.py`) + **Yahoo screener**
+are the new research/forward-test rails for the next edge (never a substitute for the Gauntlet). See
+`DECISIONS.md` (newest on top).
 
 ---
 

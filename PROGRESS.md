@@ -2,6 +2,24 @@
 
 Running log so the owner can glance in anytime. Newest first.
 
+## 2026-06-08 — CRON OUTAGE + recovery, multi-book dashboard, roadmap realignment
+
+- **Cron was silently DEAD June 5→8** (preflight hard-failed on an uncommitted `data/` dir → every CI
+  checkout skipped the whole trading cycle; the scheduled trigger also didn't fire June 8). Fixed:
+  committed `data/`, made preflight **self-heal** runtime dirs, added a **weekday watchdog** that ntfy-alerts
+  if `status.json` goes >26h stale. The deployed bot is trading again.
+- **Paper gate re-baselined:** restarted ~Jun 4, **n=4/30**, ~late-July completion (the ~Jul-4 target is dead).
+  Stop reading "mid-way/running GREEN" — it isn't.
+- **Dashboard live:** `status.json` published each cycle (`APEX_STATUS_URL`), and a **multi-book experiment
+  harness** (`run_experiments.py`, 6 strategies as isolated sim paper books) feeds a new `/compare`
+  leaderboard + overlaid equity curves. Verified producing real data. Plus a **Yahoo runners screener**
+  (research-only). DECISIONS Session 33 captures the full overseer line previously missing from the log.
+- **Quality:** coverage floor 70→90, added an **architecture-fitness test** (strategies can never import
+  the broker/execution/risk-manager path).
+- **Outstanding (logged for follow-up):** public-repo **state leak** (now full position-level `status.json`)
+  must close before live capital; gate-count unit + the `Sharpe≥1.0` live bar vs ~0.82 validated edge need a
+  decision; stale branches/zombie PRs to prune; `overseer/2026-06-08` gate-3 guard to port-fresh.
+
 ## 2026-06-07 (cont. 3) — proving phase: validation sweep + roadmap wiring (suite 1057 green)
 
 - Fetched 15y real data (ETFs + ^TNX/^IRX yields + crypto); ran `scripts/validate_sweep.py`

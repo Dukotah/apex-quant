@@ -6,6 +6,22 @@
 
 ---
 
+## Session 33 (2026-06-08) — Doc-recon: captured the overseer line + the June 5–8 cron OUTAGE; multi-book + screener shipped
+
+This entry closes the doc-recon gap Session 32 flagged ("origin/main's 15 commits never touched DECISIONS.md").
+
+**🔴 CRON OUTAGE INCIDENT (June 5 → 8).** Between **2026-06-05 21:12 UTC and 2026-06-08** the GitHub Actions trade cron produced **no successful run**. Root cause: a June-7 PR added a preflight check (`check_dirs_and_db`) that **hard-required a `data/` directory that was never committed**, so every fresh CI checkout FAILED preflight and **skipped the entire trading cycle — the deployed book included**. Nobody was alerted (the only failure signal is an alert on a *started-then-failed* job; a pre-`run_once` preflight failure, or a schedule that never fires, notifies no one). Also observed: the **scheduled trigger did not fire on June 8 at all** — only a manual `workflow_dispatch` ran. **Fixes (this session):** committed `data/.gitkeep` (`bfaa159`); then made `check_dirs_and_db` **self-heal** (mkdir runtime dirs, FAIL only on a non-dir/uncreatable path) so a missing artifact can never silently halt trading again; added a **weekday cron watchdog** (`.github/workflows/watchdog.yml`) that alerts via ntfy if `status.json` goes >26h stale. **Consequence for the gate:** the 30-day paper gate accumulated **zero data for 3 days**; `status.json` shows `paperGate.startDate ~2026-06-04`, `daysElapsed=4/30` — the clock **effectively restarted ~Jun 4 and is ~13% done, NOT "mid-way."** The previously-cited ~July-4 live target is **mechanically unreachable**; earliest honest completion is **~late July 2026**.
+
+**OVERSEER LINE (now on `main`, previously uncaptured):** Gate 9 — **Probability of Backtest Overfitting (PBO/CSCV)**, `MAX_PBO=0.50` (`c79a7a3`) → the Gauntlet is now **9 gates** (Gates 8 Deflated-Sharpe and 9 PBO soft/WARN-only), not 7. Rich apex-trader **status export** (`2acedab`). **Five fail-closed RiskManager guardrails** incl. a stale-data guard added directly into `risk_manager.py` (`c699015`, +269 lines). **Note on Golden Rule 3:** the RiskManager remains the *sole order producer*, but it is actively **extended via reviewed, tested, dedicated changes** (these 5 guardrails, plus the short-selling and defined-risk-options paths now on main) — it is **not literally frozen**; treat "immutable" as "never weakened/bypassed," not "never edited."
+
+**JUN-8 OPS / FEATURES (this session):** `status.json` **published every cycle** to the dashboard via the public raw-GitHub URL (`5da2b12`) + `APEX_STATUS_URL` set in Vercel. **Yahoo runners screener** — research-only universe tool, no order path (`11bd686`). **Multi-book paper experiment harness** (`8856108`): `scripts/run_experiments.py` runs a 6-strategy roster as isolated *simulated* paper books off the same live data (each its own `StatefulSimExecutionEngine` seeded from persisted state, so `run_once` is reused verbatim; state at `state/experiments/<id>.db`); `export_status.build_multi_status` emits a `books[]` array; wired into `trade.yml` (continue-on-error) → **verified producing real data** after the cron was unblocked. Dashboard `/compare` (leaderboard + overlaid equity curves) renders it. Experiments are sim-only — the **live trading path is untouched**.
+
+**Canonical counts (measured this session):** **~3056 test functions** across 151+ files, **94.52% coverage** (CI floor ratcheted 70→90). **9 Gauntlet gates.** Deployed roster = `multi_asset_trend` only.
+
+**Open items surfaced by the roadmap-realignment audit (see ROADMAP/BACKLOG):** public-repo **state leak** now includes full position-level `status.json` (must move off public repo before live capital); gate-counting unit (cycles vs distinct days) + the `Sharpe≥1.0` live bar vs the strategy's ~0.82 validated edge need a human call; stale branches/zombie PRs to prune; `overseer/2026-06-08`'s gate-3 walk-forward guard to port-fresh.
+
+---
+
 ## Session 32 (cont.) — UNIFIED the two diverged lines + landed NOW-3..7 (Path A, suite 3065 green)
 
 **Discovery (important):** the local working branch `feat/research-buildout` (the Session-31 buildout:

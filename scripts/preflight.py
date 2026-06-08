@@ -110,34 +110,42 @@ def check_dirs_and_db(
     data_dir: Path = _DEFAULT_DATA_DIR,
 ) -> CheckResult:
     """
-    Verify that:
-      - data/ directory exists
-      - state/ directory exists
-      - state/apex_state.db is present (only a WARN if missing; it is created
-        on first run, so a brand-new install is not a hard failure)
+    Ensure the runtime directories exist, CREATING them if absent.
 
-    Returns FAIL only if a directory that must already exist is absent.
-    Returns WARN if the DB file doesn't exist yet.
-    Returns PASS otherwise.
+    data/ and state/ are working directories the engine writes into; a fresh CI
+    checkout legitimately may not have them yet. We ``mkdir -p`` them rather than
+    hard-fail — a hard-fail here silently skipped the ENTIRE trading cycle on every
+    fresh GitHub Actions checkout during the June 2026 cron outage (preflight failed
+    on a missing data/ dir, so run_once never ran and nothing alerted). We FAIL only
+    if a path exists but is NOT a directory, or genuinely cannot be created. The
+    state DB is created on first run, so its absence is a WARN, never a FAIL.
     """
     name = "dirs.state_db"
     problems: list[str] = []
-    warnings: list[str] = []
+    created: list[str] = []
 
     for d, label in ((data_dir, "data"), (state_dir, "state")):
-        if not d.exists():
-            problems.append(f"{label}/ dir not found ({d})")
-
-    if not problems:
-        # Only check the DB if the directory is present.
-        if not db_path.exists():
-            warnings.append(f"state DB not found at {db_path} (will be created on first run)")
+        if d.exists():
+            if not d.is_dir():
+                problems.append(f"{label} path exists but is not a directory ({d})")
+            continue
+        try:
+            d.mkdir(parents=True, exist_ok=True)
+            created.append(label)
+        except OSError as exc:  # pragma: no cover - unwritable FS is environment-specific
+            problems.append(f"could not create {label}/ ({d}): {exc}")
 
     if problems:
         return name, STATUS_FAIL, "; ".join(problems)
-    if warnings:
-        return name, STATUS_WARN, "; ".join(warnings)
-    return name, STATUS_PASS, f"data/ and state/ present; DB at {db_path}"
+
+    prefix = f"created {', '.join(created)}/; " if created else ""
+    if not db_path.exists():
+        return (
+            name,
+            STATUS_WARN,
+            f"{prefix}state DB not found at {db_path} (will be created on first run)",
+        )
+    return name, STATUS_PASS, f"{prefix}data/ and state/ present; DB at {db_path}"
 
 
 def check_risk_config(risk_cfg=None) -> CheckResult:

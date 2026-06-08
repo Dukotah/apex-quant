@@ -1,0 +1,87 @@
+name: Apex Quant — Cron Watchdog
+
+# ============================================================
+# DEAD-MAN'S-SWITCH for the trading cron.
+# ============================================================
+# The trade cron (trade.yml) commits state/status.json every cycle with a fresh
+# `generatedAt`. If that timestamp goes stale, the pipeline has stalled — a failed
+# preflight, an errored run, or a schedule that never fired. That is EXACTLY the
+# June 2026 outage that went unnoticed for 3 days because the only failure signal
+# was an alert on a started-then-failed job; a never-firing or pre-run_once failure
+# alerted nobody.
+#
+# This runs ONCE PER WEEKDAY shortly after the trade cron's 19:50 UTC slot, so a
+# simple ">26h old" check is correct without weekend false alarms (no weekend runs;
+# by 21:17 a healthy status.json is ~1.5h old, a missed run is >26h old).
+#
+# LIMITATION: this is a SAME-PLATFORM watchdog. If GitHub disables scheduled
+# workflows entirely (e.g. 60-day repo inactivity), this stops too. For a truly
+# independent dead-man's-switch, also ping an external monitor (healthchecks.io)
+# from the trade cron and let IT alert on silence. See docs/HOSTING.md.
+
+on:
+  schedule:
+    - cron: '17 21 * * 1-5' # weekdays ~1.5h after the trade cron (19:50 UTC)
+  workflow_dispatch: # manual test button
+
+permissions:
+  contents: read
+
+jobs:
+  watch:
+    name: Check trading-pipeline freshness
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+      MAX_AGE_HOURS: '26'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Alert if status.json has gone stale
+        run: |
+          python - <<'PY'
+          import datetime as dt, json, os, sys, urllib.request
+
+          path = "state/status.json"
+          max_age = float(os.environ.get("MAX_AGE_HOURS", "26"))
+          topic = os.environ.get("NTFY_TOPIC", "").strip()
+
+          def alert(msg: str) -> "NoReturn":
+              print(f"::error::{msg}")
+              if topic:
+                  try:
+                      req = urllib.request.Request(
+                          f"https://ntfy.sh/{topic}",
+                          data=msg.encode("utf-8"),
+                          headers={"Title": "Apex Quant - CRON SILENT",
+                                   "Priority": "urgent", "Tags": "warning,robot"},
+                      )
+                      urllib.request.urlopen(req, timeout=10)
+                  except Exception as exc:  # noqa: BLE001
+                      print(f"ntfy notify failed: {exc}")
+              sys.exit(1)
+
+          try:
+              with open(path, encoding="utf-8") as fh:
+                  snap = json.load(fh)
+          except Exception as exc:  # noqa: BLE001
+              alert(f"{path} is missing/unreadable ({exc}) — trading pipeline may be broken.")
+
+          gen = snap.get("generatedAt")
+          if not gen:
+              alert("status.json has no generatedAt — the status export is broken.")
+
+          ts = dt.datetime.fromisoformat(str(gen).replace("Z", "+00:00"))
+          now = dt.datetime.now(dt.timezone.utc)
+          age_h = (now - ts).total_seconds() / 3600.0
+          print(f"status.json generatedAt={gen}  age={age_h:.1f}h  threshold={max_age}h")
+
+          if age_h > max_age:
+              alert(
+                  f"Trading cron is SILENT: status.json is {age_h:.1f}h old "
+                  f"(> {max_age}h). Last cycle {gen}. Check the Actions tab — a run "
+                  f"likely failed or the schedule did not fire."
+              )
+          print("OK — trading pipeline is fresh.")
+          PY
