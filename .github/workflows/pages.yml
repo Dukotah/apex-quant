@@ -45,10 +45,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Render static dashboard
+      - name: Render static web app
         env:
           APEX_MODE: paper
-        run: python -m scripts.dashboard --export site/index.html
+        run: python -m scripts.webapp --build site/index.html
 
       - name: Configure Pages
         uses: actions/configure-pages@v5

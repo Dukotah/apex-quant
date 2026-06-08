@@ -128,13 +128,13 @@ def _money(value) -> str:
 def _badge_class(status: str) -> str:
     """Map a status label to a colour class (green / yellow / red / muted)."""
     s = status.upper()
-    if any(k in s for k in ("FAIL", "BLOCK", "GATED", "HALT", "RED")):
+    if any(k in s for k in ("FAIL", "BLOCK", "HALT", "KILLED", "RED")):
         return "behind"
     if any(k in s for k in ("LIVE", "MERGED", "DONE", "PASS", "GREEN", "OK")):
         return "ok"
-    if any(k in s for k in ("READY", "WIP", "NEXT", "PROGRESS", "DOING")):
+    if any(k in s for k in ("READY", "WIP", "NEXT", "PROGRESS", "DOING", "CANDIDATE")):
         return "work"
-    return "muted"
+    return "muted"  # neutral: research, gated, archived
 
 
 def build_page(state: dict, shipped: list[tuple[str, str, str]], progress: str) -> str:
