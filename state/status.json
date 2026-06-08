@@ -1,0 +1,139 @@
+{
+  "generatedAt": "2026-06-08T19:38:39.517522+00:00",
+  "mode": "paper",
+  "halted": false,
+  "haltReason": null,
+  "account": {
+    "equity": 99900.285,
+    "cash": 58589.78,
+    "buyingPower": 58589.78,
+    "peakEquity": 100000.0,
+    "currentDrawdownPct": 0.00099715,
+    "dailyStartEquity": 100000.0,
+    "dayPnl": -99.715,
+    "dayPnlPct": -0.00099715
+  },
+  "equityCurve": [
+    {
+      "t": "2026-06-04T23:39:01.443559+00:00",
+      "equity": 100000.0,
+      "drawdownPct": 0.0
+    },
+    {
+      "t": "2026-06-05T02:57:13.417021+00:00",
+      "equity": 100000.0,
+      "drawdownPct": 0.0
+    },
+    {
+      "t": "2026-06-05T17:01:59.596037+00:00",
+      "equity": 100000.0,
+      "drawdownPct": 0.0
+    },
+    {
+      "t": "2026-06-05T21:12:11.564709+00:00",
+      "equity": 99900.285,
+      "drawdownPct": 0.0009971499999999651
+    }
+  ],
+  "positions": [
+    {
+      "ticker": "DBA",
+      "assetClass": "etf",
+      "quantity": 306.0,
+      "avgPrice": 26.42,
+      "lastPrice": 26.4,
+      "marketValue": 8078.4,
+      "unrealizedPnl": -6.12,
+      "unrealizedPnlPct": -0.000757002271006813,
+      "weightPct": 0.08086463416996258,
+      "strategyId": "multi_asset_trend"
+    },
+    {
+      "ticker": "DBC",
+      "assetClass": "etf",
+      "quantity": 132.0,
+      "avgPrice": 29.27,
+      "lastPrice": 29.24,
+      "marketValue": 3859.68,
+      "unrealizedPnl": -3.96,
+      "unrealizedPnlPct": -0.0010249402118209772,
+      "weightPct": 0.03863532521453768,
+      "strategyId": "multi_asset_trend"
+    },
+    {
+      "ticker": "EFA",
+      "assetClass": "etf",
+      "quantity": 42.0,
+      "avgPrice": 102.96,
+      "lastPrice": 102.26,
+      "marketValue": 4294.92,
+      "unrealizedPnl": -29.4,
+      "unrealizedPnlPct": -0.006798756798756799,
+      "weightPct": 0.04299206954214395,
+      "strategyId": "multi_asset_trend"
+    },
+    {
+      "ticker": "GLD",
+      "assetClass": "etf",
+      "quantity": 8.0,
+      "avgPrice": 398.5,
+      "lastPrice": 396.24,
+      "marketValue": 3169.92,
+      "unrealizedPnl": -18.08,
+      "unrealizedPnlPct": -0.005671267252195734,
+      "weightPct": 0.03173084040751235,
+      "strategyId": "multi_asset_trend"
+    },
+    {
+      "ticker": "SPY",
+      "assetClass": "etf",
+      "quantity": 8.0,
+      "avgPrice": 743.79,
+      "lastPrice": 737.45,
+      "marketValue": 5899.6,
+      "unrealizedPnl": -50.72,
+      "unrealizedPnlPct": -0.008523911319055109,
+      "weightPct": 0.0590548865801534,
+      "strategyId": "multi_asset_trend"
+    },
+    {
+      "ticker": "UUP",
+      "assetClass": "etf",
+      "quantity": 571.0,
+      "avgPrice": 28.02,
+      "lastPrice": 28.035,
+      "marketValue": 16007.985,
+      "unrealizedPnl": 8.565,
+      "unrealizedPnlPct": 0.0005353319057815846,
+      "weightPct": 0.16023963294999607,
+      "strategyId": "multi_asset_trend"
+    }
+  ],
+  "trades": [],
+  "strategies": [
+    {
+      "id": "multi_asset_trend",
+      "name": "Multi-Asset Trend (inverse-vol)",
+      "status": "paper",
+      "allocationPct": 1.0,
+      "driftStatus": "warn"
+    }
+  ],
+  "paperGate": {
+    "startDate": "2026-06-04T23:39:01.443559+00:00",
+    "daysElapsed": 4,
+    "daysRequired": 30,
+    "rollingSharpe": -11.224972160321826,
+    "targetSharpe": 1.0,
+    "withinBacktestBand": false
+  },
+  "gauntlet": [],
+  "alerts": [
+    {
+      "t": "2026-06-08T19:38:39.517522+00:00",
+      "level": "info",
+      "kind": "drift",
+      "message": "collecting live data (3/30)"
+    }
+  ]
+}

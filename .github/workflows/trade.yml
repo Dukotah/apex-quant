@@ -105,6 +105,13 @@ jobs:
       - name: Run one trading cycle
         run: python -m scripts.run_once
 
+      # Export the dashboard status snapshot (state/status.json) from the freshly
+      # updated state DB. This is the API boundary apex-trader polls via
+      # APEX_STATUS_URL. Committed alongside the state below so the raw GitHub URL
+      # always serves the latest cycle. Fail-soft: export always emits valid JSON.
+      - name: Export status snapshot for the dashboard
+        run: python -m scripts.export_status --mode "$APEX_MODE" --out state/status.json
+
       # Persist state (positions, equity, logs) back to the repo so the next
       # scheduled run picks up where this one left off. SQLite-based state.
       - name: Commit updated state
