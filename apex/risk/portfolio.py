@@ -68,7 +68,11 @@ class Portfolio:
         initial_equity = initial_capital
         self._peak_equity: Decimal = initial_equity
         self._day_start_equity: Decimal = initial_equity
-        # rolling daily returns (close-of-day equity changes) for vol targeting
+        # Daily returns are float, not Decimal. statistics.pstdev requires a
+        # Sequence[float]; vol estimates don't need money-math precision. The
+        # realized_volatility property returns Optional[float]; the RiskManager
+        # converts it back via Decimal(str(rv)) before any money computation.
+        # Do NOT change to Deque[Decimal] — it will silently break pstdev.
         self._daily_returns: Deque[float] = deque(maxlen=_VOL_WINDOW)
 
         logger.info(
