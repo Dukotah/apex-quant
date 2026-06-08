@@ -143,6 +143,21 @@ td{padding:8px 10px;border-top:1px solid var(--line);font-size:14px}
 .sub{color:var(--muted)}
 pre{margin:0;white-space:pre-wrap;font:12.5px/1.6 ui-monospace,Menlo,Consolas,monospace;color:#44556b}
 .foot{color:var(--muted);font-size:13px;margin-top:34px;border-top:1px solid var(--line);padding-top:16px}
+.runbox{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.runbox select{font:inherit;font-size:15px;padding:10px 12px;border:1px solid var(--line);border-radius:11px;
+background:#fff;color:var(--ink);min-width:230px}
+.btn{font:inherit;font-size:15px;font-weight:700;padding:10px 20px;border:0;border-radius:11px;cursor:pointer;
+background:var(--accent);color:#fff;box-shadow:0 1px 2px rgba(16,32,46,.1)}
+.btn:hover{background:#1d4ed8}.btn:disabled{opacity:.55;cursor:default}
+#result{margin-top:16px}
+.grade{display:inline-flex;align-items:center;gap:8px;font-size:15px;font-weight:800;padding:8px 16px;
+border-radius:999px;border:1px solid var(--line)}
+.grade.ok{color:var(--grn);background:#e9f7ef;border-color:#b7e0c4}
+.grade.work{color:var(--yel);background:#fdf3e7;border-color:#f0d2a8}
+.grade.behind{color:var(--red);background:#fdeaea;border-color:#f4c2c2}
+.spin{display:inline-block;width:15px;height:15px;border:2px solid #c9d6e8;border-top-color:var(--accent);
+border-radius:50%;animation:sp .8s linear infinite;vertical-align:-2px;margin-right:7px}
+@keyframes sp{to{transform:rotate(360deg)}}
 @media(max-width:640px){.wrap{padding:16px 14px 60px}h1{font-size:27px}.hero{padding:26px 20px}.hero .pitch{font-size:16px}}
 """
 
@@ -347,6 +362,137 @@ _GLOSSARY: list[tuple[str, str]] = [
 ]
 
 
+# Strategies you can run from the local app, each wired to real data + benchmark
+# in scripts/validate_real.py. (key, friendly label, validate_* function name).
+_RUNNABLE: list[tuple[str, str, str]] = [
+    ("smart7", "Multi-asset trend — the deployed strategy", "validate_multiasset_smart7"),
+    ("multiasset", "Multi-asset trend (5 sleeves)", "validate_multiasset"),
+    ("trend_bond", "Trend + bond", "validate_trend_bond"),
+    ("spy_trend", "SPY trend filter", "validate_spy_trend"),
+    ("dual_momentum", "Dual momentum", "validate_dual_momentum"),
+    ("etf_rotation", "ETF sector rotation", "validate_etf_rotation"),
+    ("rsi2", "RSI(2) mean reversion", "validate_rsi2"),
+    ("rsi2_vol", "RSI(2), volatility-filtered", "validate_rsi2_vol"),
+    ("value", "Cross-asset value", "validate_value"),
+    ("value_singlenames", "Single-name value (large caps)", "validate_value_singlenames"),
+]
+_RUNNABLE_FN = {key: fn for key, _label, fn in _RUNNABLE}
+
+# Client-side runner: calls the local /api/run endpoint and shows the graded result.
+_RUN_JS = """
+<script>
+async function runGauntlet(){
+  var b=document.getElementById('runbtn'), s=document.getElementById('strat'), r=document.getElementById('result');
+  var label=s.options[s.selectedIndex].text; b.disabled=true;
+  r.innerHTML='<div class="card"><span class="spin"></span>Running “'+label+'” through the Gauntlet on real market history… this can take up to a minute.</div>';
+  try{
+    var resp=await fetch('/api/run?strategy='+encodeURIComponent(s.value));
+    var txt=await resp.text();
+    r.innerHTML = resp.ok ? txt : '<div class="card">Could not finish:<pre>'+txt+'</pre></div>';
+  }catch(e){ r.innerHTML='<div class="card">Could not run: '+e+'</div>'; }
+  b.disabled=false;
+}
+</script>
+"""
+
+
+def run_strategy(key: str):
+    """Run one wired strategy through the real-data Gauntlet. Returns (report, inputs).
+
+    Lazy-imports scripts.validate_real so the heavy strategy/data stack only loads
+    when something is actually run — never at page-render or import time.
+    """
+    fn_name = _RUNNABLE_FN.get(key)
+    if fn_name is None:
+        raise KeyError(f"unknown strategy {key!r}")
+    import scripts.validate_real as vr
+
+    return getattr(vr, fn_name)()
+
+
+def _grade_class(grade: str) -> str:
+    g = grade.upper()
+    if g in ("A", "B"):
+        return "ok"
+    if g == "C":
+        return "work"
+    return "behind"
+
+
+def _result_html(report, inputs) -> str:
+    """Render a finished Gauntlet run: grade, per-gate results, and headline metrics."""
+    gv = str(getattr(report.grade, "value", report.grade))
+    rows = []
+    for g in report.gates:
+        sv = str(getattr(g.status, "value", g.status))
+        scls = {"PASS": "ok", "WARN": "work", "FAIL": "behind"}.get(sv.upper(), "muted")
+        rows.append(
+            f"<tr><td>{html.escape(g.name)}</td>"
+            f'<td><span class="badge {scls}">{html.escape(sv)}</span></td>'
+            f"<td>{html.escape(str(g.detail))}</td></tr>"
+        )
+    table = (
+        "<table><tr><th>Test</th><th>Result</th><th>Detail</th></tr>" + "".join(rows) + "</table>"
+    )
+    verdict = {
+        "A": "Passed — a real, deployable edge.",
+        "B": "Passed — a solid edge.",
+        "C": "Marginal — proceed with caution.",
+    }.get(gv.upper(), "Failed the Gauntlet — not a real edge (kept as a reference).")
+    metrics = (
+        f"{inputs.num_trades} trades · in-sample Sharpe {inputs.in_sample_sharpe:.2f} · "
+        f"out-of-sample {inputs.out_of_sample_sharpe:.2f} · full {inputs.full_sharpe:.2f} · "
+        f"after 2× costs {inputs.sharpe_at_2x_cost:.2f} · vs S&P {inputs.benchmark_sharpe:.2f} "
+        f"(correlation {inputs.correlation_to_benchmark:.2f})"
+    )
+    return (
+        f'<div class="card"><span class="grade {_grade_class(gv)}">Grade {html.escape(gv)}</span>'
+        f'<p style="margin:13px 0 3px"><b>{html.escape(str(report.strategy_name))}</b> — '
+        f"{html.escape(verdict)}</p>"
+        f'<p class="sub" style="margin:0 0 14px;font-size:13.5px">{html.escape(metrics)}</p>'
+        f"{table}</div>"
+    )
+
+
+def _runit_section(interactive: bool) -> str:
+    """The 'Run a backtest' control panel (live locally; a disabled preview on Pages)."""
+    opts = "".join(
+        f'<option value="{html.escape(k)}">{html.escape(label)}</option>'
+        for k, label, _fn in _RUNNABLE
+    )
+    if not interactive:
+        body = (
+            '<div class="card"><div class="runbox"><select disabled>'
+            f'{opts}</select><button class="btn" disabled>Run the Gauntlet ▸</button></div>'
+            '<p class="sub" style="margin-top:11px">▶ This runs live when you start the app on your '
+            "own machine: <code>python -m scripts.webapp</code>, then open "
+            '<a href="http://127.0.0.1:8788">127.0.0.1:8788</a>. (GitHub Pages can only show pages, '
+            "not run code.)</p></div>"
+        )
+        return _blk(
+            "run",
+            "Run a backtest",
+            "Pick a strategy and put it through the real-data Gauntlet — the same test that decides "
+            "whether something is trusted with money.",
+            body,
+        )
+    body = (
+        '<div class="card"><div class="runbox">'
+        f'<select id="strat">{opts}</select>'
+        '<button class="btn" id="runbtn" onclick="runGauntlet()">Run the Gauntlet ▸</button>'
+        '</div><p class="sub" style="margin-top:11px">Runs the chosen strategy through all 8 tests on '
+        "real market history — takes a few seconds to a minute.</p>"
+        '<div id="result"></div></div>' + _RUN_JS
+    )
+    return _blk(
+        "run",
+        "Run a backtest",
+        "Pick a strategy and put it through the real-data Gauntlet — the same test that decides "
+        "whether something is trusted with money.",
+        body,
+    )
+
+
 # --------------------------------------------------------------- introspection
 
 
@@ -519,12 +665,15 @@ def _blk(sid: str, heading: str, note_html: str, body: str) -> str:
     return f'<section id="{sid}" class="blk"><h2>{html.escape(heading)}</h2>{note}{body}</section>'
 
 
-def build_site(state: dict, sections_data: list[tuple], shipped, progress: str) -> str:
+def build_site(
+    state: dict, sections_data: list[tuple], shipped, progress: str, interactive: bool = False
+) -> str:
     """Pure: assemble the whole single-page app from live state + introspected sections."""
     by_sid = {sid: items for sid, _t, _lead, items in sections_data}
     total = sum(len(v) for v in by_sid.values())
 
     nav_items = [
+        ("run", "Run it"),
         ("what", "What it is"),
         ("how", "How it works"),
         ("inside", "What's inside"),
@@ -623,6 +772,7 @@ def build_site(state: dict, sections_data: list[tuple], shipped, progress: str) 
         _hero(state)
         + readme
         + nav
+        + _runit_section(interactive)
         + _blk("what", "What is this?", what, "")
         + _blk("how", "How it works", "Three steps, every trading day.", steps)
         + _blk(
@@ -668,12 +818,12 @@ def build_site(state: dict, sections_data: list[tuple], shipped, progress: str) 
 """
 
 
-def _render() -> str:
+def _render(interactive: bool = False) -> str:
     db_path = Path(os.getenv("APEX_STATE_DB", str(DEFAULT_STATE_PATH)))
     mode = os.getenv("APEX_MODE", "paper")
     state = _read_state(db_path, mode) or {"mode": mode, "broker": os.getenv("APEX_BROKER", "")}
     sections_data = [(sid, title, lead, _modules(globs)) for sid, title, globs, lead in SECTIONS]
-    return build_site(state, sections_data, _SHIPPED, _recent_progress(limit=40))
+    return build_site(state, sections_data, _SHIPPED, _recent_progress(limit=40), interactive)
 
 
 def build_to(path: str | Path) -> Path:
@@ -686,16 +836,43 @@ def build_to(path: str | Path) -> Path:
 
 
 class _Handler(BaseHTTPRequestHandler):
-    def do_GET(self) -> None:  # noqa: N802
-        if self.path not in ("/", "/index.html"):
-            self.send_error(404)
-            return
-        body = _render().encode("utf-8")
-        self.send_response(200)
-        self.send_header("Content-Type", "text/html; charset=utf-8")
+    def _send(self, code: int, body: bytes, ctype: str = "text/html; charset=utf-8") -> None:
+        self.send_response(code)
+        self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
+
+    def do_GET(self) -> None:  # noqa: N802
+        from urllib.parse import parse_qs, urlparse
+
+        parsed = urlparse(self.path)
+        path = parsed.path
+
+        if path in ("/", "/index.html"):
+            self._send(200, _render(interactive=True).encode("utf-8"))
+            return
+
+        if path == "/api/strategies":
+            import json
+
+            data = json.dumps([{"key": k, "label": label} for k, label, _fn in _RUNNABLE])
+            self._send(200, data.encode("utf-8"), "application/json")
+            return
+
+        if path == "/api/run":
+            key = parse_qs(parsed.query).get("strategy", [""])[0]
+            try:
+                report, inputs = run_strategy(key)
+            except Exception as exc:  # noqa: BLE001 — report the failure to the browser
+                self._send(
+                    400, f"{type(exc).__name__}: {exc}".encode(), "text/plain; charset=utf-8"
+                )
+                return
+            self._send(200, _result_html(report, inputs).encode("utf-8"))
+            return
+
+        self.send_error(404)
 
     def log_message(self, *_args) -> None:
         pass

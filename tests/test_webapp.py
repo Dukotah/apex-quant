@@ -52,7 +52,7 @@ def test_build_site_has_plain_language_structure():
     html = _render_html()
     assert "<!doctype html>" in html.lower()
     # Friendly top-level sections for a newcomer.
-    for sid in ("what", "how", "inside", "gauntlet", "faq", "glossary", "status", "roadmap"):
+    for sid in ("run", "what", "how", "inside", "gauntlet", "faq", "glossary", "status", "roadmap"):
         assert f'id="{sid}"' in html
     # Six capability tiles.
     for cid in ("strategies", "safety", "validation", "data", "analytics", "ops"):
@@ -81,6 +81,57 @@ def test_build_site_is_comprehensive_under_expanders():
         assert token in html, token
     # The detail is hidden by default behind <details> expanders.
     assert "<details>" in html and "building blocks" in html
+
+
+def test_runit_section_static_vs_interactive():
+    static = webapp._runit_section(interactive=False)
+    assert "127.0.0.1:8788" in static  # tells you how to run it locally
+    assert "disabled" in static  # controls are inert on the static page
+    live = webapp._runit_section(interactive=True)
+    assert "runGauntlet" in live  # wired to the action
+    assert 'id="strat"' in live and 'id="runbtn"' in live
+
+
+def test_run_strategy_rejects_unknown_key():
+    import pytest
+
+    with pytest.raises(KeyError):
+        webapp.run_strategy("does_not_exist")
+
+
+def test_runnable_map_points_at_real_functions():
+    # Every advertised strategy maps to a real validate_* function in validate_real.
+    import scripts.validate_real as vr
+
+    for _key, _label, fn in webapp._RUNNABLE:
+        assert hasattr(vr, fn), fn
+
+
+def test_result_html_renders_grade_gates_and_metrics():
+    from types import SimpleNamespace as NS
+
+    report = NS(
+        strategy_name="demo_REAL",
+        grade=NS(value="A"),
+        gates=[
+            NS(name="Gate 1", status=NS(value="PASS"), detail="Sharpe 1.3"),
+            NS(name="Gate 6", status=NS(value="FAIL"), detail="dies at 2x cost"),
+        ],
+    )
+    inputs = NS(
+        num_trades=42,
+        in_sample_sharpe=1.2,
+        out_of_sample_sharpe=1.1,
+        full_sharpe=1.15,
+        sharpe_at_2x_cost=0.4,
+        benchmark_sharpe=0.8,
+        correlation_to_benchmark=0.25,
+    )
+    html = webapp._result_html(report, inputs)
+    assert "Grade A" in html
+    assert "Gate 1" in html and "PASS" in html
+    assert "Gate 6" in html and "FAIL" in html
+    assert "42 trades" in html
 
 
 def test_build_site_marks_deployed_strategy_live():
