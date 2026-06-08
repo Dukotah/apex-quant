@@ -30,7 +30,7 @@ from apex.core.models import Symbol
 from apex.data.historical_feed import HistoricalDataFeed
 from apex.risk.risk_manager import RiskConfig
 from apex.strategy.base_strategy import BaseStrategy
-from apex.validation import gauntlet, metrics
+from apex.validation import gauntlet, metrics, pbo
 from apex.validation.monte_carlo import run_monte_carlo
 from apex.validation.walk_forward import run_walk_forward
 
@@ -193,7 +193,10 @@ def run_full_gauntlet(
     g5 = gauntlet.evaluate_gate5_cost_stress(sharpe_2x)
 
     # ---- Gate 6: Parameter sensitivity (optional sweep). ----
+    # Retain each variant's full equity curve too: those configurations ARE the
+    # field Gate 9 (PBO/CSCV) tests for overfitting, not just their scalar Sharpe.
     neighbor_sharpes: List[float] = []
+    variant_curves: List[List[float]] = []
     for _, variant_factory in param_variants or []:
         v = run_backtest(
             list(events),
@@ -202,6 +205,7 @@ def run_full_gauntlet(
             initial_capital=initial_capital,
             slippage_pct=slippage_pct,
         )
+        variant_curves.append(list(v.equity_curve))
         neighbor_sharpes.append(metrics.sharpe_ratio(metrics.returns_from_equity(v.equity_curve)))
     g6 = gauntlet.evaluate_gate6_param_sensitivity(neighbor_sharpes, full_sharpe)
 
@@ -219,7 +223,18 @@ def run_full_gauntlet(
     trial_sharpes = [full_sharpe, *neighbor_sharpes]
     g8, overfit = gauntlet.evaluate_gate8_overfitting(full_returns, trial_sharpes)
 
-    gates = [g1, g2, g3, g4, g5, g6, g7, g8]
+    # ---- Gate 9: Probability of Backtest Overfitting (CSCV, soft). ----
+    # Reuse the Gate-6 configurations (chosen strategy + each variant) as the
+    # parameter field. An even slice count >= 4 is required; with no sweep the
+    # matrix is empty and the gate passes with a "not evaluated" note.
+    config_curves = [list(full.equity_curve), *variant_curves]
+    n_slices = 16 if len(full.equity_curve) >= 17 else (len(full.equity_curve) - 1)
+    if n_slices % 2 != 0:
+        n_slices -= 1
+    perf_matrix = pbo.build_performance_matrix(config_curves, n_slices)
+    g9, pbo_value = gauntlet.evaluate_gate9_pbo(perf_matrix)
+
+    gates = [g1, g2, g3, g4, g5, g6, g7, g8, g9]
     report = gauntlet.grade_and_assemble(
         strategy_name,
         gates,
@@ -229,6 +244,8 @@ def run_full_gauntlet(
     # Surface the overfitting numbers in the report (mutating the notes list is fine
     # even on the frozen report — we're appending, not rebinding the attribute).
     report.notes.append(overfit.summary())
+    if perf_matrix:
+        report.notes.append(f"PBO (CSCV) {pbo_value:.0%} across {len(config_curves)} configs.")
 
     # Optional stronger Gate-4 companion: the Monte-Carlo PERMUTATION test re-runs the
     # whole strategy on shuffled price paths to test the SIGNAL LOGIC (not just realized

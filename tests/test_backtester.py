@@ -88,11 +88,13 @@ def test_full_gauntlet_returns_graded_report():
         param_variants=[("a", factory), ("b", factory)],
         mc_iterations=100,
     )
-    # The pipeline ran all eight gates (7 classic + the soft Overfitting/DSR gate)
-    # and produced a graded report.
-    assert len(report.gates) == 8
-    assert report.gates[-1].name.startswith("Gate 8 Overfitting")
+    # The pipeline ran all nine gates (7 classic + the soft Overfitting/DSR gate +
+    # the soft PBO/CSCV gate) and produced a graded report.
+    assert len(report.gates) == 9
+    assert report.gates[-2].name.startswith("Gate 8 Overfitting")
+    assert report.gates[-1].name.startswith("Gate 9 PBO")
     assert report.gates[-1].is_hard_gate is False  # soft: can only WARN, never hard-fail
+    assert report.gates[-2].is_hard_gate is False  # Gate 8 is soft too
     assert isinstance(report.grade, Grade)
     assert isinstance(report.paper_approved, bool)
     assert isinstance(inputs, GauntletInputs)
@@ -138,7 +140,7 @@ def test_run_gauntlet_from_csv(tmp_path):
         risk_config=_full_risk(),
         mc_iterations=80,
     )
-    assert len(report.gates) == 8
+    assert len(report.gates) == 9
     assert isinstance(report.grade, Grade)
     assert inputs.num_trades >= 0
     assert len(report.render()) > 0

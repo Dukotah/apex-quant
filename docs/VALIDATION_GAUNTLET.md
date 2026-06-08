@@ -111,6 +111,27 @@ An edge has to be worth the risk and add something the portfolio doesn't have.
 *A strategy that just gives you correlated beta you could get from an index fund
 isn't an edge — it's leverage on the market dressed up as alpha.*
 
+### Soft overfitting gates (8 & 9)
+
+Two additional gates attack overfitting directly. Both are **soft**: they can
+only WARN, never hard-fail, so they flag multiple-testing risk for the operator
+without ever retroactively invalidating a strategy that already cleared the
+structural gates 1-5.
+
+- **Gate 8 — Overfitting / Deflated Sharpe.** Corrects the headline Sharpe for how
+  many variants were tried (selection bias), for non-normality (skew/kurtosis),
+  and for whether the track record is even long enough to make the claim
+  (Minimum Track Record Length). A strong, long, single-tested edge passes
+  cleanly; a fat-tailed Sharpe cherry-picked from many trials warns.
+- **Gate 9 — Probability of Backtest Overfitting (PBO/CSCV).** Where Gate 8
+  corrects one Sharpe, Gate 9 interrogates the *config-selection process itself*.
+  Across the Gate-6 parameter sweep it asks, via Combinatorially-Symmetric
+  Cross-Validation: when you pick the config that looked best in-sample, how often
+  does that choice land below-median out-of-sample? A PBO near 50% means the
+  selection is no better than a coin flip — classic overfitting — and warns. With
+  no parameter sweep there is no config field to test, so it passes with a note
+  (Gate 6 already warns on a missing sweep).
+
 ---
 
 ## The Realistic Output: a Confidence Grade, Not a Promise
@@ -128,6 +149,8 @@ Gate 4 Monte Carlo ................. PASS (p=0.012, realistic DD 24%)
 Gate 5 Cost Stress ................. PASS (Sharpe 0.81 at 2× cost)
 Gate 6 Param Sensitivity ........... WARN (mild peak at lookback=12)
 Gate 7 Benchmark/Correlation ....... PASS (corr to SPY 0.38)
+Gate 8 Overfitting (DSR) ........... PASS (DSR 0.71, MinTRL 410 vs 980 obs)
+Gate 9 PBO (CSCV) .................. PASS (PBO 22% < 50%)
 ═══════════════════════════════════════════
 VERDICT: PAPER-APPROVED (grade B+)
 Realistic expectation: positive risk-adjusted edge LIKELY but not certain.
@@ -136,10 +159,10 @@ Re-validate after 30 days of paper. Quarantine if live Sharpe < 0.66.
 ```
 
 **Grades:**
-- **A** — passes all 7 cleanly. Rare. Deploy with confidence (still small at first).
-- **B** — passes all 7, some warnings. Deploy to paper, watch closely.
-- **C** — passes 5-6. Marginal. Paper only, low conviction, likely decay risk.
-- **FAIL** — fails any of Gates 1-5. Does not advance. Archive and learn from it.
+- **A** — passes every gate cleanly, no warnings. Rare. Deploy with confidence (still small at first).
+- **B** — passes, with 1-2 warnings (typically the soft gates 6/8/9). Deploy to paper, watch closely.
+- **C** — passes with 3+ warnings. Marginal. Paper only, low conviction, likely decay risk.
+- **FAIL** — fails any hard gate (1-5). Does not advance. Archive and learn from it.
 
 Gates 1-5 are **hard fails**. Gates 6-7 can issue warnings that lower the grade
 without blocking, since a diversifying strategy with mild parameter sensitivity

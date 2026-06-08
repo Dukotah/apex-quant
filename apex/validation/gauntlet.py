@@ -19,7 +19,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum
 
-from apex.validation import metrics, overfitting
+from apex.validation import metrics, overfitting, pbo
 from apex.validation.monte_carlo import MonteCarloResult
 from apex.validation.walk_forward import WalkForwardResult
 
@@ -332,6 +332,67 @@ def evaluate_gate8_overfitting(
     return (
         GateResult("Gate 8 Overfitting (DSR)", status, detail, is_hard_gate=False),
         res,
+    )
+
+
+# Gate 9 — Probability of Backtest Overfitting (CSCV). >= MAX_PBO means picking the
+# best-backtesting config is no better than a coin flip out of sample.
+MAX_PBO = 0.50
+
+
+def evaluate_gate9_pbo(
+    performance_matrix: list[list[float]],
+    *,
+    n_splits: int = 16,
+    seed: int = 42,
+) -> tuple[GateResult, float]:
+    """Gate 9 — Probability of Backtest Overfitting via CSCV (soft gate, can only WARN).
+
+    ``performance_matrix[t][c]`` is configuration ``c``'s performance in time slice
+    ``t`` (built from the Gate-6 parameter sweep). PBO is the fraction of
+    combinatorial splits where the in-sample champion landed below-median out of
+    sample; ``>= MAX_PBO`` means selecting a config by its backtest is no better
+    than luck.
+
+    Soft by design, exactly like Gate 8: an overfitting signal flags risk for the
+    operator but never retroactively hard-fails a strategy that already cleared the
+    structural gates 1-5. An empty matrix means there was no parameter sweep — that
+    is *missing evidence*, not evidence of overfit (and Gate 6 already warns on a
+    missing sweep), so it PASSES with a note rather than adding a second warn.
+
+    Returns ``(GateResult, pbo_value)``; the PBO value is surfaced in the report.
+    """
+    if not performance_matrix or len(performance_matrix) < 4:
+        return (
+            GateResult(
+                "Gate 9 PBO (CSCV)",
+                GateStatus.PASS,
+                "no parameter sweep — PBO not evaluated",
+                is_hard_gate=False,
+            ),
+            0.0,
+        )
+    value = pbo.probability_of_backtest_overfitting(
+        performance_matrix, n_splits=n_splits, seed=seed
+    )
+    if value >= MAX_PBO:
+        return (
+            GateResult(
+                "Gate 9 PBO (CSCV)",
+                GateStatus.WARN,
+                f"PBO {value:.0%} >= {MAX_PBO:.0%} — config selection no better than luck",
+                is_hard_gate=False,
+            ),
+            value,
+        )
+    return (
+        GateResult(
+            "Gate 9 PBO (CSCV)",
+            GateStatus.PASS,
+            f"PBO {value:.0%} < {MAX_PBO:.0%}",
+            is_hard_gate=False,
+        ),
+        value,
     )
 
 
