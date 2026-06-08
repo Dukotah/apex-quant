@@ -17,7 +17,7 @@ Live board. `todo` / `doing` / `done`. See `ROADMAP.md` for phases, `PROGRESS.md
 |---|------|--------|
 | F2.1 | Status CLI (`scripts/status.py`) + tests — reads live state DB. | done |
 | F2.2 | Preflight health check (`scripts/preflight.py`) + tests. | done |
-| F2.3 | Tighten alerts (actionable only + daily heartbeat). | todo |
+| F2.3 | Tighten alerts (actionable only + daily heartbeat) — `apex/ops/alerts.py`, wired into `run_once`, tested. | done |
 
 ## Path A — Go-live hardening *(docs/ROADMAP-STRATEGIC.md NOW phase)*
 

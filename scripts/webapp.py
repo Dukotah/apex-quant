@@ -454,6 +454,30 @@ def _result_html(report, inputs) -> str:
     )
 
 
+def _missing_data_html(key: str, detail: str) -> str:
+    """Friendly, actionable card shown when a strategy's market-data CSV isn't
+    downloaded on this machine yet — instead of dumping a raw ConnectionError.
+
+    Only the deployed multi-asset trend strategy ships its data in the repo; the
+    research strategies need their history fetched once (free, via Yahoo).
+    """
+    label = next((lbl for k, lbl, _ in _RUNNABLE if k == key), key)
+    # Pull the missing file path out of the underlying message when present.
+    missing = detail.split(":", 1)[-1].strip() if ":" in detail else detail.strip()
+    where = f" (<code>{html.escape(missing)}</code>)" if missing else ""
+    return (
+        '<div class="card"><span class="grade work">Data needed</span>'
+        f'<p style="margin:13px 0 3px"><b>{html.escape(label)}</b> needs market history '
+        f"that isn't downloaded on this machine yet{where}.</p>"
+        '<p class="sub" style="margin:8px 0 6px">Fetch the free Yahoo history once — the '
+        "exact tickers per strategy are in the header of <code>scripts/validate_real.py</code>, "
+        "e.g.:</p>"
+        "<pre>python -m scripts.fetch_yahoo SPY EFA AGG --range 15y --out data/real/dm.csv</pre>"
+        '<p class="sub" style="margin:8px 0 0">The deployed <b>Multi-asset trend</b> strategy '
+        "already has its data in the repo and runs out of the box.</p></div>"
+    )
+
+
 def _runit_section(interactive: bool) -> str:
     """The 'Run a backtest' control panel (live locally; a disabled preview on Pages)."""
     opts = "".join(
@@ -809,6 +833,7 @@ def build_site(
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="refresh" content="120">
 <title>Apex Quant</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <style>{_THEME}</style></head>
 <body><div class="wrap">
 {body}
@@ -833,6 +858,17 @@ def build_to(path: str | Path) -> Path:
         out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(_render(), encoding="utf-8")
     return out
+
+
+# On-brand favicon: brand-blue rounded square with a white upward trend line
+# (this engine is trend-following). Served inline so there is no missing-asset 404.
+_FAVICON_SVG = (
+    b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">'
+    b'<rect width="32" height="32" rx="7" fill="#2563eb"/>'
+    b'<path d="M6 22 L13 15 L18 19 L26 9" fill="none" stroke="#fff" '
+    b'stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>'
+    b'<circle cx="26" cy="9" r="2.3" fill="#fff"/></svg>'
+)
 
 
 class _Handler(BaseHTTPRequestHandler):
@@ -865,11 +901,21 @@ class _Handler(BaseHTTPRequestHandler):
             try:
                 report, inputs = run_strategy(key)
             except Exception as exc:  # noqa: BLE001 — report the failure to the browser
+                msg = str(exc)
+                if "not found" in msg.lower() and ".csv" in msg.lower():
+                    # Missing market-data file → friendly, actionable card (HTTP 200 so
+                    # the client renders it as a normal result, not a raw error dump).
+                    self._send(200, _missing_data_html(key, msg).encode("utf-8"))
+                    return
                 self._send(
                     400, f"{type(exc).__name__}: {exc}".encode(), "text/plain; charset=utf-8"
                 )
                 return
             self._send(200, _result_html(report, inputs).encode("utf-8"))
+            return
+
+        if path in ("/favicon.svg", "/favicon.ico"):
+            self._send(200, _FAVICON_SVG, "image/svg+xml")
             return
 
         self.send_error(404)
