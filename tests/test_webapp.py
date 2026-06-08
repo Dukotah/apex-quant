@@ -52,7 +52,7 @@ def test_build_site_has_plain_language_structure():
     html = _render_html()
     assert "<!doctype html>" in html.lower()
     # Friendly top-level sections for a newcomer.
-    for sid in ("what", "how", "inside", "gauntlet", "status", "roadmap"):
+    for sid in ("what", "how", "inside", "gauntlet", "faq", "glossary", "status", "roadmap"):
         assert f'id="{sid}"' in html
     # Six capability tiles.
     for cid in ("strategies", "safety", "validation", "data", "analytics", "ops"):
@@ -60,6 +60,8 @@ def test_build_site_has_plain_language_structure():
     assert "$99,900.28" in html  # live status in the hero
     assert "12/30" in html  # paper-trial progress
     assert "Gate 1" in html  # the testing section
+    assert "Is real money at risk" in html  # plain-language FAQ present
+    assert "Paper trading" in html  # plain-language glossary present
     assert "PROGRESS LINE 1" in html  # recent updates folded in
     # No unrendered template artifacts leaked into the output.
     assert "{html.escape" not in html and "{sid}" not in html
