@@ -6,6 +6,29 @@
 
 ---
 
+## Overseer 2026-06-08 — Gate-3 walk-forward efficiency metric: investigation closed
+
+**Finding:** the anomalous efficiency values (66, 397) were caused by the old total-return
+ratio: `stitched_cumulative_return / single_IS_window_return`. Because the stitched OOS curve
+aggregates MANY test windows while the IS denominator is just one window, the ratio grows
+proportionally with the number of folds — not with strategy quality. This was already fixed
+in `walk_forward.py` (switched to `stitched_sharpe / is_sharpe`), but the ROADMAP item was
+still open and the near-zero IS Sharpe edge case was unguarded.
+
+**Change made:** added `_MIN_IS_SHARPE = 0.10` constant; guard changed from `is_sharpe > 0`
+to `is_sharpe >= _MIN_IS_SHARPE`. Without this, an IS Sharpe of 0.001 (positive but near-zero,
+which can occur if the first training window is a flat-market period) would still divide to
+produce large anomalous values. With the guard, such cases return `efficiency = 0.0` and
+fail the gate (consistent with rule 6: fail-closed on uncertainty).
+
+**Why 0.10:** safely below Gate 1's minimum IS Sharpe floor (0.5), so the guard never fires
+on a strategy that's already cleared the Gauntlet. It only catches degenerate near-zero cases.
+
+**Tests added:** `test_efficiency_zero_when_is_sharpe_near_zero` — verifies the guard fires and
+returns 0.0. Suite: 3074 passed, 94.52% coverage, ruff clean.
+
+---
+
 ## Overseer 2026-06-08 — F2.3: daily heartbeat alert (one "still alive" push per day on quiet crons)
 
 **What:** tightened the ntfy alert policy to add a daily heartbeat on quiet cycles.

@@ -59,8 +59,11 @@ F1 verdict was positive, so:
   the Session-8 data-corruption bug at the source). Verify synthetic generators comply first.
 - [ ] **Coverage uplift** on the thinnest modules (`backtester` 62%, `base_strategy` 78%,
   `config` 79%, `metrics` 81%).
-- [ ] **Gate-3 walk-forward "efficiency" metric** reports anomalous values (e.g. 66, 397) —
-  investigate the ratio (likely divide-by-near-zero in a window) and recalibrate or relabel.
+- [x] **Gate-3 walk-forward "efficiency" metric** — root cause investigated: old code used
+  total-return ratio (stitched cumulative / single IS window), which exploded to 66-397 because
+  OOS stitches MANY windows. Fixed: now OOS Sharpe / IS Sharpe (rate-normalized, scale-free,
+  ~1.0 = edge held). Additional guard: IS Sharpe < 0.10 → efficiency = 0.0 (fail-closed; prevents
+  near-zero denominator if called outside the Gauntlet). 3 tests in test_walk_forward.py.
 - [ ] **Local dev parity**: a one-shot `make check` / `tox`-style command that runs the exact
   CI gates (ruff check, ruff format --check, pytest+cov) so CI never surprises us again.
 - [ ] **Decimal `_ANN`/vol path**: the realized-vol path is intentionally float; document the
