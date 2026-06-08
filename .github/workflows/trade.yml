@@ -105,10 +105,19 @@ jobs:
       - name: Run one trading cycle
         run: python -m scripts.run_once
 
-      # Export the dashboard status snapshot (state/status.json) from the freshly
-      # updated state DB. This is the API boundary apex-trader polls via
-      # APEX_STATUS_URL. Committed alongside the state below so the raw GitHub URL
-      # always serves the latest cycle. Fail-soft: export always emits valid JSON.
+      # Multi-book paper experiments: run the strategy roster as N isolated
+      # simulated books off the same live data, each persisting to
+      # state/experiments/<book>.db. continue-on-error so a flaky experiment can
+      # NEVER block the deployed book's export + state commit below.
+      - name: Run experiment books (multi-book paper tests)
+        continue-on-error: true
+        run: python -m scripts.run_experiments
+
+      # Export the dashboard status snapshot (state/status.json). The exporter
+      # auto-detects state/experiments/*.db and emits the multi-book books[] array
+      # (deployed book + experiments) when present; otherwise single-book. This is
+      # the API boundary apex-trader polls via APEX_STATUS_URL. Committed alongside
+      # the state below so the raw GitHub URL always serves the latest cycle.
       - name: Export status snapshot for the dashboard
         run: python -m scripts.export_status --mode "$APEX_MODE" --out state/status.json
 

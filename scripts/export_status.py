@@ -589,6 +589,127 @@ def build_status_from_store(
     )
 
 
+# ----------------------------------------------------------------- multi-book
+
+DEFAULT_EXPERIMENTS_DIR = Path("state/experiments")
+
+
+def _book_summary(snapshot: Dict[str, Any], initial_capital: float) -> Dict[str, Any]:
+    """
+    Leaderboard stats for one book, from its equity curve + account: total return
+    since inception, rolling Sharpe, worst drawdown, today's move, and the number
+    of recorded sessions. Fail-soft: an empty curve yields zeros, never raises.
+    """
+    curve = snapshot.get("equityCurve") or []
+    equities = [float(p.get("equity", 0.0)) for p in curve]
+    sessions = len(equities)
+    first = equities[0] if equities else initial_capital
+    last = equities[-1] if equities else initial_capital
+    total_return = (last / first - 1.0) if first else 0.0
+    max_dd = max((float(p.get("drawdownPct", 0.0)) for p in curve), default=0.0)
+    sharpe = metrics.sharpe_ratio(metrics.returns_from_equity(equities)) if sessions >= 2 else 0.0
+    account = snapshot.get("account") or {}
+    return {
+        "totalReturnPct": _num(total_return),
+        "sharpe": _num(sharpe),
+        "maxDrawdownPct": _num(max_dd),
+        "dayPnlPct": _num(account.get("dayPnlPct", 0.0)),
+        "sessions": sessions,
+    }
+
+
+def _book_from_snapshot(
+    snapshot: Dict[str, Any],
+    *,
+    book_id: str,
+    name: str,
+    kind: str,
+    initial_capital: float,
+) -> Dict[str, Any]:
+    """Project an already-built single-book snapshot into a compact BookSnapshot entry."""
+    strategies = snapshot.get("strategies") or []
+    status = strategies[0]["status"] if strategies else "paper"
+    return {
+        "id": book_id,
+        "name": name,
+        "kind": kind,  # "deployed" | "experiment"
+        "status": status,
+        "halted": bool(snapshot.get("halted", False)),
+        "account": snapshot.get("account", {}),
+        "equityCurve": snapshot.get("equityCurve", []),
+        "positions": snapshot.get("positions", []),
+        "paperGate": snapshot.get("paperGate", {}),
+        "summary": _book_summary(snapshot, initial_capital),
+    }
+
+
+def build_book_entry(
+    store: StateStore,
+    *,
+    book_id: str,
+    name: str,
+    kind: str,
+    now: datetime,
+    initial_capital: Decimal = Decimal("100000"),
+    validated_sharpe: float = DEPLOYED_VALIDATED_SHARPE,
+) -> Dict[str, Any]:
+    """Build one BookSnapshot from a book's state DB (reuses build_status_from_store)."""
+    snap = build_status_from_store(
+        store,
+        now=now,
+        mode="paper",
+        initial_capital=initial_capital,
+        validated_sharpe=validated_sharpe,
+    )
+    return _book_from_snapshot(
+        snap, book_id=book_id, name=name, kind=kind, initial_capital=float(initial_capital)
+    )
+
+
+def build_multi_status(
+    *,
+    now: datetime,
+    deployed_store: StateStore,
+    deployed_name: str = DEPLOYED_STRATEGY_NAME,
+    experiments: Sequence[Any] = (),
+    initial_capital: Decimal = Decimal("100000"),
+) -> Dict[str, Any]:
+    """
+    Assemble the full multi-book snapshot.
+
+    The DEPLOYED book stays the top-level snapshot — every existing single-book
+    dashboard field is unchanged for back-compat — and is ALSO ``books[0]``. Each
+    ``experiments`` item is a ``(StateStore, id, name)`` tuple and becomes an
+    experiment book entry. The dashboard reads ``books[]`` for the compare view.
+    """
+    base = build_status_from_store(
+        deployed_store, now=now, mode="paper", initial_capital=initial_capital
+    )
+    books: List[Dict[str, Any]] = [
+        _book_from_snapshot(
+            base,
+            book_id="deployed",
+            name=deployed_name,
+            kind="deployed",
+            initial_capital=float(initial_capital),
+        )
+    ]
+    for store, book_id, name in experiments:
+        books.append(
+            build_book_entry(
+                store,
+                book_id=book_id,
+                name=name,
+                kind="experiment",
+                now=now,
+                initial_capital=initial_capital,
+            )
+        )
+    out = dict(base)
+    out["books"] = books
+    return out
+
+
 # --------------------------------------------------------------------- the CLI
 
 
@@ -611,6 +732,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:  # pragma: no cover - thi
     parser.add_argument(
         "--capital", default="100000", help="initial capital fallback for reconstruction"
     )
+    parser.add_argument(
+        "--experiments-dir",
+        default=str(DEFAULT_EXPERIMENTS_DIR),
+        help="dir of per-book experiment state DBs; if present, emit a multi-book books[]",
+    )
+    parser.add_argument(
+        "--no-experiments", action="store_true", help="single-book export only (ignore experiments)"
+    )
     args = parser.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO)
@@ -619,16 +748,43 @@ def main(argv: Optional[Sequence[str]] = None) -> int:  # pragma: no cover - thi
 
     now = RealClock().now()
 
+    capital = Decimal(str(args.capital))
+    exp_dir = Path(args.experiments_dir)
+    db_files = (
+        sorted(exp_dir.glob("*.db")) if (exp_dir.exists() and not args.no_experiments) else []
+    )
+
     store = StateStore(args.state)
+    exp_stores: List[StateStore] = []
     try:
-        snapshot = build_status_from_store(
-            store,
-            now=now,
-            mode=args.mode,
-            initial_capital=Decimal(str(args.capital)),
-        )
+        if db_files:
+            # Display names come from the experiment roster (fallback: the file stem).
+            try:
+                from scripts.run_experiments import default_experiments
+
+                names = {b.id: b.name for b in default_experiments()}
+            except Exception:  # noqa: BLE001 — names are cosmetic; never block the export
+                names = {}
+            experiments = []
+            for db in db_files:
+                book_id = db.stem
+                exp_store = StateStore(db)
+                exp_stores.append(exp_store)
+                experiments.append((exp_store, book_id, names.get(book_id, book_id)))
+            snapshot = build_multi_status(
+                now=now,
+                deployed_store=store,
+                experiments=experiments,
+                initial_capital=capital,
+            )
+        else:
+            snapshot = build_status_from_store(
+                store, now=now, mode=args.mode, initial_capital=capital
+            )
     finally:
         store.close()
+        for exp_store in exp_stores:
+            exp_store.close()
 
     # allow_nan=False is the final guard: build_status already scrubbed non-finite
     # values, so this should never raise — but if it ever did, we want to know.
