@@ -70,9 +70,9 @@ No strategy, risk, or data code changes when you switch. Ever.
 | 3 | Indicators + strategies | done |
 | 4 | Risk manager / portfolio | done |
 | 5 | Execution / engine loop / backtester / run_once | done |
-| 6 | Live ops (drift monitor, kill switch, paper-gate report) | done |
+| 6 | Live ops (drift monitor, kill switch, paper-gate report, preflight, interactive web app) | done |
 
-All five build phases are code-complete with **414 tests passing**. The multi-asset
+All six build phases are code-complete with **2,500+ tests passing**. The multi-asset
 trend strategy (7-sleeve inverse-vol, Gauntlet grade A 7/7) is **live on paper** via a
 GitHub Actions cron against an Alpaca paper account. The mandatory 30-day paper gate is
 in progress before any live capital.
@@ -122,6 +122,7 @@ touching the broker:
 | `python -m scripts.report` | Paper-gate monitor — rolling Sharpe, drawdown, and 30-day gate progress vs. the validated backtest baseline. Run this daily. |
 | `python -m scripts.status` | Quick health check — prints the last run timestamp, current equity, and any active halt state from the SQLite state DB. |
 | `python -m scripts.preflight` | Pre-flight check — validates env vars, broker connectivity, and config before the cron fires (run this once after setup). |
+| `python scripts/webapp.py` | Interactive web app — explore strategies, run the Gauntlet on any strategy from the browser, view a live system overview. Visit http://localhost:8000 after starting. |
 
 **Environment variables that control runtime behaviour:**
 
@@ -141,17 +142,6 @@ APEX_MODE=paper APEX_BROKER=alpaca python -m scripts.run_once
 To halt immediately without touching the scheduler, set `APEX_HALT=1` in your
 environment or GitHub Actions secret — the next cycle exits without submitting
 any orders. Unset it to resume.
-
----
-
-## Running
-
-```bash
-pip install -r requirements.txt
-cp .env.example .env        # fill in Alpaca paper keys
-pytest tests/ -v            # run the suite
-python -m scripts.run_once  # one trading cycle
-```
 
 ---
 
