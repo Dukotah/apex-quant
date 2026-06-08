@@ -47,7 +47,7 @@ F1 verdict was positive, so:
 - **F3.3** 🔲 build the live, risk-aware multi-strategy allocator (~20/80). Gated on W8: do
   NOT fund the value sleeve live until survivorship-free validation clears.
 - **Definition of done:** the blend clears the Gauntlet and runs through a backtest with a
-  clean split; live wiring is config-gated and off until W8.
+  clean capital split; live wiring is config-gated and off until W8.
 
 ---
 
@@ -55,8 +55,8 @@ F1 verdict was positive, so:
 
 - [ ] **Survivorship-honest data path** — a free-ish point-in-time constituents source, or a
   documented paid one, so single-name research isn't survivorship-blind by default.
-- [ ] **`Bar.__post_init__` invariant**: assert `low <= open/close <= high` (would have caught
-  the Session-8 data-corruption bug at the source). Verify synthetic generators comply first.
+- [x] **`Bar.__post_init__` invariant**: assert `low <= open/close <= high` — added to
+  `apex/core/models.py`; test fixtures updated to comply (commit `96617b94`).
 - [ ] **Coverage uplift** on the thinnest modules (`backtester` 62%, `base_strategy` 78%,
   `config` 79%, `metrics` 81%).
 - [x] **Gate-3 walk-forward "efficiency" metric** — root cause investigated: old code used
@@ -64,12 +64,13 @@ F1 verdict was positive, so:
   OOS stitches MANY windows. Fixed: now OOS Sharpe / IS Sharpe (rate-normalized, scale-free,
   ~1.0 = edge held). Additional guard: IS Sharpe < 0.10 → efficiency = 0.0 (fail-closed; prevents
   near-zero denominator if called outside the Gauntlet). 3 tests in test_walk_forward.py.
-- [ ] **Local dev parity**: a one-shot `make check` / `tox`-style command that runs the exact
-  CI gates (ruff check, ruff format --check, pytest+cov) so CI never surprises us again.
+- [x] **Local dev parity**: `make check` runs the exact CI gates (ruff check + ruff format
+  --check + pytest + coverage); `scripts/check.sh` (bash) and `scripts/check.ps1` (PowerShell)
+  provide platform-native equivalents without `make`. Mirrors `.github/workflows/ci.yml`.
 - [ ] **Decimal `_ANN`/vol path**: the realized-vol path is intentionally float; document the
   Decimal/float boundary so it isn't "fixed" into a bug later.
-- [ ] **README quickstart** for a cold-start operator (clone → install → run a Gauntlet →
-  read status).
+- [x] **README quickstart** — in `README.md`: clone → venv → install → `.env` → `validate_real
+  smart7` → `make check`. Operating table covers `report`, `status`, `preflight`, and `webapp`.
 
 ---
 
