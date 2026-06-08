@@ -67,6 +67,34 @@ def test_build_site_has_plain_language_structure():
     assert "{html.escape" not in html and "{sid}" not in html
 
 
+def test_missing_data_html_is_friendly_and_actionable():
+    # A research strategy whose CSV isn't downloaded should yield a human message,
+    # not a raw ConnectionError — naming the strategy, the missing file, and the fix.
+    card = webapp._missing_data_html(
+        "dual_momentum", "Historical data file not found: data\\real\\dm.csv"
+    )
+    assert "Dual momentum" in card  # friendly label, not the bare key
+    assert "data\\real\\dm.csv" in card  # surfaces the missing file
+    assert "scripts.fetch_yahoo" in card  # tells the operator how to fix it
+    assert "runs out of the box" in card  # reassures: the deployed strategy still works
+    assert "Traceback" not in card and "ConnectionError" not in card  # no raw error noise
+
+
+def test_missing_data_html_falls_back_to_key_for_unknown_strategy():
+    card = webapp._missing_data_html("mystery", "nope.csv not found")
+    assert "mystery" in card  # unknown key still renders without raising
+
+
+def test_build_site_declares_inline_favicon():
+    # An explicit icon link means the browser never requests /favicon.ico → no 404.
+    html = _render_html()
+    assert '<link rel="icon" type="image/svg+xml" href="/favicon.svg">' in html
+    # The served asset is well-formed, on-brand SVG (brand blue, trend line).
+    assert webapp._FAVICON_SVG.startswith(b"<svg")
+    assert webapp._FAVICON_SVG.rstrip().endswith(b"</svg>")
+    assert b"#2563eb" in webapp._FAVICON_SVG
+
+
 def test_build_site_is_comprehensive_under_expanders():
     # Progressive disclosure: every subsystem's modules still render (in the detail
     # expanders), so nothing is lost in the simplified view.
