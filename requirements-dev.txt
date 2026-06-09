@@ -2,6 +2,7 @@
 
 pytest>=8.0.0
 pytest-cov>=4.1.0        # coverage plugin (drives --cov in pyproject addopts)
+hypothesis>=6.0.0        # property-based tests (tests/test_risk_hardening.py)
 coverage>=7.4.0          # `coverage report -m` step in CI
 ruff>=0.3.0
 mypy>=1.9.0
