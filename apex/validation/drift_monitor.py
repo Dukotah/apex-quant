@@ -120,12 +120,22 @@ class DriftMonitor:
         self._returns.append(daily_return)
         return self.check()
 
-    def record_equity(self, equity: float) -> DriftReading:
+    def record_equity(self, equity: float, *, is_continuous: bool = True) -> DriftReading:
         """
         Record an equity point; the period return is derived from the previous
         equity. The first call only seeds the baseline (returns a WARMING_UP read).
+
+        ``is_continuous`` (default ``True``) states whether this point directly
+        follows the previous one in trading time. Pass ``False`` when a cycle was
+        missed — a gap in the cron series, e.g. the June 2026 outage: the baseline
+        is reseeded WITHOUT appending the return across the gap. That return would
+        conflate several days' moves into a single "daily" observation — a spurious
+        outlier that inflates the rolling volatility and can trip a FALSE quarantine.
+        Skipping it (rather than booking a distorted value) keeps the rolling Sharpe
+        honest across missed days (NEXT-6). The default preserves the original
+        continuous-series behaviour.
         """
-        if self._last_equity is not None and self._last_equity != 0:
+        if is_continuous and self._last_equity is not None and self._last_equity != 0:
             self._returns.append(equity / self._last_equity - 1.0)
         self._last_equity = equity
         return self.check()

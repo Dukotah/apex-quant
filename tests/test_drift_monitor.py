@@ -110,6 +110,21 @@ def test_record_equity_derives_returns():
     assert reading.state == DriftState.ACTIVE
 
 
+def test_record_equity_discontinuous_skips_return_but_reseeds_baseline():
+    """is_continuous=False reseeds the baseline without booking the gap return,
+    so a missed cycle can't inject a conflated multi-day outlier (NEXT-6)."""
+    mon = DriftMonitor("s", validated_sharpe=1.5, window=5, min_observations=2)
+    mon.record_equity(100_000.0)  # seed baseline (no return)
+    r1 = mon.record_equity(101_000.0)  # continuous: +1% booked
+    assert r1.observations == 1
+    # A catastrophic-looking move ACROSS a gap — must NOT be counted as a return.
+    r2 = mon.record_equity(60_000.0, is_continuous=False)
+    assert r2.observations == 1  # unchanged — the -40% gap return was skipped
+    # ...but the baseline DID advance, so the next continuous step is measured off it.
+    r3 = mon.record_equity(60_600.0)  # +1% off the reseeded 60k baseline
+    assert r3.observations == 2
+
+
 def test_deterministic():
     a = DriftMonitor("s", validated_sharpe=1.8, window=20)
     b = DriftMonitor("s", validated_sharpe=1.8, window=20)

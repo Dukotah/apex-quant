@@ -35,12 +35,27 @@ complementary same-platform layer.
 **Verification.** `make check` green on Windows/py3.14: ruff + ruff format clean; **3171 tests pass,
 94.44% coverage** (≥90 floor). +16 tests (`tests/test_heartbeat.py` 13, run_once wiring 3).
 
-**Flagged for follow-up (not fixed this session — one-module discipline):** `hypothesis` is imported
-by `tests/test_risk_hardening.py` but is declared in **no** dependency file (`requirements-dev.txt`,
-`pyproject.toml`, `ci.yml`) — a fresh `pip install -r requirements-dev.txt` cannot collect the suite
-without it. Add `hypothesis` to `requirements-dev.txt` in a `chore(deps):` pass. **Still open on Path A
-before live $:** wire `_heartbeat`/`APEX_HEARTBEAT_URL` into `trade.yml` as a secret; NEXT-2 (state off
-the public repo, the hard blocker). Branch: `feat/external-heartbeat`.
+**Then (same session, separate commits):**
+- **`chore(deps)`:** added `hypothesis>=6.0.0` to `requirements-dev.txt` — it was imported by
+  `tests/test_risk_hardening.py` but declared in no dependency file, so a clean
+  `pip install -r requirements-dev.txt` couldn't even collect the suite. Fixed.
+- **`ops(NEXT-7)`:** forwarded the `APEX_HEARTBEAT_URL` secret into `trade.yml`'s env block, so the
+  dead-man's-switch works end to end once the owner sets the secret. (Only remaining owner step:
+  create a free healthchecks.io check and add the secret.)
+- **`feat(NEXT-6)` — drift monitor is now gap-aware.** A skipped cron cycle (the June outage class) or
+  a same-day re-fire used to feed the drift monitor a single return spanning multiple days — a
+  conflated outlier that inflates rolling volatility and can trip a FALSE quarantine (wrongly halting a
+  healthy strategy). Fix: `DriftMonitor.record_equity` gained `is_continuous` (default True =
+  unchanged); when False it reseeds the baseline WITHOUT booking the gap return. `StateStore` gained
+  `recent_equity_points()` (ts+equity); `run_once` added `_weekday_steps`/`_is_continuous_step`
+  (weekday-aware: Fri→Mon = continuous, a skipped weekday = gap) and feeds both the history replay and
+  the post-cycle record gap-aware. Also corrected the test fixture `_seed_equities` to weekday spacing
+  (the cron only writes weekday rows; the old calendar-day fixture was unrealistic). +9 tests.
+
+**Verification (final).** `make check` green: ruff + format clean; **3176 tests pass, 94.44%
+coverage**. **Still open on Path A before live $:** create the healthchecks.io check + set the
+`APEX_HEARTBEAT_URL` secret (owner); **NEXT-2** — move StateStore off the public repo (the hard
+blocker). Branch: `feat/external-heartbeat`.
 
 ---
 

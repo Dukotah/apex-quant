@@ -42,7 +42,7 @@ import os
 import sqlite3
 import urllib.request
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence
@@ -221,6 +221,18 @@ class StateStore:
         )
         return [float(r[0]) for r in reversed(cur.fetchall())]
 
+    def recent_equity_points(self, mode: str, limit: int = 45) -> List[tuple[str, float]]:
+        """(ts, equity) history for `mode`, oldest->newest.
+
+        Like :meth:`recent_equities` but keeps each point's timestamp so the drift
+        monitor can tell a continuous daily step from a gap (a missed cron cycle)
+        and avoid booking a conflated multi-day return (NEXT-6).
+        """
+        cur = self._conn.execute(
+            "SELECT ts, equity FROM runs WHERE mode = ? ORDER BY ts DESC LIMIT ?", (mode, limit)
+        )
+        return [(str(r[0]), float(r[1])) for r in reversed(cur.fetchall())]
+
     def last_alert_date(self) -> date | None:
         """Return the calendar date of the most recently sent alert, or None if never."""
         row = self._conn.execute("SELECT last_alert_ts FROM alert_meta WHERE id = 1").fetchone()
@@ -384,9 +396,19 @@ def run_once(
     report.num_positions = len(portfolio.open_positions)
 
     # 5. Record this cycle's equity into the drift monitor for the report + alerting.
+    # Book the new return only if this cycle directly follows the last persisted one
+    # in trading time (NEXT-6) — a gap since the last run, or a same-day re-fire, must
+    # not contribute a conflated return. The current run isn't persisted yet, so the
+    # last stored point is the prior cycle.
     mon = _drift_monitor(state_store, report.mode)
     if mon is not None:
-        reading = mon.record_equity(report.equity)
+        cont = True
+        if state_store is not None:
+            last_pts = state_store.recent_equity_points(report.mode, limit=1)
+            if last_pts:
+                last_date = datetime.fromisoformat(last_pts[-1][0]).date()
+                cont = _is_continuous_step(last_date, report.timestamp.date())
+        reading = mon.record_equity(report.equity, is_continuous=cont)
         report.drift_summary = reading.summary()
         report.quarantined = report.quarantined or reading.is_quarantined
 
@@ -758,16 +780,51 @@ def _kill_switch_active() -> bool:
     return os.getenv("APEX_HALT", "").strip().lower() in ("1", "true", "yes", "on")
 
 
+def _weekday_steps(prev_date: date, cur_date: date) -> int:
+    """Number of weekday (Mon–Fri) dates in the half-open range ``(prev_date, cur_date]``.
+
+    ``1`` is a single trading-day step — including Fri→Mon, since the weekend days
+    aren't weekdays. ``>1`` means at least one weekday was skipped (a missed cron
+    cycle). ``0`` means the same calendar day (e.g. a mid-day re-fire) or a
+    weekend-only hop. The cron writes only weekday rows, so for real data the
+    question is purely "did we miss a trading day between these two points?"
+    """
+    if cur_date <= prev_date:
+        return 0
+    count = 0
+    d = prev_date + timedelta(days=1)
+    while d <= cur_date:
+        if d.weekday() < 5:  # Mon=0 .. Fri=4
+            count += 1
+        d += timedelta(days=1)
+    return count
+
+
+def _is_continuous_step(prev_date: date, cur_date: date) -> bool:
+    """True when two equity points are exactly one trading day apart (no missed cycle)."""
+    return _weekday_steps(prev_date, cur_date) == 1
+
+
 def _drift_monitor(store: Optional[StateStore], mode: str) -> Optional[DriftMonitor]:
-    """Rebuild the drift monitor from persisted equity history (one point per cycle)."""
+    """Rebuild the drift monitor from persisted equity history (one point per cycle).
+
+    Feeds points GAP-AWARE: a return is only booked between two consecutive trading
+    days. When a cron cycle was missed (a weekday gap) or a point repeats the same
+    day, the baseline is reseeded without a conflated multi-day return, so a silent
+    outage can't inject a spurious outlier that trips a false quarantine (NEXT-6).
+    """
     if store is None:
         return None
     try:
         mon = DriftMonitor(
             "multi_asset_trend", validated_sharpe=DEPLOYED_VALIDATED_SHARPE, window=30
         )
-        for eq in store.recent_equities(mode):
-            mon.record_equity(eq)
+        prev_date: Optional[date] = None
+        for ts, eq in store.recent_equity_points(mode):
+            cur_date = datetime.fromisoformat(ts).date()
+            cont = prev_date is None or _is_continuous_step(prev_date, cur_date)
+            mon.record_equity(eq, is_continuous=cont)
+            prev_date = cur_date
         return mon
     except Exception as exc:  # noqa: BLE001 — drift is protective, never fatal
         logger.warning("drift monitor unavailable: %s", exc)
