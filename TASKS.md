@@ -34,6 +34,16 @@ Live board. `todo` / `doing` / `done`. See `ROADMAP.md` for phases, `PROGRESS.md
 | NEXT-6 | Gap-aware drift monitor (`is_continuous` / weekday gap-detection) — a missed cycle no longer trips a false quarantine. | done |
 | NEXT-2 | Move StateStore OFF the public repo (hard blocker before live $). | todo |
 
+## Observability & quality *(Session 35 swarm)*
+
+| # | Task | Status |
+|---|------|--------|
+| NEXT-4 | Per-sleeve P&L attribution — `apex/analytics/sleeve_attribution.py` (FIFO round-trips) + report section. | done (module); live wiring needs fill persistence → LATER-5 |
+| NEXT-10 | Coverage uplift on thin modules (backtester/base_strategy/config/metrics). | done (all ≥ target) |
+| HOR-9 | Regime-segmented performance report (`scripts/regime_report.py`). | done |
+| DASH | Dashboard cron-liveness/stale indicator (apex-trader topbar). | done (build verify pending — apex-trader PR) |
+| LATER-5 | Persist individual fills / per-strategy tags in StateStore (unblocks live per-sleeve report). | todo |
+
 ## Improvements
 
 | Task | Status |

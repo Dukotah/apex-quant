@@ -239,3 +239,58 @@ def test_sortino_with_nonzero_risk_free():
     rets = [0.02, -0.01, 0.03, -0.02, 0.01]
     result = metrics.sortino_ratio(rets, risk_free_rate=0.05)
     assert isinstance(result, float)
+
+
+# ---------------------------------------------------------------------------
+# Hand-computed exact values (CLAUDE.md: metric math is tested against
+# known-correct numbers, not just signs).
+# ---------------------------------------------------------------------------
+
+
+def test_sharpe_exact_hand_computed_value():
+    """
+    Sharpe = (mean / pstdev) * sqrt(252).
+    rets = [0.02, 0.00, 0.04, 0.02] → mean = 0.02, pstdev = 0.01414213562373095.
+    Sharpe = (0.02 / 0.01414213562373095) * sqrt(252) ≈ 22.449944320643652.
+    """
+    rets = [0.02, 0.00, 0.04, 0.02]
+    assert abs(metrics.sharpe_ratio(rets) - 22.449944320643652) < 1e-9
+
+
+def test_sortino_exact_hand_computed_value():
+    """
+    Sortino = (mean / downside_dev) * sqrt(252), rf = 0.
+    rets = [0.02, -0.02, 0.04, 0.02] → mean = 0.015.
+    downside samples = [0, -0.02, 0, 0]; downside_dev = sqrt(mean([0, 0.0004, 0, 0]))
+    = sqrt(0.0001) = 0.01. Sortino = (0.015 / 0.01) * sqrt(252) ≈ 23.811761799581316.
+    """
+    rets = [0.02, -0.02, 0.04, 0.02]
+    assert abs(metrics.sortino_ratio(rets) - 23.811761799581316) < 1e-9
+
+
+def test_sharpe_risk_free_cancels_excess_to_zero():
+    """
+    A flat return series equal to the per-period risk-free rate has zero excess
+    return → zero variance of excess → Sharpe is exactly 0.0 (the sd==0 guard).
+    rf annualized = 1.0 → per-period = 1.0/252; a constant series at that level
+    yields excess = 0 for every period.
+    """
+    per_period = 1.0 / 252
+    rets = [per_period] * 8
+    assert metrics.sharpe_ratio(rets, risk_free_rate=1.0) == 0.0
+
+
+def test_profit_factor_exact_with_mixed_trades():
+    """gross profit = 4+1 = 5, gross loss = |-2-3| = 5 → profit factor exactly 1.0."""
+    assert abs(metrics.profit_factor([4.0, -2.0, 1.0, -3.0]) - 1.0) < 1e-9
+
+
+def test_correlation_partial_overlap_truncates_to_shorter():
+    """
+    correlation truncates both series to the shorter length before computing.
+    a = [1, 2, 3] vs b = [2, 4, 6, 99] → only first 3 of b are used, giving a
+    perfect positive correlation of 1.0 (the trailing 99 is ignored).
+    """
+    a = [1.0, 2.0, 3.0]
+    b = [2.0, 4.0, 6.0, 99.0]
+    assert abs(metrics.correlation(a, b) - 1.0) < 1e-9
