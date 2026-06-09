@@ -59,6 +59,37 @@ def test_run_backtest_produces_equity_and_trades():
     assert len(result.fills) > 0
 
 
+def test_run_backtest_honors_initial_capital():
+    """The equity curve must start at the supplied initial_capital (in dollars)."""
+    events = _trending_series(n=120)
+    strat = SMACrossoverStrategy("sma", [SYM], fast_period=10, slow_period=30)
+    cap = Decimal("250000")
+    result = run_backtest(events, strat, _full_risk(), initial_capital=cap)
+    assert len(result.equity_curve) >= 2
+    # First equity point equals starting capital before any fills move it.
+    assert abs(result.equity_curve[0] - float(cap)) < 1e-6
+
+
+def test_run_backtest_no_signal_strategy_holds_capital_flat():
+    """A strategy that never trades leaves equity flat at initial capital, no fills."""
+    from typing import List
+
+    from apex.core.events import SignalEvent
+    from apex.strategy.base_strategy import BaseStrategy
+
+    class _Flat(BaseStrategy):
+        def on_bar(self, bar) -> List[SignalEvent]:
+            return []
+
+    events = _trending_series(n=80)
+    cap = Decimal("100000")
+    result = run_backtest(events, _Flat("flat", [SYM]), _full_risk(), initial_capital=cap)
+    assert result.fills == []
+    assert result.trade_returns == []
+    # No trades → equity never deviates from starting capital.
+    assert all(abs(v - float(cap)) < 1e-6 for v in result.equity_curve)
+
+
 def test_reduce_aware_exit_lets_positions_close():
     """Death-cross SELLs must actually flatten the long (reduce-aware sizing)."""
     events = _trending_series()
