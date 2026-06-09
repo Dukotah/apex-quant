@@ -30,6 +30,8 @@ Live board. `todo` / `doing` / `done`. See `ROADMAP.md` for phases, `PROGRESS.md
 | NOW-5 | Clean daily-loss baseline in `run_once` each cycle (`daily_open` table). | done |
 | NOW-6 | HaltEvent cancels open broker orders (`cancel_open_orders` in engine contract). | done |
 | NOW-7 | Broker-truth reconciliation diff + alert (block entries, allow exits). | done |
+| NEXT-7 | External dead-man's-switch (`apex/ops/heartbeat.py` → `APEX_HEARTBEAT_URL`), pinged from `run_once`; secret wired into `trade.yml`. | done (owner: create healthchecks.io check + set secret) |
+| NEXT-6 | Gap-aware drift monitor (`is_continuous` / weekday gap-detection) — a missed cycle no longer trips a false quarantine. | done |
 | NEXT-2 | Move StateStore OFF the public repo (hard blocker before live $). | todo |
 
 ## Improvements

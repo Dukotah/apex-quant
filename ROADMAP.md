@@ -8,6 +8,11 @@
 > Horizon, every item with ID · deps · effort · impact · gating · DoD, the two critical paths
 > to live capital and the second edge, anti-goals, and success metrics). This file stays the
 > quick founder view; the strategic doc is the execution plan.
+>
+> **♾️ `docs/ROADMAP-PERPETUAL.md`** is the layer *above* the strategic doc: the never-ending R&D
+> engine (10 perpetual tracks + a maturity ladder + cadence rituals) that refills the strategic
+> roadmap as items land. Strategic = the sprint board; perpetual = the self-refilling backlog +
+> scoreboard. Read it when the NOW/NEXT items run low and you need the next pull.
 
 Status legend: ✅ done · 🔲 to build · 🚧 in progress
 

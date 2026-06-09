@@ -6,6 +6,59 @@
 
 ---
 
+## Session 34 (2026-06-08) — NEXT-7: external dead-man's-switch + the perpetual R&D roadmap
+
+**Context.** New operator session. Wrote `docs/ROADMAP-PERPETUAL.md` — the layer *above*
+`docs/ROADMAP-STRATEGIC.md`: a never-ending R&D engine (a Discover→Validate→Allocate→Operate→Monitor
+flywheel, 10 perpetual tracks with self-refilling backlogs, an L0–L5 maturity ladder, and cadence
+rituals). Honest framing it adds: the engine is *built* but unproven *as a trading instrument* — the
+"works" column (live edge, survivorship-honest data, unattended operation, no state leak, risk fired
+in prod) is what remains, and that column is perpetual. Overall product maturity scored ~L1–L2.
+Pointer added to `ROADMAP.md`. Then built the highest-priority operability item.
+
+**Built: NEXT-7 — external (off-GitHub) dead-man's-switch.** The in-repo `watchdog.yml` is a
+SAME-PLATFORM check: it runs on the very GitHub scheduler it polices, so a GitHub schedule
+auto-disable / no-fire silences it too — the exact June-5→8 outage blind spot. New module
+`apex/ops/heartbeat.py` (mirrors `apex/ops/alerts.py` conventions): a `@runtime_checkable` `Pinger`
+Protocol DI seam + `HealthchecksPinger` (env opt-in via `APEX_HEARTBEAT_URL`; `GET <url>` on success,
+`<url>/fail` on failure; injectable `opener` seam; **never raises**) + a `ping_heartbeat()` wrapper.
+
+**Wiring (`scripts/run_once.py`).** A `_heartbeat(success)` helper (swallows all errors) pings success
+at BOTH clean return points (the no-bars early return and the full-cycle return), and `main()` pings
+`/fail` on an exception before re-raising. Design choice that makes this catch the outage class the
+watchdog can't: the success ping fires only from *inside* a genuinely completed cycle, so a preflight
+skip, an errored run, AND a schedule that never fired all collapse to one observable — **no ping → the
+external monitor (e.g. free healthchecks.io) emails you.** Docs: `docs/HOSTING.md` setup section +
+`.env.example` (`APEX_HEARTBEAT_URL`, unset = disabled). The internal ntfy watchdog stays as a
+complementary same-platform layer.
+
+**Verification.** `make check` green on Windows/py3.14: ruff + ruff format clean; **3171 tests pass,
+94.44% coverage** (≥90 floor). +16 tests (`tests/test_heartbeat.py` 13, run_once wiring 3).
+
+**Then (same session, separate commits):**
+- **`chore(deps)`:** added `hypothesis>=6.0.0` to `requirements-dev.txt` — it was imported by
+  `tests/test_risk_hardening.py` but declared in no dependency file, so a clean
+  `pip install -r requirements-dev.txt` couldn't even collect the suite. Fixed.
+- **`ops(NEXT-7)`:** forwarded the `APEX_HEARTBEAT_URL` secret into `trade.yml`'s env block, so the
+  dead-man's-switch works end to end once the owner sets the secret. (Only remaining owner step:
+  create a free healthchecks.io check and add the secret.)
+- **`feat(NEXT-6)` — drift monitor is now gap-aware.** A skipped cron cycle (the June outage class) or
+  a same-day re-fire used to feed the drift monitor a single return spanning multiple days — a
+  conflated outlier that inflates rolling volatility and can trip a FALSE quarantine (wrongly halting a
+  healthy strategy). Fix: `DriftMonitor.record_equity` gained `is_continuous` (default True =
+  unchanged); when False it reseeds the baseline WITHOUT booking the gap return. `StateStore` gained
+  `recent_equity_points()` (ts+equity); `run_once` added `_weekday_steps`/`_is_continuous_step`
+  (weekday-aware: Fri→Mon = continuous, a skipped weekday = gap) and feeds both the history replay and
+  the post-cycle record gap-aware. Also corrected the test fixture `_seed_equities` to weekday spacing
+  (the cron only writes weekday rows; the old calendar-day fixture was unrealistic). +9 tests.
+
+**Verification (final).** `make check` green: ruff + format clean; **3176 tests pass, 94.44%
+coverage**. **Still open on Path A before live $:** create the healthchecks.io check + set the
+`APEX_HEARTBEAT_URL` secret (owner); **NEXT-2** — move StateStore off the public repo (the hard
+blocker). Branch: `feat/external-heartbeat`.
+
+---
+
 ## Session 33 (2026-06-08) — Doc-recon: captured the overseer line + the June 5–8 cron OUTAGE; multi-book + screener shipped
 
 This entry closes the doc-recon gap Session 32 flagged ("origin/main's 15 commits never touched DECISIONS.md").

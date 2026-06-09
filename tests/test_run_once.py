@@ -26,8 +26,11 @@ from scripts.run_once import (
     StateStore,
     _detect_reconcile_discrepancy,
     _drift_monitor,
+    _heartbeat,
+    _is_continuous_step,
     _notify,
     _notify_cycle,
+    _weekday_steps,
     run_once,
 )
 
@@ -211,12 +214,28 @@ def test_state_store_creates_schema_and_persists(tmp_path):
 # ------------------------------------------------------------- drift monitoring
 
 
+def _weekdays_from(base, n):
+    """The n-th trading-day timestamp from base (skips weekends) — matches how the
+    weekday cron actually spaces its run rows, so drift gap-detection sees a
+    continuous series."""
+    d = base
+    added = 0
+    while added < n:
+        d += timedelta(days=1)
+        if d.weekday() < 5:
+            added += 1
+    return d
+
+
 def _seed_equities(store, equities):
-    base = datetime(2024, 1, 1, tzinfo=UTC)
+    base = datetime(2024, 1, 1, tzinfo=UTC)  # a Monday
     for i, eq in enumerate(equities):
         store.save_run(
             RunReport(
-                timestamp=base + timedelta(days=i), mode="paper", equity=float(eq), num_positions=0
+                timestamp=_weekdays_from(base, i),
+                mode="paper",
+                equity=float(eq),
+                num_positions=0,
             ),
             {},
         )
@@ -257,6 +276,64 @@ def test_drift_monitor_warming_up_does_not_block(tmp_path):
     _seed_equities(store, [100000.0, 100100.0, 100200.0])  # too little data to judge
     mon = _drift_monitor(store, "paper")
     assert mon is not None and not mon.check().is_quarantined
+
+
+# ------------------------------------------------- NEXT-6 drift gap-detection
+
+
+def test_weekday_steps_counts_trading_days():
+    d = date(2024, 1, 1)  # Monday
+    assert _weekday_steps(d, date(2024, 1, 2)) == 1  # Mon→Tue
+    assert _weekday_steps(date(2024, 1, 5), date(2024, 1, 8)) == 1  # Fri→Mon (weekend)
+    assert _weekday_steps(d, date(2024, 1, 3)) == 2  # Mon→Wed (Tue skipped)
+    assert _weekday_steps(d, d) == 0  # same day (mid-day re-fire)
+    assert _weekday_steps(date(2024, 1, 6), date(2024, 1, 7)) == 0  # Sat→Sun, no weekday
+
+
+def test_is_continuous_step():
+    assert _is_continuous_step(date(2024, 1, 5), date(2024, 1, 8)) is True  # Fri→Mon
+    assert _is_continuous_step(date(2024, 1, 1), date(2024, 1, 4)) is False  # 3 weekdays
+
+
+def test_recent_equity_points_carries_timestamps(tmp_path):
+    store = StateStore(tmp_path / "s.db")
+    _seed_equities(store, [100.0, 101.0, 102.0])
+    pts = store.recent_equity_points("paper")
+    assert [eq for _, eq in pts] == [100.0, 101.0, 102.0]  # oldest→newest
+    assert all(isinstance(ts, str) for ts, _ in pts)
+    assert pts[0][0] < pts[1][0] < pts[2][0]  # ascending ISO timestamps
+
+
+def test_drift_skips_gap_return_no_false_quarantine(tmp_path):
+    """A single huge move ACROSS a missed-cycle gap must not count as one daily
+    return. With the gap honored, the conflated outlier is skipped, so the monitor
+    stays WARMING_UP / non-quarantined rather than tripping on a phantom crash."""
+    store = StateStore(tmp_path / "s.db")
+    base = datetime(2024, 1, 1, tzinfo=UTC)  # Monday
+    # Two flat points one trading day apart, then a -40% drop after a 5-weekday gap.
+    store.save_run(RunReport(timestamp=base, mode="paper", equity=100000.0, num_positions=0), {})
+    store.save_run(
+        RunReport(
+            timestamp=_weekdays_from(base, 1), mode="paper", equity=100000.0, num_positions=0
+        ),
+        {},
+    )
+    store.save_run(
+        RunReport(
+            timestamp=_weekdays_from(base, 6),  # 5 weekdays skipped → discontinuous
+            mode="paper",
+            equity=60000.0,  # would be a catastrophic single-day return if counted
+            num_positions=0,
+        ),
+        {},
+    )
+    mon = _drift_monitor(store, "paper")
+    assert mon is not None
+    # The -40% gap return was skipped; only the flat continuous step was booked, so
+    # the monitor has too little continuous data to judge and does not quarantine.
+    reading = mon.check()
+    assert reading.observations == 1  # just the one continuous (flat) return
+    assert not reading.is_quarantined
 
 
 def test_notify_is_silent_without_topic(monkeypatch):
@@ -443,6 +520,43 @@ def test_notify_cycle_fail_open_on_notifier_error(tmp_path, monkeypatch):
     )
     # Must not raise even though the notifier is broken.
     _notify_cycle(report, store)  # no AssertionError, no exception propagated
+
+
+# ----------------------------------------------- NEXT-7 external heartbeat wiring
+
+
+def test_heartbeat_forwards_success_to_pinger(monkeypatch):
+    """_heartbeat builds a HealthchecksPinger and forwards the success flag."""
+
+    class FakePinger:
+        def __init__(self) -> None:
+            self.pings: list[bool] = []
+
+        def ping(self, success: bool = True) -> None:
+            self.pings.append(success)
+
+    fake = FakePinger()
+    monkeypatch.setattr("scripts.run_once.HealthchecksPinger", lambda: fake)
+    _heartbeat(True)
+    _heartbeat(False)
+    assert fake.pings == [True, False]
+
+
+def test_heartbeat_is_noop_without_url(monkeypatch):
+    """With no APEX_HEARTBEAT_URL set, _heartbeat is a safe no-op (real pinger)."""
+    monkeypatch.delenv("APEX_HEARTBEAT_URL", raising=False)
+    _heartbeat(True)  # must not raise
+
+
+def test_heartbeat_swallows_pinger_errors(monkeypatch):
+    """A broken pinger must never break the cron cycle (fail-open)."""
+
+    class BrokenPinger:
+        def ping(self, success: bool = True) -> None:
+            raise RuntimeError("network down")
+
+    monkeypatch.setattr("scripts.run_once.HealthchecksPinger", lambda: BrokenPinger())
+    _heartbeat(True)  # no exception propagated
 
 
 # ===================================================== NOW-4/5/7 (Session 32)

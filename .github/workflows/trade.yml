@@ -55,6 +55,11 @@ jobs:
       ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
       # Optional: free push notifications via ntfy.sh (no account needed).
       NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+      # Optional: external dead-man's-switch (NEXT-7). run_once pings this URL on a
+      # successful cycle and <url>/fail on an error, so an OFF-GitHub monitor (e.g.
+      # free healthchecks.io) alerts when cycles stop — the blind spot watchdog.yml
+      # cannot see. Unset = disabled. See docs/HOSTING.md.
+      APEX_HEARTBEAT_URL: ${{ secrets.APEX_HEARTBEAT_URL }}
 
     steps:
       - name: Checkout
