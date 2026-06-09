@@ -56,6 +56,7 @@ from apex.data.base_feed import BaseDataFeed
 from apex.execution.base_execution import BaseExecutionEngine
 from apex.execution.factory import make_execution_engine
 from apex.ops.alerts import NtfyNotifier, decide_alerts, send_alerts, should_heartbeat
+from apex.ops.heartbeat import HealthchecksPinger
 from apex.risk.capital_allocation import CapitalAllocator
 from apex.risk.portfolio import Portfolio
 from apex.risk.risk_manager import RiskConfig, RiskManager
@@ -313,6 +314,7 @@ def run_once(
             report.equity = float(portfolio.equity)
             report.num_positions = len(portfolio.open_positions)
             _persist(state_store, report, portfolio)
+            _heartbeat(True)  # cycle completed cleanly (no bars = market likely closed)
             return report
 
         # 4. Warm strategies over the window; act only on the latest bar's signals.
@@ -391,6 +393,7 @@ def run_once(
     _persist(state_store, report, portfolio)
     logger.info(report.summary())
     _notify_cycle(report, state_store)
+    _heartbeat(True)  # NEXT-7: signal liveness to the external dead-man's-switch
     return report
 
 
@@ -730,6 +733,22 @@ def _notify_cycle(report: RunReport, store: Optional[StateStore] = None) -> None
         logger.warning("_notify_cycle failed (non-fatal): %s", exc)
 
 
+def _heartbeat(success: bool) -> None:
+    """External dead-man's-switch ping (NEXT-7). Never raises — observability only.
+
+    Pings ``APEX_HEARTBEAT_URL`` (e.g. a free healthchecks.io check) so an
+    off-GitHub monitor alerts when cycles stop arriving. Because this fires only
+    from inside a genuinely-completed cycle, a preflight skip, an errored run, or
+    a schedule that never fired all produce the same observable — no ping — which
+    is the exact blind spot the same-platform ``watchdog.yml`` cannot see. No-ops
+    unless ``APEX_HEARTBEAT_URL`` is set.
+    """
+    try:
+        HealthchecksPinger().ping(success=success)
+    except Exception as exc:  # noqa: BLE001 — monitoring must never break the cron
+        logger.warning("heartbeat ping failed (non-fatal): %s", exc)
+
+
 def _kill_switch_active() -> bool:
     """
     Manual emergency stop. Set the APEX_HALT env var (1/true/yes/on) to block ALL new
@@ -839,7 +858,14 @@ def main() -> int:  # pragma: no cover - reads real env/keys + network
 
     # Apply the deployed strategy's production risk config.
     config = dataclasses.replace(config, risk=PRODUCTION_RISK)
-    report = run_once(config, _build_strategies(config), state_store=StateStore())
+    try:
+        report = run_once(config, _build_strategies(config), state_store=StateStore())
+    except Exception:
+        # NEXT-7: a cycle that errored out before its success ping should signal
+        # failure to the external monitor so it alerts immediately, then re-raise
+        # so the cron job still exits non-zero.
+        _heartbeat(False)
+        raise
     print(report.summary())
     return 0
 

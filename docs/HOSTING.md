@@ -77,3 +77,25 @@ is the authority.
 1. Pick an unguessable topic name, set it as the `NTFY_TOPIC` secret.
 2. Subscribe to that topic in the ntfy mobile app.
 3. The workflow pings it on failures; the engine can ping it on fills.
+
+## External dead-man's-switch (truly independent liveness)
+
+The in-repo `watchdog.yml` alerts when `state/status.json` goes stale, but it runs on
+the **same GitHub Actions scheduler it polices** — if GitHub auto-disables scheduled
+workflows (e.g. after 60 days of repo inactivity) or the schedule simply never fires,
+the watchdog is silenced too. That is the blind spot behind the June 2026 three-day
+outage.
+
+An **off-GitHub** monitor closes it. `run_once` pings `APEX_HEARTBEAT_URL` on every
+successful cycle (and `<url>/fail` on an errored one); the external service emails you
+when the pings stop. Because the success ping fires only from inside a genuinely
+completed cycle, a preflight skip, an errored run, and a schedule that never fired all
+collapse to the same observable — **no ping → you get alerted.**
+
+Setup (free, ~2 minutes):
+1. Create a check at [healthchecks.io](https://healthchecks.io) (free tier, no card).
+   Set its **period** to your cron cadence and a **grace** window (e.g. period 1 day,
+   grace 2 hours for the weekday 19:50 UTC slot).
+2. Copy the check's ping URL (e.g. `https://hc-ping.com/<uuid>`).
+3. Set it as the `APEX_HEARTBEAT_URL` secret/env var for the trade cron.
+4. Unset = disabled. Any check-in service using the `/fail` suffix convention works.

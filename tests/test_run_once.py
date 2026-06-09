@@ -26,6 +26,7 @@ from scripts.run_once import (
     StateStore,
     _detect_reconcile_discrepancy,
     _drift_monitor,
+    _heartbeat,
     _notify,
     _notify_cycle,
     run_once,
@@ -443,6 +444,43 @@ def test_notify_cycle_fail_open_on_notifier_error(tmp_path, monkeypatch):
     )
     # Must not raise even though the notifier is broken.
     _notify_cycle(report, store)  # no AssertionError, no exception propagated
+
+
+# ----------------------------------------------- NEXT-7 external heartbeat wiring
+
+
+def test_heartbeat_forwards_success_to_pinger(monkeypatch):
+    """_heartbeat builds a HealthchecksPinger and forwards the success flag."""
+
+    class FakePinger:
+        def __init__(self) -> None:
+            self.pings: list[bool] = []
+
+        def ping(self, success: bool = True) -> None:
+            self.pings.append(success)
+
+    fake = FakePinger()
+    monkeypatch.setattr("scripts.run_once.HealthchecksPinger", lambda: fake)
+    _heartbeat(True)
+    _heartbeat(False)
+    assert fake.pings == [True, False]
+
+
+def test_heartbeat_is_noop_without_url(monkeypatch):
+    """With no APEX_HEARTBEAT_URL set, _heartbeat is a safe no-op (real pinger)."""
+    monkeypatch.delenv("APEX_HEARTBEAT_URL", raising=False)
+    _heartbeat(True)  # must not raise
+
+
+def test_heartbeat_swallows_pinger_errors(monkeypatch):
+    """A broken pinger must never break the cron cycle (fail-open)."""
+
+    class BrokenPinger:
+        def ping(self, success: bool = True) -> None:
+            raise RuntimeError("network down")
+
+    monkeypatch.setattr("scripts.run_once.HealthchecksPinger", lambda: BrokenPinger())
+    _heartbeat(True)  # no exception propagated
 
 
 # ===================================================== NOW-4/5/7 (Session 32)
