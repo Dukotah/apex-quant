@@ -6,6 +6,59 @@
 
 ---
 
+## Session 35 (2026-06-11) — Literature synthesis: the Defensive Trend Allocator (research candidate)
+
+**Context.** Operator asked for a multi-agent deep-research cycle across four strategy families, then
+to synthesize the findings into ONE long-only daily-ETF strategy ("kitchen-sink" synthesis — the
+operator's explicit choice over the lower-overfitting options). Ran 5 parallel research agents
+(volatility, trend, carry/seasonality, risk-parity, + an adversarial decay/overfitting cross-check).
+
+**What the research concluded (what survives our long-only / no-leverage / no-shorting / daily-OHLC /
+liquid-ETF constraints):**
+- **Trend** (Faber 2007 5/5; Hurst/Ooi/Pedersen barbell): SURVIVES long-only. The academic TSMOM
+  Sharpe (Moskowitz 2012) does NOT — it needs leverage+shorting and is contested in peer review
+  (Huang et al. 2020 JFE). Keep the 200-day-SMA / absolute-momentum *defensive* core only.
+- **Risk parity** (Maillard-Roncalli-Teiletche 2010): inverse-vol weighting is the leverage-free ERC
+  special case — 5/5. BAB (Frazzini-Pedersen) and levered risk parity do NOT survive (need leverage +
+  short leg + microcaps; killed after costs by Novy-Marx 2022).
+- **Volatility** (Harvey et al. 2018): keep ONLY the capped de-risking leg (scale DOWN in high vol,
+  never lever up) — 4/5. Moreira-Muir's Sharpe-boost claim is REJECTED (failed OOS, Cederburg 2020 JFE).
+  Short-vol/VRP harvesting is a hard reject (−90%-in-a-day tail; Volmageddon).
+- **Carry/seasonality**: EXCLUDE as a book. Cross-asset carry (Koijen 2018) is un-implementable
+  long-only (edge lives in the short leg + futures roll yield). Calendar effects (Halloween, TOM) are
+  data-mined/decayed (Maberly-Pierce 2004). Halloween kept only as a weak conviction modifier.
+- **Decay cross-check** (McLean-Pontiff ~50% post-pub Sharpe decay; Harvey-Liu-Zhu t>3.0;
+  Hou-Xue-Zhang 65–82% fail to replicate; Bailey & López de Prado 7-configs→spurious Sharpe>1,
+  reject if PBO≥50%): a high-knob synthesis is the danger zone — underwrite live at ~0.5× backtest.
+
+**Built: `apex/strategy/library/defensive_trend_allocator.py` (`DefensiveTrendAllocatorStrategy`).**
+A NEW research strategy (deployed `multi_asset_trend` UNTOUCHED). Fuses one mechanism per family:
+(1) multi-horizon barbell trend vote, (2) 12-month absolute-momentum confirmation gate (both must
+agree to be long), (3) inverse-vol risk-parity conviction, (4) capped portfolio vol-target de-risking
+overlay, (5) Halloween seasonal tilt. All five fold into `SignalEvent.strength` only — the RiskManager
+stays the sole sizer; entry/exit are state-based (cold-start safe) exactly like multi_asset_trend.
+Seasonality reads `bar.timestamp.month` (an input, not wall-clock) so backtest/live parity holds.
+
+**Overfitting disclosure (honest framing).** This is deliberately HIGH-parameter — the danger zone the
+decay literature warns against. To keep PBO honest, every parameter is fixed at its literature-canonical
+value and is NOT to be grid-searched (lookbacks [50,200], abs-mom 252, vol 63d EWMA λ=0.94, target_vol
+15%, summer 0.5). It is a RESEARCH candidate ONLY: it must clear the full Gauntlet (incl. the soft
+Gates 8/9 DSR+PBO, which arguably should be HARD for a new sleeve) AND beat the deployed trend strategy
+out-of-sample before deployment could be considered. Expected outcome per the research: the synthesis
+likely does NOT justify its complexity. Not registered in STRATEGY_REGISTRY (follows the multi_asset_trend
+precedent — the registry is a curated subset, not all library strategies).
+
+**Verification.** `make check` green: ruff + ruff format clean; **3202 tests pass, 94.47% coverage**
+(≥90 floor). +26 tests (`tests/test_defensive_trend_allocator.py`) covering param validation, the
+dual-gate (trend alone does not enter), state-based enter/exit/no-pyramid, cold-start, inverse-vol
+ordering, the capped overlay (only scales down), the seasonal tilt, and determinism.
+
+**NOT done (next steps, deliberately deferred — one module per session):** run the actual Gauntlet
+on real data, A/B vs multi_asset_trend, and decide deploy/shelve from the DSR/PBO verdict. No live
+deployment; the paper-gate clock for the deployed strategy is unaffected.
+
+---
+
 ## Session 34 (2026-06-08) — NEXT-7: external dead-man's-switch + the perpetual R&D roadmap
 
 **Context.** New operator session. Wrote `docs/ROADMAP-PERPETUAL.md` — the layer *above*
