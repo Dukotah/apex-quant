@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-18T21:52:04.225491+00:00",
+  "generatedAt": "2026-06-19T20:57:13.557747+00:00",
   "mode": "paper",
   "halted": false,
   "haltReason": null,
@@ -81,6 +81,11 @@
     },
     {
       "t": "2026-06-18T21:51:57.918061+00:00",
+      "equity": 99997.845,
+      "drawdownPct": 2.1549999999988357e-05
+    },
+    {
+      "t": "2026-06-19T20:57:07.837140+00:00",
       "equity": 99997.845,
       "drawdownPct": 2.1549999999988357e-05
     }
@@ -171,19 +176,19 @@
   ],
   "paperGate": {
     "startDate": "2026-06-04T23:39:01.443559+00:00",
-    "daysElapsed": 14,
+    "daysElapsed": 15,
     "daysRequired": 30,
-    "rollingSharpe": -0.01488151001894693,
+    "rollingSharpe": -0.014340181422078298,
     "targetSharpe": 1.0,
     "withinBacktestBand": false
   },
   "gauntlet": [],
   "alerts": [
     {
-      "t": "2026-06-18T21:52:04.225491+00:00",
+      "t": "2026-06-19T20:57:13.557747+00:00",
       "level": "info",
       "kind": "drift",
-      "message": "collecting live data (13/30)"
+      "message": "collecting live data (14/30)"
     }
   ],
   "books": [
@@ -273,6 +278,11 @@
           "t": "2026-06-18T21:51:57.918061+00:00",
           "equity": 99997.845,
           "drawdownPct": 2.1549999999988357e-05
+        },
+        {
+          "t": "2026-06-19T20:57:07.837140+00:00",
+          "equity": 99997.845,
+          "drawdownPct": 2.1549999999988357e-05
         }
       ],
       "positions": [
@@ -351,18 +361,18 @@
       ],
       "paperGate": {
         "startDate": "2026-06-04T23:39:01.443559+00:00",
-        "daysElapsed": 14,
+        "daysElapsed": 15,
         "daysRequired": 30,
-        "rollingSharpe": -0.01488151001894693,
+        "rollingSharpe": -0.014340181422078298,
         "targetSharpe": 1.0,
         "withinBacktestBand": false
       },
       "summary": {
         "totalReturnPct": -2.1550000000036817e-05,
-        "sharpe": -0.01488151001894693,
+        "sharpe": -0.014340181422078298,
         "maxDrawdownPct": 0.004269250000000029,
         "dayPnlPct": -2.155e-05,
-        "sessions": 14
+        "sessions": 15
       }
     },
     {
@@ -431,6 +441,11 @@
           "t": "2026-06-18T21:52:03.430422+00:00",
           "equity": 99658.339905,
           "drawdownPct": 0.003416600949999993
+        },
+        {
+          "t": "2026-06-19T20:57:12.910878+00:00",
+          "equity": 99658.339905,
+          "drawdownPct": 0.003416600949999993
         }
       ],
       "positions": [
@@ -473,18 +488,18 @@
       ],
       "paperGate": {
         "startDate": "2026-06-08T20:37:46.330142+00:00",
-        "daysElapsed": 10,
+        "daysElapsed": 11,
         "daysRequired": 30,
-        "rollingSharpe": -2.4227510518252204,
+        "rollingSharpe": -2.2957513181745193,
         "targetSharpe": 1.0,
         "withinBacktestBand": false
       },
       "summary": {
         "totalReturnPct": -0.0034166009499999594,
-        "sharpe": -2.4227510518252204,
+        "sharpe": -2.2957513181745193,
         "maxDrawdownPct": 0.005683800950000004,
         "dayPnlPct": -0.00341660095,
-        "sessions": 10
+        "sessions": 11
       }
     },
     {
@@ -553,12 +568,17 @@
           "t": "2026-06-18T21:52:02.535215+00:00",
           "equity": 100000.0,
           "drawdownPct": 0.0
+        },
+        {
+          "t": "2026-06-19T20:57:12.203416+00:00",
+          "equity": 100000.0,
+          "drawdownPct": 0.0
         }
       ],
       "positions": [],
       "paperGate": {
         "startDate": "2026-06-08T20:37:45.716237+00:00",
-        "daysElapsed": 10,
+        "daysElapsed": 11,
         "daysRequired": 30,
         "rollingSharpe": 0.0,
         "targetSharpe": 1.0,
@@ -569,7 +589,7 @@
         "sharpe": 0.0,
         "maxDrawdownPct": 0.0,
         "dayPnlPct": 0.0,
-        "sessions": 10
+        "sessions": 11
       }
     },
     {
@@ -638,12 +658,17 @@
           "t": "2026-06-18T21:52:02.880944+00:00",
           "equity": 100000.0,
           "drawdownPct": 0.0
+        },
+        {
+          "t": "2026-06-19T20:57:12.426902+00:00",
+          "equity": 100000.0,
+          "drawdownPct": 0.0
         }
       ],
       "positions": [],
       "paperGate": {
         "startDate": "2026-06-08T20:37:45.934700+00:00",
-        "daysElapsed": 10,
+        "daysElapsed": 11,
         "daysRequired": 30,
         "rollingSharpe": 0.0,
         "targetSharpe": 1.0,
@@ -654,7 +679,7 @@
         "sharpe": 0.0,
         "maxDrawdownPct": 0.0,
         "dayPnlPct": 0.0,
-        "sessions": 10
+        "sessions": 11
       }
     },
     {
@@ -723,12 +748,17 @@
           "t": "2026-06-18T21:52:03.267755+00:00",
           "equity": 100000.0,
           "drawdownPct": 0.0
+        },
+        {
+          "t": "2026-06-19T20:57:12.694625+00:00",
+          "equity": 100000.0,
+          "drawdownPct": 0.0
         }
       ],
       "positions": [],
       "paperGate": {
         "startDate": "2026-06-08T20:37:46.224733+00:00",
-        "daysElapsed": 10,
+        "daysElapsed": 11,
         "daysRequired": 30,
         "rollingSharpe": 0.0,
         "targetSharpe": 1.0,
@@ -739,7 +769,7 @@
         "sharpe": 0.0,
         "maxDrawdownPct": 0.0,
         "dayPnlPct": 0.0,
-        "sessions": 10
+        "sessions": 11
       }
     },
     {
@@ -808,12 +838,17 @@
           "t": "2026-06-18T21:52:02.718824+00:00",
           "equity": 100000.0,
           "drawdownPct": 0.0
+        },
+        {
+          "t": "2026-06-19T20:57:12.333036+00:00",
+          "equity": 100000.0,
+          "drawdownPct": 0.0
         }
       ],
       "positions": [],
       "paperGate": {
         "startDate": "2026-06-08T20:37:45.843363+00:00",
-        "daysElapsed": 10,
+        "daysElapsed": 11,
         "daysRequired": 30,
         "rollingSharpe": 0.0,
         "targetSharpe": 1.0,
@@ -824,7 +859,7 @@
         "sharpe": 0.0,
         "maxDrawdownPct": 0.0,
         "dayPnlPct": 0.0,
-        "sessions": 10
+        "sessions": 11
       }
     },
     {
@@ -893,6 +928,11 @@
           "t": "2026-06-18T21:52:01.414238+00:00",
           "equity": 99658.339905,
           "drawdownPct": 0.003416600949999993
+        },
+        {
+          "t": "2026-06-19T20:57:11.179379+00:00",
+          "equity": 99658.339905,
+          "drawdownPct": 0.003416600949999993
         }
       ],
       "positions": [
@@ -935,18 +975,18 @@
       ],
       "paperGate": {
         "startDate": "2026-06-08T20:37:44.755588+00:00",
-        "daysElapsed": 10,
+        "daysElapsed": 11,
         "daysRequired": 30,
-        "rollingSharpe": -1.4878603128634413,
+        "rollingSharpe": -1.4108886575081239,
         "targetSharpe": 1.0,
         "withinBacktestBand": false
       },
       "summary": {
         "totalReturnPct": -0.0034166009499999594,
-        "sharpe": -1.4878603128634413,
+        "sharpe": -1.4108886575081239,
         "maxDrawdownPct": 0.010727782750000043,
         "dayPnlPct": -0.00341660095,
-        "sessions": 10
+        "sessions": 11
       }
     }
   ]
