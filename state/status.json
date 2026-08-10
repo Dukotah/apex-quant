@@ -1,17 +1,17 @@
 {
-  "generatedAt": "2026-08-07T20:23:27.773880+00:00",
+  "generatedAt": "2026-08-10T20:24:52.002790+00:00",
   "mode": "paper",
   "halted": false,
   "haltReason": null,
   "account": {
-    "equity": 100819.255,
+    "equity": 101062.22,
     "cash": 58589.78,
     "buyingPower": 58589.78,
-    "peakEquity": 100819.255,
+    "peakEquity": 101062.22,
     "currentDrawdownPct": 0.0,
     "dailyStartEquity": 100000.0,
-    "dayPnl": 819.255,
-    "dayPnlPct": 0.00819255
+    "dayPnl": 1062.22,
+    "dayPnlPct": 0.0106222
   },
   "equityCurve": [
     {
@@ -263,6 +263,11 @@
       "t": "2026-08-07T20:23:20.503027+00:00",
       "equity": 100819.255,
       "drawdownPct": 0.0
+    },
+    {
+      "t": "2026-08-10T20:24:45.488589+00:00",
+      "equity": 101062.22,
+      "drawdownPct": 0.0
     }
   ],
   "positions": [
@@ -271,11 +276,11 @@
       "assetClass": "etf",
       "quantity": 306.0,
       "avgPrice": 26.42,
-      "lastPrice": 27.63,
-      "marketValue": 8454.78,
-      "unrealizedPnl": 370.26,
-      "unrealizedPnlPct": 0.04579863739591219,
-      "weightPct": 0.08386076647759398,
+      "lastPrice": 27.82,
+      "marketValue": 8512.92,
+      "unrealizedPnl": 428.4,
+      "unrealizedPnlPct": 0.05299015897047691,
+      "weightPct": 0.08423444487959991,
       "strategyId": "multi_asset_trend"
     },
     {
@@ -283,11 +288,11 @@
       "assetClass": "etf",
       "quantity": 132.0,
       "avgPrice": 29.27,
-      "lastPrice": 28.92,
-      "marketValue": 3817.44,
-      "unrealizedPnl": -46.2,
-      "unrealizedPnlPct": -0.011957635804578067,
-      "weightPct": 0.037864195683651895,
+      "lastPrice": 29.925,
+      "marketValue": 3950.1,
+      "unrealizedPnl": 86.46,
+      "unrealizedPnlPct": 0.022377861291424668,
+      "weightPct": 0.03908582257543917,
       "strategyId": "multi_asset_trend"
     },
     {
@@ -295,11 +300,11 @@
       "assetClass": "etf",
       "quantity": 42.0,
       "avgPrice": 102.96,
-      "lastPrice": 108.55,
-      "marketValue": 4559.1,
-      "unrealizedPnl": 234.78,
-      "unrealizedPnlPct": 0.054292929292929296,
-      "weightPct": 0.04522052855875596,
+      "lastPrice": 108.02,
+      "marketValue": 4536.84,
+      "unrealizedPnl": 212.52,
+      "unrealizedPnlPct": 0.049145299145299144,
+      "weightPct": 0.04489155294629388,
       "strategyId": "multi_asset_trend"
     },
     {
@@ -307,11 +312,11 @@
       "assetClass": "etf",
       "quantity": 8.0,
       "avgPrice": 398.5,
-      "lastPrice": 398.47,
-      "marketValue": 3187.76,
-      "unrealizedPnl": -0.24,
-      "unrealizedPnlPct": -7.52823086574655e-05,
-      "weightPct": 0.03161856333891775,
+      "lastPrice": 402.56,
+      "marketValue": 3220.48,
+      "unrealizedPnl": 32.48,
+      "unrealizedPnlPct": 0.010188205771643664,
+      "weightPct": 0.03186630968526122,
       "strategyId": "multi_asset_trend"
     },
     {
@@ -319,11 +324,11 @@
       "assetClass": "etf",
       "quantity": 8.0,
       "avgPrice": 743.79,
-      "lastPrice": 773.16,
-      "marketValue": 6185.28,
-      "unrealizedPnl": 234.96,
-      "unrealizedPnlPct": 0.039486951962247406,
-      "weightPct": 0.06135018553747496,
+      "lastPrice": 773.02,
+      "marketValue": 6184.16,
+      "unrealizedPnl": 233.84,
+      "unrealizedPnlPct": 0.039298726791164175,
+      "weightPct": 0.06119161047521022,
       "strategyId": "multi_asset_trend"
     },
     {
@@ -331,11 +336,11 @@
       "assetClass": "etf",
       "quantity": 571.0,
       "avgPrice": 28.02,
-      "lastPrice": 28.065,
-      "marketValue": 16025.115,
-      "unrealizedPnl": 25.695,
-      "unrealizedPnlPct": 0.0016059957173447537,
-      "weightPct": 0.1589489527570899,
+      "lastPrice": 28.14,
+      "marketValue": 16067.94,
+      "unrealizedPnl": 68.52,
+      "unrealizedPnlPct": 0.004282655246252677,
+      "weightPct": 0.158990570363485,
       "strategyId": "multi_asset_trend"
     }
   ],
@@ -351,9 +356,9 @@
   ],
   "paperGate": {
     "startDate": "2026-06-04T23:39:01.443559+00:00",
-    "daysElapsed": 50,
+    "daysElapsed": 51,
     "daysRequired": 30,
-    "rollingSharpe": 1.9933437145015163,
+    "rollingSharpe": 2.483710965176755,
     "targetSharpe": 1.0,
     "withinBacktestBand": true
   },
@@ -367,14 +372,14 @@
       "status": "paper",
       "halted": false,
       "account": {
-        "equity": 100819.255,
+        "equity": 101062.22,
         "cash": 58589.78,
         "buyingPower": 58589.78,
-        "peakEquity": 100819.255,
+        "peakEquity": 101062.22,
         "currentDrawdownPct": 0.0,
         "dailyStartEquity": 100000.0,
-        "dayPnl": 819.255,
-        "dayPnlPct": 0.00819255
+        "dayPnl": 1062.22,
+        "dayPnlPct": 0.0106222
       },
       "equityCurve": [
         {
@@ -626,6 +631,11 @@
           "t": "2026-08-07T20:23:20.503027+00:00",
           "equity": 100819.255,
           "drawdownPct": 0.0
+        },
+        {
+          "t": "2026-08-10T20:24:45.488589+00:00",
+          "equity": 101062.22,
+          "drawdownPct": 0.0
         }
       ],
       "positions": [
@@ -634,11 +644,11 @@
           "assetClass": "etf",
           "quantity": 306.0,
           "avgPrice": 26.42,
-          "lastPrice": 27.63,
-          "marketValue": 8454.78,
-          "unrealizedPnl": 370.26,
-          "unrealizedPnlPct": 0.04579863739591219,
-          "weightPct": 0.08386076647759398,
+          "lastPrice": 27.82,
+          "marketValue": 8512.92,
+          "unrealizedPnl": 428.4,
+          "unrealizedPnlPct": 0.05299015897047691,
+          "weightPct": 0.08423444487959991,
           "strategyId": "multi_asset_trend"
         },
         {
@@ -646,11 +656,11 @@
           "assetClass": "etf",
           "quantity": 132.0,
           "avgPrice": 29.27,
-          "lastPrice": 28.92,
-          "marketValue": 3817.44,
-          "unrealizedPnl": -46.2,
-          "unrealizedPnlPct": -0.011957635804578067,
-          "weightPct": 0.037864195683651895,
+          "lastPrice": 29.925,
+          "marketValue": 3950.1,
+          "unrealizedPnl": 86.46,
+          "unrealizedPnlPct": 0.022377861291424668,
+          "weightPct": 0.03908582257543917,
           "strategyId": "multi_asset_trend"
         },
         {
@@ -658,11 +668,11 @@
           "assetClass": "etf",
           "quantity": 42.0,
           "avgPrice": 102.96,
-          "lastPrice": 108.55,
-          "marketValue": 4559.1,
-          "unrealizedPnl": 234.78,
-          "unrealizedPnlPct": 0.054292929292929296,
-          "weightPct": 0.04522052855875596,
+          "lastPrice": 108.02,
+          "marketValue": 4536.84,
+          "unrealizedPnl": 212.52,
+          "unrealizedPnlPct": 0.049145299145299144,
+          "weightPct": 0.04489155294629388,
           "strategyId": "multi_asset_trend"
         },
         {
@@ -670,11 +680,11 @@
           "assetClass": "etf",
           "quantity": 8.0,
           "avgPrice": 398.5,
-          "lastPrice": 398.47,
-          "marketValue": 3187.76,
-          "unrealizedPnl": -0.24,
-          "unrealizedPnlPct": -7.52823086574655e-05,
-          "weightPct": 0.03161856333891775,
+          "lastPrice": 402.56,
+          "marketValue": 3220.48,
+          "unrealizedPnl": 32.48,
+          "unrealizedPnlPct": 0.010188205771643664,
+          "weightPct": 0.03186630968526122,
           "strategyId": "multi_asset_trend"
         },
         {
@@ -682,11 +692,11 @@
           "assetClass": "etf",
           "quantity": 8.0,
           "avgPrice": 743.79,
-          "lastPrice": 773.16,
-          "marketValue": 6185.28,
-          "unrealizedPnl": 234.96,
-          "unrealizedPnlPct": 0.039486951962247406,
-          "weightPct": 0.06135018553747496,
+          "lastPrice": 773.02,
+          "marketValue": 6184.16,
+          "unrealizedPnl": 233.84,
+          "unrealizedPnlPct": 0.039298726791164175,
+          "weightPct": 0.06119161047521022,
           "strategyId": "multi_asset_trend"
         },
         {
@@ -694,28 +704,28 @@
           "assetClass": "etf",
           "quantity": 571.0,
           "avgPrice": 28.02,
-          "lastPrice": 28.065,
-          "marketValue": 16025.115,
-          "unrealizedPnl": 25.695,
-          "unrealizedPnlPct": 0.0016059957173447537,
-          "weightPct": 0.1589489527570899,
+          "lastPrice": 28.14,
+          "marketValue": 16067.94,
+          "unrealizedPnl": 68.52,
+          "unrealizedPnlPct": 0.004282655246252677,
+          "weightPct": 0.158990570363485,
           "strategyId": "multi_asset_trend"
         }
       ],
       "paperGate": {
         "startDate": "2026-06-04T23:39:01.443559+00:00",
-        "daysElapsed": 50,
+        "daysElapsed": 51,
         "daysRequired": 30,
-        "rollingSharpe": 1.9933437145015163,
+        "rollingSharpe": 2.483710965176755,
         "targetSharpe": 1.0,
         "withinBacktestBand": true
       },
       "summary": {
-        "totalReturnPct": 0.008192549999999965,
-        "sharpe": 1.9933437145015163,
+        "totalReturnPct": 0.010622200000000026,
+        "sharpe": 2.483710965176755,
         "maxDrawdownPct": 0.005386434877873963,
-        "dayPnlPct": 0.00819255,
-        "sessions": 50
+        "dayPnlPct": 0.0106222,
+        "sessions": 51
       }
     },
     {
@@ -725,14 +735,14 @@
       "status": "quarantined",
       "halted": false,
       "account": {
-        "equity": 101096.254905,
+        "equity": 101379.309905,
         "cash": 63383.324905,
         "buyingPower": 63383.324905,
-        "peakEquity": 101096.254905,
+        "peakEquity": 101379.309905,
         "currentDrawdownPct": 0.0,
         "dailyStartEquity": 100000.0,
-        "dayPnl": 1096.254905,
-        "dayPnlPct": 0.01096254905
+        "dayPnl": 1379.309905,
+        "dayPnlPct": 0.01379309905
       },
       "equityCurve": [
         {
@@ -964,6 +974,11 @@
           "t": "2026-08-07T20:23:26.676790+00:00",
           "equity": 101096.254905,
           "drawdownPct": 0.0
+        },
+        {
+          "t": "2026-08-10T20:24:51.137235+00:00",
+          "equity": 101379.309905,
+          "drawdownPct": 0.0
         }
       ],
       "positions": [
@@ -972,11 +987,11 @@
           "assetClass": "etf",
           "quantity": 341.0,
           "avgPrice": 29.48946,
-          "lastPrice": 28.92,
-          "marketValue": 9861.72,
-          "unrealizedPnl": -194.18586,
-          "unrealizedPnlPct": -0.019310628271931734,
-          "weightPct": 0.09754782716003717,
+          "lastPrice": 29.925,
+          "marketValue": 10204.425,
+          "unrealizedPnl": 148.51914,
+          "unrealizedPnlPct": 0.014769344708244913,
+          "weightPct": 0.10065589329383194,
           "strategyId": "multi_asset_trend"
         },
         {
@@ -984,11 +999,11 @@
           "assetClass": "etf",
           "quantity": 107.0,
           "avgPrice": 103.0029,
-          "lastPrice": 108.55,
-          "marketValue": 11614.85,
-          "unrealizedPnl": 593.5397,
-          "unrealizedPnlPct": 0.053853823533123825,
-          "weightPct": 0.11488902344517567,
+          "lastPrice": 108.02,
+          "marketValue": 11558.14,
+          "unrealizedPnl": 536.8297,
+          "unrealizedPnlPct": 0.04870833733807495,
+          "weightPct": 0.11400886444019832,
           "strategyId": "multi_asset_trend"
         },
         {
@@ -996,28 +1011,28 @@
           "assetClass": "etf",
           "quantity": 21.0,
           "avgPrice": 739.974235,
-          "lastPrice": 773.16,
-          "marketValue": 16236.36,
-          "unrealizedPnl": 696.901065,
-          "unrealizedPnlPct": 0.04484718984844114,
-          "weightPct": 0.16060298193298342,
+          "lastPrice": 773.02,
+          "marketValue": 16233.42,
+          "unrealizedPnl": 693.961065,
+          "unrealizedPnlPct": 0.04465799407191522,
+          "weightPct": 0.16012557212326586,
           "strategyId": "multi_asset_trend"
         }
       ],
       "paperGate": {
         "startDate": "2026-06-08T20:37:46.330142+00:00",
-        "daysElapsed": 46,
+        "daysElapsed": 47,
         "daysRequired": 30,
-        "rollingSharpe": 1.6755241903111824,
+        "rollingSharpe": 2.051220813282401,
         "targetSharpe": 1.0,
         "withinBacktestBand": true
       },
       "summary": {
-        "totalReturnPct": 0.010962549050000048,
-        "sharpe": 1.6755241903111824,
+        "totalReturnPct": 0.013793099049999924,
+        "sharpe": 2.051220813282401,
         "maxDrawdownPct": 0.012654000950000046,
-        "dayPnlPct": 0.01096254905,
-        "sessions": 46
+        "dayPnlPct": 0.01379309905,
+        "sessions": 47
       }
     },
     {
@@ -1266,12 +1281,17 @@
           "t": "2026-08-07T20:23:24.811988+00:00",
           "equity": 100000.0,
           "drawdownPct": 0.0
+        },
+        {
+          "t": "2026-08-10T20:24:50.057501+00:00",
+          "equity": 100000.0,
+          "drawdownPct": 0.0
         }
       ],
       "positions": [],
       "paperGate": {
         "startDate": "2026-06-08T20:37:45.716237+00:00",
-        "daysElapsed": 46,
+        "daysElapsed": 47,
         "daysRequired": 30,
         "rollingSharpe": 0.0,
         "targetSharpe": 1.0,
@@ -1282,7 +1302,7 @@
         "sharpe": 0.0,
         "maxDrawdownPct": 0.0,
         "dayPnlPct": 0.0,
-        "sessions": 46
+        "sessions": 47
       }
     },
     {
@@ -1531,12 +1551,17 @@
           "t": "2026-08-07T20:23:25.591955+00:00",
           "equity": 100000.0,
           "drawdownPct": 0.0
+        },
+        {
+          "t": "2026-08-10T20:24:50.677674+00:00",
+          "equity": 100000.0,
+          "drawdownPct": 0.0
         }
       ],
       "positions": [],
       "paperGate": {
         "startDate": "2026-06-08T20:37:45.934700+00:00",
-        "daysElapsed": 46,
+        "daysElapsed": 47,
         "daysRequired": 30,
         "rollingSharpe": 0.0,
         "targetSharpe": 1.0,
@@ -1547,7 +1572,7 @@
         "sharpe": 0.0,
         "maxDrawdownPct": 0.0,
         "dayPnlPct": 0.0,
-        "sessions": 46
+        "sessions": 47
       }
     },
     {
@@ -1796,23 +1821,28 @@
           "t": "2026-08-07T20:23:26.294533+00:00",
           "equity": 100000.0,
           "drawdownPct": 0.00340191606222678
+        },
+        {
+          "t": "2026-08-10T20:24:50.978284+00:00",
+          "equity": 100000.0,
+          "drawdownPct": 0.00340191606222678
         }
       ],
       "positions": [],
       "paperGate": {
         "startDate": "2026-06-08T20:37:46.224733+00:00",
-        "daysElapsed": 46,
+        "daysElapsed": 47,
         "daysRequired": 30,
-        "rollingSharpe": 0.005918561000627043,
+        "rollingSharpe": 0.005853875322778168,
         "targetSharpe": 1.0,
         "withinBacktestBand": false
       },
       "summary": {
         "totalReturnPct": 0.0,
-        "sharpe": 0.005918561000627043,
+        "sharpe": 0.005853875322778168,
         "maxDrawdownPct": 0.00340191606222678,
         "dayPnlPct": 0.0,
-        "sessions": 46
+        "sessions": 47
       }
     },
     {
@@ -2061,12 +2091,17 @@
           "t": "2026-08-07T20:23:25.244576+00:00",
           "equity": 100000.0,
           "drawdownPct": 0.0
+        },
+        {
+          "t": "2026-08-10T20:24:50.523187+00:00",
+          "equity": 100000.0,
+          "drawdownPct": 0.0
         }
       ],
       "positions": [],
       "paperGate": {
         "startDate": "2026-06-08T20:37:45.843363+00:00",
-        "daysElapsed": 46,
+        "daysElapsed": 47,
         "daysRequired": 30,
         "rollingSharpe": 0.0,
         "targetSharpe": 1.0,
@@ -2077,7 +2112,7 @@
         "sharpe": 0.0,
         "maxDrawdownPct": 0.0,
         "dayPnlPct": 0.0,
-        "sessions": 46
+        "sessions": 47
       }
     },
     {
@@ -2087,14 +2122,14 @@
       "status": "quarantined",
       "halted": false,
       "account": {
-        "equity": 101096.254905,
+        "equity": 101379.309905,
         "cash": 63383.324905,
         "buyingPower": 63383.324905,
-        "peakEquity": 101096.254905,
+        "peakEquity": 101379.309905,
         "currentDrawdownPct": 0.0,
         "dailyStartEquity": 100000.0,
-        "dayPnl": 1096.254905,
-        "dayPnlPct": 0.01096254905
+        "dayPnl": 1379.309905,
+        "dayPnlPct": 0.01379309905
       },
       "equityCurve": [
         {
@@ -2326,6 +2361,11 @@
           "t": "2026-08-07T20:23:22.946392+00:00",
           "equity": 101096.254905,
           "drawdownPct": 0.0
+        },
+        {
+          "t": "2026-08-10T20:24:48.905937+00:00",
+          "equity": 101379.309905,
+          "drawdownPct": 0.0
         }
       ],
       "positions": [
@@ -2334,11 +2374,11 @@
           "assetClass": "etf",
           "quantity": 341.0,
           "avgPrice": 29.48946,
-          "lastPrice": 28.92,
-          "marketValue": 9861.72,
-          "unrealizedPnl": -194.18586,
-          "unrealizedPnlPct": -0.019310628271931734,
-          "weightPct": 0.09754782716003717,
+          "lastPrice": 29.925,
+          "marketValue": 10204.425,
+          "unrealizedPnl": 148.51914,
+          "unrealizedPnlPct": 0.014769344708244913,
+          "weightPct": 0.10065589329383194,
           "strategyId": "multi_asset_trend"
         },
         {
@@ -2346,11 +2386,11 @@
           "assetClass": "etf",
           "quantity": 107.0,
           "avgPrice": 103.0029,
-          "lastPrice": 108.55,
-          "marketValue": 11614.85,
-          "unrealizedPnl": 593.5397,
-          "unrealizedPnlPct": 0.053853823533123825,
-          "weightPct": 0.11488902344517567,
+          "lastPrice": 108.02,
+          "marketValue": 11558.14,
+          "unrealizedPnl": 536.8297,
+          "unrealizedPnlPct": 0.04870833733807495,
+          "weightPct": 0.11400886444019832,
           "strategyId": "multi_asset_trend"
         },
         {
@@ -2358,28 +2398,28 @@
           "assetClass": "etf",
           "quantity": 21.0,
           "avgPrice": 739.974235,
-          "lastPrice": 773.16,
-          "marketValue": 16236.36,
-          "unrealizedPnl": 696.901065,
-          "unrealizedPnlPct": 0.04484718984844114,
-          "weightPct": 0.16060298193298342,
+          "lastPrice": 773.02,
+          "marketValue": 16233.42,
+          "unrealizedPnl": 693.961065,
+          "unrealizedPnlPct": 0.04465799407191522,
+          "weightPct": 0.16012557212326586,
           "strategyId": "multi_asset_trend"
         }
       ],
       "paperGate": {
         "startDate": "2026-06-08T20:37:44.755588+00:00",
-        "daysElapsed": 46,
+        "daysElapsed": 47,
         "daysRequired": 30,
-        "rollingSharpe": 1.4430596203467267,
+        "rollingSharpe": 1.7712480528752306,
         "targetSharpe": 1.0,
         "withinBacktestBand": true
       },
       "summary": {
-        "totalReturnPct": 0.010962549050000048,
-        "sharpe": 1.4430596203467267,
+        "totalReturnPct": 0.013793099049999924,
+        "sharpe": 1.7712480528752306,
         "maxDrawdownPct": 0.012654000950000046,
-        "dayPnlPct": 0.01096254905,
-        "sessions": 46
+        "dayPnlPct": 0.01379309905,
+        "sessions": 47
       }
     }
   ]
