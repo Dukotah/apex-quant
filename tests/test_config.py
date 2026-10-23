@@ -47,12 +47,14 @@ def test_execution_mode_is_str():
 def test_broker_values():
     assert Broker.SIMULATED.value == "simulated"
     assert Broker.ALPACA.value == "alpaca"
+    assert Broker.ALPACA_CRYPTO.value == "alpaca_crypto"
     assert Broker.IBKR.value == "ibkr"
 
 
 def test_broker_from_string():
     assert Broker("simulated") is Broker.SIMULATED
     assert Broker("alpaca") is Broker.ALPACA
+    assert Broker("alpaca_crypto") is Broker.ALPACA_CRYPTO
     assert Broker("ibkr") is Broker.IBKR
 
 
@@ -176,6 +178,49 @@ def test_from_env_live_real_broker_ok(monkeypatch):
     cfg = AppConfig.from_env()
     assert cfg.mode is ExecutionMode.LIVE
     assert cfg.broker is Broker.ALPACA
+
+
+def test_from_env_live_crypto_broker_ok(monkeypatch):
+    """LIVE mode + Alpaca crypto venue is a valid (non-simulated) live combination."""
+    _clean_env(monkeypatch)
+    monkeypatch.setenv("APEX_MODE", "live")
+    monkeypatch.setenv("APEX_BROKER", "alpaca_crypto")
+    cfg = AppConfig.from_env()
+    assert cfg.mode is ExecutionMode.LIVE
+    assert cfg.broker is Broker.ALPACA_CRYPTO
+
+
+def test_from_env_invalid_mode_raises(monkeypatch):
+    """An unknown APEX_MODE value must raise (enum construction fails closed)."""
+    _clean_env(monkeypatch)
+    monkeypatch.setenv("APEX_MODE", "turbo")
+    with pytest.raises(ValueError):
+        AppConfig.from_env()
+
+
+def test_from_env_invalid_broker_raises(monkeypatch):
+    """An unknown APEX_BROKER value must raise (enum construction fails closed)."""
+    _clean_env(monkeypatch)
+    monkeypatch.setenv("APEX_BROKER", "robinhood")
+    with pytest.raises(ValueError):
+        AppConfig.from_env()
+
+
+def test_from_env_capital_is_decimal_not_float(monkeypatch):
+    """
+    Capital must be parsed as Decimal (Golden Rule 14: Decimal for money) so a
+    value like 100000.10 is exact, not a binary-float approximation.
+    """
+    _clean_env(monkeypatch)
+    monkeypatch.setenv("APEX_CAPITAL", "100000.10")
+    cfg = AppConfig.from_env()
+    assert cfg.initial_capital == Decimal("100000.10")
+    assert isinstance(cfg.initial_capital, Decimal)
+
+
+def test_appconfig_allocation_defaults_none():
+    """The live capital allocator is OFF by default (None = full-book sizing)."""
+    assert AppConfig().allocation is None
 
 
 def test_from_env_ibkr_broker(monkeypatch):
