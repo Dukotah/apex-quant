@@ -309,6 +309,54 @@ def validate_multiasset_smart7():
     )
 
 
+def validate_ts_momentum():
+    """
+    BACKLOG F1 — TimeSeriesMomentumBlend on the smart-7 universe. Same universe,
+    risk, benchmark, and monthly cadence as validate_value, so its OOS Sharpe AND
+    its correlation to the deployed trend sleeve (scripts/portfolio) are
+    apples-to-apples. Long-only, multi-lookback (21/63/126/252) blended momentum.
+
+    This is a MOMENTUM (trend-family) edge, so it is highly likely to be
+    correlated to the deployed inverse-vol trend — the honest expectation is that
+    it FAILS the "second uncorrelated edge" bar even if the Gauntlet grades it
+    tradeable. We run it to MEASURE that, not to hope otherwise (BACKLOG F8/F17).
+
+    The param sweep perturbs the whole lookback set ±~20% to check the edge is not
+    a knife-edge on horizon choice. Built via the F1 registry (build_strategy) to
+    dogfood it. rebalance_period_bars=21: momentum is genuinely low-frequency, so
+    Gate 1's trade-count minimum is made regime-aware (fair, not lenient-rigged).
+    """
+    from apex.strategy.library import build_strategy
+
+    assets = ["SPY", "EFA", "TLT", "GLD", "DBC", "UUP", "DBA"]
+    syms = [Symbol(t, AssetClass.ETF) for t in assets]
+    risk = RiskConfig(
+        max_position_size_pct=Decimal("0.16"),  # up to 7 sleeves → full deployment
+        max_total_exposure_pct=Decimal("1.0"),
+        max_leverage=Decimal("1.0"),
+        max_drawdown_pct=Decimal("0.99"),
+        max_daily_loss_pct=Decimal("0.99"),
+        require_stop_loss=True,
+    )
+
+    def make(lookbacks):
+        return lambda: build_strategy("ts_momentum_blend", syms, lookbacks=lookbacks)
+
+    return run_gauntlet_from_csv(
+        "ts_momentum_blend_REAL",
+        make([21, 63, 126, 252]),
+        "data/real/multiasset_smart7.csv",
+        syms,
+        benchmark_ticker="SPY",
+        risk_config=risk,
+        param_variants=[
+            ("lookbacks-20%", make([17, 50, 101, 202])),
+            ("lookbacks+20%", make([25, 76, 151, 302])),
+        ],
+        rebalance_period_bars=21,
+    )
+
+
 def validate_value():
     """
     Cross-asset VALUE (long-horizon reversal) on the smart-7 universe — the second-edge
@@ -660,7 +708,9 @@ def main() -> None:
     which = sys.argv[1] if len(sys.argv) > 1 else "dual_momentum"
     if len(sys.argv) > 2:  # optional data-file override
         DATA = SECTORS = sys.argv[2]
-    if which in ("vm_singlenames", "vmsn", "valmom_sn"):
+    if which in ("ts_momentum", "tsmom", "tsm", "tsmomentum"):
+        report, inputs = validate_ts_momentum()
+    elif which in ("vm_singlenames", "vmsn", "valmom_sn"):
         report, inputs = validate_value_momentum_singlenames()
     elif which in ("value_singlenames", "valsn", "vsn"):
         report, inputs = validate_value_singlenames()
