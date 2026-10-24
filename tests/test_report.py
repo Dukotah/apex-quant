@@ -5,11 +5,30 @@ Tests for scripts.report — the paper-gate monitor (read-only over the state DB
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 
-from scripts.report import GATE_DAYS, build_report, gate_passed, main
+from apex.core.events import FillEvent
+from apex.core.models import AssetClass, OrderSide, Symbol
+from scripts.report import (
+    GATE_DAYS,
+    build_report,
+    build_sleeve_section,
+    gate_passed,
+    main,
+)
 from scripts.run_once import RunReport, StateStore
 
 UTC = timezone.utc
+
+
+def _fill(ticker, side, qty, price):
+    return FillEvent(
+        symbol=Symbol(ticker, AssetClass.ETF),
+        side=side,
+        quantity=Decimal(str(qty)),
+        fill_price=Decimal(str(price)),
+        timestamp=datetime(2024, 1, 1, tzinfo=UTC),
+    )
 
 
 def _seed(store, equities, orders=0, mode="paper"):
@@ -72,6 +91,55 @@ def test_report_counts_activity_and_drawdown(tmp_path):
     out = build_report(store, "paper")
     assert "max drawdown" in out
     assert "9 orders" in out  # 3 orders x 3 cycles
+
+
+# ============================================================ per-sleeve attribution
+
+
+class TestSleeveSection:
+    def test_empty_fills_documents_gap(self):
+        out = build_sleeve_section([], Decimal("100000"))
+        assert "PER-SLEEVE ATTRIBUTION" in out
+        assert "no fill history available" in out
+
+    def test_open_only_renders_zero_trade_row(self):
+        # An open position with no exit -> the sleeve still appears, with 0 trades.
+        fills = [_fill("SPY", OrderSide.BUY, 10, 100)]
+        out = build_sleeve_section(fills, Decimal("100000"))
+        assert "SPY" in out
+        assert "0.00" in out  # zero realized P&L for the open-only sleeve
+
+    def test_winning_and_losing_sleeves_render(self):
+        fills = [
+            _fill("SPY", OrderSide.BUY, 10, 100),
+            _fill("SPY", OrderSide.SELL, 10, 110),  # +100
+            _fill("TLT", OrderSide.BUY, 10, 100),
+            _fill("TLT", OrderSide.SELL, 10, 90),  # -100
+        ]
+        out = build_sleeve_section(fills, Decimal("100000"))
+        assert "SPY" in out and "TLT" in out
+        assert "100.00" in out  # SPY realized +100
+        assert "-100.00" in out  # TLT realized -100
+        # Worst sleeve first: TLT must appear before SPY.
+        assert out.index("TLT") < out.index("SPY")
+
+    def test_report_includes_sleeve_section(self, tmp_path):
+        store = StateStore(tmp_path / "s.db")
+        _seed(store, [100000, 100500, 101000])
+        fills = [
+            _fill("SPY", OrderSide.BUY, 10, 100),
+            _fill("SPY", OrderSide.SELL, 10, 110),
+        ]
+        out = build_report(store, "paper", fills=fills)
+        assert "PER-SLEEVE ATTRIBUTION" in out
+        assert "SPY" in out
+
+    def test_report_without_fills_shows_gap_note(self, tmp_path):
+        store = StateStore(tmp_path / "s.db")
+        _seed(store, [100000, 100500, 101000])
+        out = build_report(store, "paper")
+        assert "PER-SLEEVE ATTRIBUTION" in out
+        assert "no fill history available" in out
 
 
 # ============================================================ gate_passed

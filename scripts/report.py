@@ -17,7 +17,11 @@ Pure read-only; never touches the broker.
 from __future__ import annotations
 
 import sys
+from decimal import Decimal
+from typing import Sequence
 
+from apex.analytics.sleeve_attribution import SleeveAttribution, attribute_fills
+from apex.core.events import FillEvent
 from apex.validation import metrics
 from apex.validation.drift_monitor import DriftMonitor
 from scripts.run_once import DEPLOYED_VALIDATED_SHARPE, StateStore
@@ -71,8 +75,55 @@ def gate_passed(
     return True
 
 
+def build_sleeve_section(
+    fills: Sequence[FillEvent],
+    capital_base: Decimal,
+) -> str:
+    """
+    Render the per-sleeve (per-symbol) P&L attribution block (NEXT-4).
+
+    A 7-sleeve book reports one aggregate equity curve, which can hide a single
+    failing sleeve behind the others. This breaks the realized result down per
+    symbol via ``apex.analytics.sleeve_attribution`` (FIFO round-trip matching),
+    so a dead or bleeding sleeve shows up on its own line.
+
+    ``fills`` is the book's chronological fill history (oldest-first) and
+    ``capital_base`` is the equity the contributions are expressed against. When
+    no fill history is available — the common case today; see the DATA GAP note
+    in :func:`build_report` — this returns a single explanatory line rather than
+    inventing trades, so the section is honest about what it can and cannot show.
+
+    Returns the rendered block as a string (no trailing newline); never raises.
+    """
+    header = ["-" * 56, "  PER-SLEEVE ATTRIBUTION (realized, FIFO round-trips)"]
+    if not fills:
+        return "\n".join(
+            header + ["  (no fill history available — see DATA GAP note; nothing to attribute)"]
+        )
+
+    attribution = attribute_fills(fills, capital_base=capital_base)
+
+    # Worst-contributing sleeve first — that's the one most likely to be failing.
+    rows: list[tuple[str, SleeveAttribution]] = sorted(
+        attribution.items(), key=lambda kv: kv[1].realized_pnl
+    )
+    lines = list(header)
+    lines.append(f"  {'sleeve':<8}{'realized':>13}{'trades':>8}{'win%':>8}{'contrib':>10}")
+    for ticker, a in rows:
+        win_pct = float(a.win_rate) * 100.0
+        contrib = float(a.return_contribution) * 100.0
+        lines.append(
+            f"  {ticker:<8}${float(a.realized_pnl):>11,.2f}{a.trade_count:>8}"
+            f"{win_pct:>7.0f}%{contrib:>+9.2f}%"
+        )
+    return "\n".join(lines)
+
+
 def build_report(
-    store: StateStore, mode: str = "paper", validated_sharpe: float = DEPLOYED_VALIDATED_SHARPE
+    store: StateStore,
+    mode: str = "paper",
+    validated_sharpe: float = DEPLOYED_VALIDATED_SHARPE,
+    fills: Sequence[FillEvent] | None = None,
 ) -> str:
     rows = store.history(mode)
     if not rows:
@@ -92,7 +143,7 @@ def build_report(
 
     n = len(rows)
     orders = sum(int(r["orders"]) for r in rows)
-    fills = sum(int(r["fills"]) for r in rows)
+    fill_count = sum(int(r["fills"]) for r in rows)
     halted = sum(1 for r in rows if int(r["halted"]))
     first, last = rows[0]["ts"][:10], rows[-1]["ts"][:10]
     gate_frac = min(1.0, n / GATE_DAYS)
@@ -107,12 +158,23 @@ def build_report(
         f"  equity      ${equities[-1]:>12,.2f}   (start ${equities[0]:,.0f})",
         f"  total return {total_ret:>+11.2%}   max drawdown {mdd:>7.1%}",
         f"  full Sharpe  {full_sharpe:>+11.2f}   (validated {validated_sharpe:.2f}, floor {floor:.2f})",
-        f"  activity     {orders:>6} orders   {fills} fills   {halted} halted cycle(s)",
+        f"  activity     {orders:>6} orders   {fill_count} fills   {halted} halted cycle(s)",
         "-" * 56,
         f"  30-day gate  {_bar(gate_frac)}  {n}/{GATE_DAYS} days",
     ]
     if reading is not None:
         lines.append(f"  drift        {reading.summary()}")
+
+    # NEXT-4 per-sleeve attribution. DATA GAP: the StateStore audit trail persists
+    # only a fill COUNT and an end-of-cycle positions snapshot (qty / avg_entry /
+    # current_price) per run — NOT the individual FillEvents — so report.py cannot
+    # reconstruct round-trip trades from the DB alone. The attribution section is
+    # therefore wired to accept an explicit ``fills`` history (oldest-first) from a
+    # caller that has it (e.g. a backtest run or a future fills-persisting store);
+    # when none is supplied it prints an honest "no fill history" line rather than
+    # fabricating trades. Persisting full fills is an integrator follow-up.
+    lines.append(build_sleeve_section(fills or [], Decimal(str(equities[0]))))
+
     verdict = (
         "✅ GATE PASSED — eligible for the live checklist"
         if gate_met

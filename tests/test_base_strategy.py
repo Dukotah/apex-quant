@@ -266,6 +266,34 @@ class TestHandleMarketEvent:
         signals = strat.handle_market_event(event)
         assert signals == []
 
+    def test_bar_takes_precedence_when_both_present(self):
+        """
+        handle_market_event checks `bar` first, so if a (hypothetical) event
+        carried both a bar and a tick the bar hook wins. A _TickStrategy returns
+        [] on bars and a signal on ticks; with a bar present we must get [].
+        """
+        from apex.core.events import EventType
+
+        evt = object.__new__(MarketEvent)
+        object.__setattr__(evt, "bar", _bar())
+        object.__setattr__(evt, "tick", _tick())
+        object.__setattr__(evt, "type", EventType.MARKET)
+        object.__setattr__(evt, "event_id", "both-id")
+
+        strat = _TickStrategy("s1", [SYM])
+        signals = strat.handle_market_event(evt)
+        # Bar path taken → _TickStrategy.on_bar returns [], tick path NOT reached.
+        assert signals == []
+
+    def test_tick_override_receives_correct_payload(self):
+        """An on_tick override is invoked with the event's tick, preserving symbol."""
+        strat = _TickStrategy("s1", [SYM2])
+        event = MarketEvent(tick=_tick(symbol=SYM2, price=42.0))
+        signals = strat.handle_market_event(event)
+        assert len(signals) == 1
+        assert signals[0].symbol == SYM2
+        assert signals[0].reason == "tick-test"
+
     def test_default_on_tick_returns_empty_list_via_handle(self):
         """Bar-only strategy handles a tick market event via default on_tick → []."""
         strat = _AlwaysBuyStrategy("s1", [SYM])

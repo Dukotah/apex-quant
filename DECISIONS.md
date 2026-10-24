@@ -6,6 +6,41 @@
 
 ---
 
+## Session 35 (2026-06-09) — Parallel swarm: per-sleeve attribution, regime report, coverage, dashboard liveness
+
+Ran a 4-agent parallel swarm (owner asked for it) on STRICTLY DISJOINT files — the proven fan-out
+pattern (Session 32's worktree-isolated agents): each agent owned its own files, no two touched the
+same file, integrated + re-gated serially by me. Crown-jewel files (RiskManager, gauntlet grading,
+run_once) deliberately kept OUT of the swarm to avoid parallel-write corruption.
+
+- **NEXT-4 (per-sleeve P&L attribution) — module landed, live wiring is a follow-up.** New
+  `apex/analytics/sleeve_attribution.py`: pure, deterministic, Decimal-money attribution — FIFO
+  round-trip matching per symbol → realized P&L / trades / win-rate / return contribution per sleeve
+  (`SleeveAttribution` frozen dataclass; `match_round_trips` + `attribute_fills`). 100% covered (17
+  tests). `scripts/report.py` gained an additive per-sleeve section (`build_report` takes an optional
+  `fills` history). **DATA GAP (logged):** `StateStore.runs` persists only a fill COUNT + an
+  end-of-cycle positions snapshot, NOT individual `FillEvent`s, so the live paper-gate report can't
+  reconstruct round-trips yet; the section prints an honest "no fill history" line until a fills table
+  exists. Closing it = LATER-5 (per-strategy/-fill persistence in StateStore) — its own session.
+- **HOR-9 (regime-segmented performance) — tool landed.** New `scripts/regime_report.py`: splits a
+  return series into vol regimes via the existing `VolatilityRegimeClassifier` (causal, no look-ahead)
+  + `regime_split_metrics`, reports per-regime Sharpe/return/maxDD/n. Surfaces a strategy that only
+  works in one vol regime as a regime bet. 100% covered (16 tests).
+- **NEXT-10 (coverage uplift).** The four thin modules (backtester/base_strategy/config/metrics) were
+  already at 100% from a prior pass; added +15 genuinely behavioral tests (hand-computed Sharpe/Sortino,
+  fail-closed config parsing, bar-over-tick precedence, etc.), not coverage-padding.
+- **Dashboard (apex-trader) — cron-liveness indicator.** Improved the topbar `AutoRefresh`: derives
+  age from `status.generatedAt`, flips the green "Live" chip to a `warn`-toned "Stale" chip + tooltip
+  past a 26h threshold (matches this engine's watchdog window) — makes the silent-cron failure mode
+  VISIBLE, complementing S34's dead-man's-switch. Hydration-safe, no new deps. e2e spec added.
+  Build verification PENDING: no Node toolchain on this machine; pushed as an apex-trader PR for
+  its own CI/Vercel to build.
+
+**Verification (apex-quant).** `make check` green: ruff + format clean; **3228 tests pass, 94.46%
+coverage**. Branch `feat/parallel-swarm`.
+
+---
+
 ## Session 34 (2026-06-08) — NEXT-7: external dead-man's-switch + the perpetual R&D roadmap
 
 **Context.** New operator session. Wrote `docs/ROADMAP-PERPETUAL.md` — the layer *above*
